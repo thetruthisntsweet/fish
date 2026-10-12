@@ -46,3 +46,13 @@ known-first-party = ["fish_rules", "fish_env", "fish_agents", "fish_server", "fi
 [tool.pytest.ini_options]
 testpaths = ["packages"]
 addopts = ["--import-mode=importlib"]
+
+# ---------------------------------------------------------------- Pyright
+[tool.pyright]
+pythonVersion = "3.14"
+include = ["packages"]
+exclude = ["**/__pycache__", "**/.venv"]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+strict = ["packages/fish-rules"]
