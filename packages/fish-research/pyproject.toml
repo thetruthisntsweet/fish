@@ -1,0 +1,14 @@
+[project]
+name = "fish-research"
+version = "0.0.0"
+requires-python = ">=3.14,<3.15"
+dependencies = ["fish-rules", "fish-env", "fish-agents"]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+fish-rules = { workspace = true }
+fish-env = { workspace = true }
+fish-agents = { workspace = true }
