@@ -1,7 +1,7 @@
 [project]
 name = "fish-agents"
 version = "0.0.0"
-requires-python = ">=3.14,<3.15"
+requires-python = ">=3.11"
 dependencies = ["fish-rules", "fish-env"]
 
 [project.optional-dependencies] 
