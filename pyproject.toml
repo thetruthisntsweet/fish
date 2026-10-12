@@ -18,7 +18,13 @@ fish-server = { workspace = true }
 fish-research = { workspace = true }
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "hypothesis>=6.169.0",
+    "pyright>=1.1.414",
+    "pytest",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.0",
+]
 
 # ---------------------------------------------------------------- Ruff
 [tool.ruff]
