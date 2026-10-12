@@ -64,3 +64,19 @@ venvPath = "."
 venv = ".venv"
 typeCheckingMode = "standard"
 strict = ["packages/fish-rules"]
+
+# ---------------------------------------------------------------- Coverage
+[tool.coverage.run]
+branch = true          # counts both sides of every if, not just lines
+source_pkgs = ["fish_rules", "fish_env", "fish_agents", "fish_server", "fish_research"]
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+fail_under = 85        # project-wide floor (§8)
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@overload",
+]
