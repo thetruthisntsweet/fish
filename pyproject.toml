@@ -20,6 +20,29 @@ fish-research = { workspace = true }
 [dependency-groups]
 dev = ["pytest"]
 
+# ---------------------------------------------------------------- Ruff
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+src = ["packages/*/src", "packages/*/tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle: style errors and warnings
+    "F",        # pyflakes: unused imports, undefined names
+    "I",        # import sorting
+    "B",        # bugbear: likely bugs
+    "UP",       # modern syntax for the pinned Python
+    "SIM",      # simplifications
+    "C4",       # comprehensions
+    "PT",       # pytest style
+    "N",        # naming conventions
+    "RUF",      # Ruff's own checks
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fish_rules", "fish_env", "fish_agents", "fish_server", "fish_research"]
+
 [tool.pytest.ini_options]
 testpaths = ["packages"]
 addopts = ["--import-mode=importlib"]
