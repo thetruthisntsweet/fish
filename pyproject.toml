@@ -43,9 +43,17 @@ select = [
 [tool.ruff.lint.isort]
 known-first-party = ["fish_rules", "fish_env", "fish_agents", "fish_server", "fish_research"]
 
+# ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
 testpaths = ["packages"]
-addopts = ["--import-mode=importlib"]
+addopts = [
+    "--import-mode=importlib",
+    "--strict-markers",   # a mistyped @pytest.mark name is an error, not silently ignored
+    "--strict-config",    # a mistyped setting in this block is an error
+    "-ra",                # summary of skipped/failed tests at the end
+]
+xfail_strict = true       # a test marked "expected to fail" that passes counts as a failure
+filterwarnings = ["error"]  # any warning fails the test run
 
 # ---------------------------------------------------------------- Pyright
 [tool.pyright]
