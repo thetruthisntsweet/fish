@@ -12,3 +12,17 @@ build-backend = "uv_build"
 fish-rules = { workspace = true }
 fish-env = { workspace = true }
 fish-agents = { workspace = true }
+
+# Stricter lint for the rules package (Implementation Environment §6).
+[tool.ruff]
+extend = "../../pyproject.toml"
+
+[tool.ruff.lint]
+extend-select = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"random".msg = "Use fish_rules.rng: replay must not depend on Python's random module."
+"secrets".msg = "fish-rules takes seeds as input; the server chooses them."
+"time".msg = "No clock in fish-rules; time enters only through the server."
+"datetime".msg = "No clock in fish-rules; time enters only through the server."
+"numpy".msg = "fish-rules is standard-library only."
