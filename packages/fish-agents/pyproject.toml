@@ -2,7 +2,7 @@
 name = "fish-agents"
 version = "0.0.0"
 requires-python = ">=3.14,<3.15"
-dependencies = ["fish-rules", "fish-env"]
+dependencies = ["fish-rules"]
 
 [project.optional-dependencies] 
 torch = ["torch"]
