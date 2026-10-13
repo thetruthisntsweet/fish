@@ -19,6 +19,7 @@ fish-research = { workspace = true }
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.13.1",
     "hypothesis>=6.169.0",
     "import-linter>=2.15",
     "pre-commit>=4.7.0",

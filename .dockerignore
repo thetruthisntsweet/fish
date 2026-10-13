@@ -1,0 +1,18 @@
+# Everything the server image does not need. Keeps builds fast and keeps secrets out.
+.git
+.github
+.vscode
+.env
+.env.*
+.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+.hypothesis
+.coverage
+.import_linter_cache
+client
+docs
+infra
+schemas
+scripts
