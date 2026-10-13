@@ -129,7 +129,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0 # setup-uv publishes no short major tag (v10)
       - run: docker build --tag fish-server:ci .
       - run: docker run --detach --name fish --publish 8000:8000 fish-server:ci
       - name: /health answers
