@@ -121,7 +121,31 @@ jobs:
       - run: npm --prefix client ci --no-audit --no-fund
       - run: npm --prefix client test
       - run: npm --prefix client run build
-
+    # ---------------------------------------------------------------- server image
+  # The same Dockerfile Render builds. Fails here, in the PR, rather than at deploy time.
+  docker:
+    name: Server image builds and serves
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0 # setup-uv publishes no short major tag (v10)
+      - run: docker build --tag fish-server:ci .
+      - run: docker run --detach --name fish --publish 8000:8000 fish-server:ci
+      - name: /health answers
+        run: |
+          for _ in $(seq 30); do
+            curl --silent --fail http://localhost:8000/health && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: /ws/echo holds a connection and echoes
+        run: >-
+          uv run --no-project --with websockets
+          python scripts/ws_soak.py ws://localhost:8000/ws/echo --minutes 0.5 --every 10
+      - name: Container logs
+        if: always()
+        run: docker logs fish
   # ---------------------------------------------------------------- performance smoke (§9)
   # Added in T5.1, when B0 exists: a job that plays 1,000 B0-vs-B0 games and uploads games
   # per second as an artifact, so slowdowns show up over time.

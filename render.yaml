@@ -1,0 +1,16 @@
+# Render Blueprint (T2.1 subtask 12). Render reads this file from the repository root.
+# Reference: https://render.com/docs/blueprint-spec
+#
+# Staging only for now. The staging database is added in subtask 13; production (deployed
+# from tagged releases) is added before launch.
+services:
+  - type: web
+    name: fish-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: 0.5c-512mb # the $7/month instance; the free plan sleeps and drops WebSockets
+    region: virginia # cannot be changed later; closest region to most participants
+    branch: main
+    autoDeployTrigger: checksPass # deploy a new commit on main only once CI has passed
+    healthCheckPath: /health
