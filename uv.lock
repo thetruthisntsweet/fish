@@ -330,6 +330,7 @@ dependencies = [
     { name = "fish-agents" },
     { name = "fish-rules" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -341,6 +342,7 @@ requires-dist = [
     { name = "fish-agents", editable = "packages/fish-agents" },
     { name = "fish-rules", editable = "packages/fish-rules" },
     { name = "psycopg", extras = ["binary"] },
+    { name = "pydantic", specifier = ">=2.14.1" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extras = ["standard"] },
 ]

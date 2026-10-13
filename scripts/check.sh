@@ -18,6 +18,8 @@ node scripts/verify_rng_vectors.mjs
 
 echo "== Client: install"
 npm --prefix client ci --no-audit --no-fund
+echo "== Generated types: up to date"
+scripts/gen_types.sh --check
 echo "== Client: format"
 npm --prefix client run format:check
 echo "== Client: lint"

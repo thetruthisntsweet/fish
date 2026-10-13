@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "description": "First message from a client after the WebSocket opens.",
+  "properties": {
+    "protocol_version": {
+      "description": "PROTOCOL_VERSION the client was built with.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "type": {
+      "const": "client_hello",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "protocol_version"
+  ],
+  "title": "ClientHello",
+  "type": "object"
+}
