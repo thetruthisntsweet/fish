@@ -11,7 +11,7 @@ breaks replay of existing games and requires a new ruleset version (R.10).
 
 from typing import Final
 
-_MASK64: Final = (1 << 64) - 1          # 64 one-bits: keeps a number inside 64 bits
+_MASK64: Final = (1 << 64) - 1  # 64 one-bits: keeps a number inside 64 bits
 _GOLDEN_GAMMA: Final = 0x9E3779B97F4A7C15  # added to the state on every call
 _MIX1: Final = 0xBF58476D1CE4E5B9
 _MIX2: Final = 0x94D049BB133111EB
@@ -31,8 +31,8 @@ class SplitMix64:
 
     def next_u64(self) -> int:
         """Return the next 64-bit unsigned integer and advance the state."""
-        self._state = (self._state + _GOLDEN_GAMMA) & _MASK64   # step the state
+        self._state = (self._state + _GOLDEN_GAMMA) & _MASK64  # step the state
         z = self._state
-        z = ((z ^ (z >> 30)) * _MIX1) & _MASK64                 # mix round 1
-        z = ((z ^ (z >> 27)) * _MIX2) & _MASK64                 # mix round 2
-        return z ^ (z >> 31)                                    # final mix
+        z = ((z ^ (z >> 30)) * _MIX1) & _MASK64  # mix round 1
+        z = ((z ^ (z >> 27)) * _MIX2) & _MASK64  # mix round 2
+        return z ^ (z >> 31)  # final mix
