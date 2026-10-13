@@ -1,0 +1,25 @@
+# Nightly deep checks (T2.1 §9). Runs at 07:17 UTC (early morning US Eastern), and on demand
+# from the Actions tab. Failures show there and in GitHub's email notifications.
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hypothesis:
+    name: Hypothesis, nightly profile (50,000 examples)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked --all-packages
+      - run: uv run pytest packages/fish-rules
+        env:
+          HYPOTHESIS_PROFILE: nightly
+  # From T5.1: 100,000 B0-vs-B0 games checking every R.9 consistency invariant.

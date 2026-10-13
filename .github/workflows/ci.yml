@@ -1,0 +1,127 @@
+# Continuous integration (T2.1 subtask 11; jobs from T2.1 §9).
+# Runs on every pull request and on every push to main. A failing job blocks merging once
+# its name is a required status check (Settings > Branches > main).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the run that is still going.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_COLOR: "1"
+  HYPOTHESIS_PROFILE: ci # 1,000 examples, derandomized (conftest.py)
+
+jobs:
+  # ---------------------------------------------------------------- every pre-commit hook
+  # Format, lint, Pyright, package boundaries, generated-type drift, Prettier, ESLint, tsc.
+  hooks:
+    name: Hooks (format, lint, types, boundaries, drift)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: uv sync --locked --all-packages
+      - run: npm --prefix client ci --no-audit --no-fund
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+      # no-commit-to-branch is for local commits; on a push to main it would always fail.
+      - run: uv run pre-commit run --all-files --show-diff-on-failure
+        env:
+          SKIP: no-commit-to-branch
+
+  # ---------------------------------------------------------------- Python tests
+  python:
+    name: Python tests + coverage + migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17 # same major version as infra/docker-compose.yml
+        env:
+          POSTGRES_USER: fish
+          POSTGRES_PASSWORD: fish_dev
+          POSTGRES_DB: fish
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fish -d fish"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      FISH_DATABASE_URL: postgresql+psycopg://fish:fish_dev@localhost:5432/fish
+      FISH_TEST_DATABASE_URL: postgresql+psycopg://fish:fish_dev@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked --all-packages
+      - name: Tests with coverage (database tests included)
+        run: uv run pytest --cov --cov-report=term-missing
+      - name: fish-rules coverage must be 100%
+        run: uv run coverage report --include="*/fish_rules/*" --fail-under=100
+      - name: Migrations apply to the real database
+        run: |
+          uv run alembic upgrade head
+          uv run alembic current | grep -q "(head)"
+
+  # ---------------------------------------------------------------- determinism (§6)
+  determinism:
+    name: Determinism (vectors, hash seeds)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+      - run: uv sync --locked --all-packages
+      - name: Frozen RNG vectors, recomputed by an independent JavaScript implementation
+        run: node scripts/verify_rng_vectors.mjs
+      # The rules must not depend on Python's per-run string hashing (set/dict order).
+      - name: fish-rules tests with PYTHONHASHSEED=0
+        run: uv run pytest packages/fish-rules -p no:cacheprovider
+        env:
+          PYTHONHASHSEED: "0"
+      - name: fish-rules tests with PYTHONHASHSEED=4242
+        run: uv run pytest packages/fish-rules -p no:cacheprovider
+        env:
+          PYTHONHASHSEED: "4242"
+
+  # ---------------------------------------------------------------- client
+  client:
+    name: Client tests + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm --prefix client ci --no-audit --no-fund
+      - run: npm --prefix client test
+      - run: npm --prefix client run build
+
+  # ---------------------------------------------------------------- performance smoke (§9)
+  # Added in T5.1, when B0 exists: a job that plays 1,000 B0-vs-B0 games and uploads games
+  # per second as an artifact, so slowdowns show up over time.
