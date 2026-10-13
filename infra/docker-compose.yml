@@ -1,0 +1,28 @@
+# Local development database (T2.1 subtask 9).
+#   Start:  docker compose -f infra/docker-compose.yml up -d db
+#   Stop:   docker compose -f infra/docker-compose.yml down        (data is kept)
+#   Wipe:   docker compose -f infra/docker-compose.yml down -v     (deletes all local data)
+name: fish
+
+services:
+  db:
+    # Keep the major version equal to the managed PostgreSQL on staging and production.
+    image: postgres:17
+    environment:
+      POSTGRES_USER: fish
+      POSTGRES_PASSWORD: fish_dev # local only; real secrets never live in the repository
+      POSTGRES_DB: fish
+    ports:
+      # Non-default port so it cannot clash with another PostgreSQL on your machine,
+      # bound to 127.0.0.1 so nothing outside your computer can reach it.
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fish -d fish"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  pgdata:

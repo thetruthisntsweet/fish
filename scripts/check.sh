@@ -3,6 +3,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Load .env if present, so the database tests run locally (they skip without it).
+if [[ -f .env ]]; then
+  set -a
+  source .env
+  set +a
+fi
+
 echo "== Ruff: format"
 uv run ruff format --check .
 echo "== Ruff: lint"
