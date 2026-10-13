@@ -20,6 +20,7 @@ fish-research = { workspace = true }
 [dependency-groups]
 dev = [
     "hypothesis>=6.169.0",
+    "import-linter>=2.15",
     "pyright>=1.1.414",
     "pytest",
     "pytest-cov>=7.1.0",
@@ -86,3 +87,43 @@ exclude_also = [
     "raise NotImplementedError",
     "@overload",
 ]
+
+# ---------------------------------------------------------------- import-linter
+# Package boundaries (Implementation Environment §5). Run: uv run lint-imports
+[tool.importlinter]
+root_packages = ["fish_rules", "fish_env", "fish_agents", "fish_server", "fish_research"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "fish-rules imports nothing from the project or outside the standard library"
+type = "forbidden"
+source_modules = ["fish_rules"]
+forbidden_modules = [
+    "fish_env", "fish_agents", "fish_server", "fish_research",
+    "numpy", "pettingzoo", "gymnasium", "torch",
+    "fastapi", "uvicorn", "sqlalchemy", "alembic", "psycopg", "pydantic",
+]
+
+[[tool.importlinter.contracts]]
+name = "fish-env never imports the server or research packages"
+type = "forbidden"
+source_modules = ["fish_env"]
+forbidden_modules = ["fish_server", "fish_research"]
+
+[[tool.importlinter.contracts]]
+name = "fish-agents never imports the server or research packages"
+type = "forbidden"
+source_modules = ["fish_agents"]
+forbidden_modules = ["fish_server", "fish_research"]
+
+[[tool.importlinter.contracts]]
+name = "Only B3 may use PyTorch"
+type = "forbidden"
+source_modules = ["fish_agents.b0", "fish_agents.b1", "fish_agents.b2"]
+forbidden_modules = ["torch"]
+
+[[tool.importlinter.contracts]]
+name = "fish-server never imports fish-env, fish-research or PyTorch, even indirectly"
+type = "forbidden"
+source_modules = ["fish_server"]
+forbidden_modules = ["fish_env", "fish_research", "torch", "pettingzoo", "gymnasium"]
