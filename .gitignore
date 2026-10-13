@@ -229,3 +229,4 @@ client/dist/
 # Local environment and data
 .env
 *.dump
+.import_linter_cache/
