@@ -1,0 +1,31 @@
+{
+  "additionalProperties": false,
+  "description": "The server's reply to ClientHello: which versions this server runs.",
+  "properties": {
+    "protocol_version": {
+      "description": "PROTOCOL_VERSION the server speaks.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "rng_algorithm": {
+      "description": "fish_rules.rng.RNG_ALGORITHM.",
+      "type": "string"
+    },
+    "ruleset_version": {
+      "description": "Canonical Ruleset version, e.g. '1.0'.",
+      "type": "string"
+    },
+    "type": {
+      "const": "server_hello",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "protocol_version",
+    "ruleset_version",
+    "rng_algorithm"
+  ],
+  "title": "ServerHello",
+  "type": "object"
+}
