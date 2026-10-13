@@ -16,6 +16,8 @@ echo "== Ruff: lint"
 uv run ruff check .
 echo "== Pyright"
 uv run pyright
+echo "== Package boundaries"
+uv run lint-imports
 echo "== Tests + coverage"
 uv run pytest --cov --cov-report=term-missing
 echo "== Coverage: fish-rules must be 100%"
