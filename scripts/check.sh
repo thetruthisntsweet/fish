@@ -13,6 +13,20 @@ echo "== Tests + coverage"
 uv run pytest --cov --cov-report=term-missing
 echo "== Coverage: fish-rules must be 100%"
 uv run coverage report --include="*/fish_rules/*" --fail-under=100
-echo "All checks passed."
 echo "== RNG vectors: independent JavaScript check"
 node scripts/verify_rng_vectors.mjs
+
+echo "== Client: install"
+npm --prefix client ci --no-audit --no-fund
+echo "== Client: format"
+npm --prefix client run format:check
+echo "== Client: lint"
+npm --prefix client run lint
+echo "== Client: types"
+npm --prefix client run typecheck
+echo "== Client: tests"
+npm --prefix client test
+echo "== Client: build"
+npm --prefix client run build
+
+echo "All checks passed."
