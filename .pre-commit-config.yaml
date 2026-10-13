@@ -1,0 +1,88 @@
+# Checks that run automatically on `git commit` (T2.1 subtask 10).
+#   Install once per clone:  uv run pre-commit install
+#   Run on every file:       uv run pre-commit run --all-files
+#
+# The Python and client tools run from this repository's own lock files (uv.lock and
+# client/package-lock.json), so a hook can never use a different Ruff, Pyright, Prettier
+# or ESLint version than scripts/check.sh and CI do.
+#
+# These hooks are a fast first line; scripts/check.sh (and CI) remains the full check.
+
+default_install_hook_types: [pre-commit]
+fail_fast: false
+
+repos:
+  # ---------------------------------------------------------------- general hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(schemas/|client/src/generated/)
+      - id: end-of-file-fixer
+        exclude: ^(schemas/|client/src/generated/)
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: ^client/tsconfig.*\.json$ # TypeScript allows comments in these
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: detect-private-key
+      - id: no-commit-to-branch # main changes only through pull requests
+        args: [--branch, main]
+
+  # ---------------------------------------------------------------- Python
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check --fix
+        entry: uv run ruff check --fix --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      - id: pyright
+        name: pyright (changed files)
+        entry: uv run pyright
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      - id: import-boundaries
+        name: package boundaries (import-linter)
+        entry: uv run lint-imports
+        language: system
+        files: ^packages/.*\.py$
+        pass_filenames: false
+
+      # ------------------------------------------------------------ generated types
+      - id: generated-types
+        name: generated types up to date
+        entry: scripts/gen_types.sh --check
+        language: system
+        files: ^(packages/fish-server/src/fish_server/protocol\.py|schemas/|client/src/generated/)
+        pass_filenames: false
+
+      # ------------------------------------------------------------ client
+      - id: prettier
+        name: prettier (client)
+        entry: client/node_modules/.bin/prettier --write --ignore-unknown
+        language: system
+        files: ^client/
+        exclude: ^client/(src/generated/|package-lock\.json$)
+      - id: eslint
+        name: eslint (client)
+        entry: client/node_modules/.bin/eslint --fix --no-warn-ignored
+        language: system
+        files: ^client/.*\.(ts|tsx)$
+        exclude: ^client/src/generated/
+      - id: tsc
+        name: typescript (client)
+        entry: npm --prefix client run --silent typecheck
+        language: system
+        files: ^client/.*\.(ts|tsx)$
+        pass_filenames: false
