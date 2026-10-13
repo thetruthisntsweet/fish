@@ -11,9 +11,9 @@ settings.register_profile("dev", max_examples=100)
 settings.register_profile(
     "ci",
     max_examples=1_000,
-    derandomize=True,   # same examples every CI run, so a failure is reproducible
-    deadline=None,      # CI machines are slow and unpredictable
-    print_blob=True,    # prints a code to replay any failure exactly
+    derandomize=True,  # same examples every CI run, so a failure is reproducible
+    deadline=None,  # CI machines are slow and unpredictable
+    print_blob=True,  # prints a code to replay any failure exactly
 )
 settings.register_profile(
     "nightly",
