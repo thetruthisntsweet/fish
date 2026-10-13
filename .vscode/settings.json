@@ -28,7 +28,7 @@
   },
   "prettier.prettierPath": "./client/node_modules/prettier",
   "eslint.workingDirectories": ["client"],
-  "typescript.tsdk": "client/node_modules/typescript/lib",
+    "js/ts.tsdk.path": "client/node_modules/typescript/lib",
 
   "editor.rulers": [100],
   "files.insertFinalNewline": true,
