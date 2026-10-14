@@ -1,4 +1,4 @@
-# Render Blueprint (T2.1 subtasks 12-13). Render reads this file from the repository root.
+# Render Blueprint (T2.1 subtasks 12-14). Render reads this file from the repository root.
 # Reference: https://render.com/docs/blueprint-spec
 #
 # Staging only for now; production (deployed from tagged releases) is added before launch.
@@ -13,14 +13,17 @@ services:
     branch: main
     autoDeployTrigger: checksPass # deploy a new commit on main only once CI has passed
     healthCheckPath: /health
-    # Runs after each build, before the new version starts. If a migration fails, the
-    # deploy is cancelled and the running version is left alone.
-    preDeployCommand: alembic upgrade head
+    # Runs after each build, before the new version starts: migrations, then the server's
+    # own database login, then a check that the login can read but not alter (T2.1 §11).
+    # If any step fails, the deploy is cancelled and the running version is left alone.
+    preDeployCommand: python -m fish_server.deploy
     envVars:
-      - key: FISH_DATABASE_URL # the private (internal) URL; settings.py adds the driver
+      - key: FISH_ADMIN_DATABASE_URL # the owner's private URL: migrations and admin tools only
         fromDatabase:
           name: fish-staging-db
           property: connectionString
+      - key: FISH_APP_DB_PASSWORD # the fish_server login's password; Render generates it
+        generateValue: true
 
 databases:
   - name: fish-staging-db # cannot be renamed later

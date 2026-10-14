@@ -9,8 +9,8 @@ docs/runbooks/restore-drill.md.
     python -m fish_server.restore_drill check --url URL  # is the marker in database URL?
     python -m fish_server.restore_drill cleanup          # drop the drill table
 
-Without --url, commands use FISH_DATABASE_URL (the live staging database). The drill table
-is not part of the schema and never reaches production.
+Without --url, commands use FISH_ADMIN_DATABASE_URL (the live staging database, as its
+owner). The drill table is not part of the schema and never reaches production.
 """
 
 import argparse
@@ -18,7 +18,7 @@ import sys
 
 from sqlalchemy import Engine, create_engine, pool, text
 
-from fish_server.settings import database_url, normalize_database_url
+from fish_server.settings import admin_database_url, normalize_database_url
 
 TABLE = "restore_drill"
 LABEL = "restore-drill-marker"
@@ -26,7 +26,7 @@ LABEL = "restore-drill-marker"
 
 def _engine(url: str | None) -> Engine:
     return create_engine(
-        normalize_database_url(url) if url else database_url(), poolclass=pool.NullPool
+        normalize_database_url(url) if url else admin_database_url(), poolclass=pool.NullPool
     )
 
 
@@ -73,7 +73,7 @@ def cleanup(engine: Engine) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m fish_server.restore_drill")
     parser.add_argument("command", choices=["mark", "damage", "check", "cleanup"])
-    parser.add_argument("--url", help="database URL (default: FISH_DATABASE_URL)")
+    parser.add_argument("--url", help="database URL (default: FISH_ADMIN_DATABASE_URL)")
     args = parser.parse_args(argv)
     engine = _engine(args.url)
     try:

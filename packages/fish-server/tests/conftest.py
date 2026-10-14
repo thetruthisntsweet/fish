@@ -16,9 +16,12 @@ from alembic.config import Config
 from sqlalchemy import create_engine, make_url, pool, text
 
 from fish_server.database import dispose_engine
+from fish_server.privileges import sync_login_role
+from fish_server.settings import ADMIN_DATABASE_URL_VAR, APP_PASSWORD_VAR
 
 ADMIN_URL = os.environ.get("FISH_TEST_DATABASE_URL", "").strip()
 REPO = Path(__file__).resolve().parents[3]
+TEST_APP_PASSWORD = "test-app-password-0123456789"
 
 
 @pytest.fixture
@@ -46,6 +49,18 @@ def migrated_database_url(fresh_database_url: str) -> str:
     cfg.set_main_option("sqlalchemy.url", fresh_database_url.replace("%", "%%"))
     command.upgrade(cfg, "head")
     return fresh_database_url
+
+
+@pytest.fixture
+def server_env(migrated_database_url: str, monkeypatch: pytest.MonkeyPatch) -> str:
+    """A migrated database with the fish_server login set up, and the environment pointing
+    at it exactly as on Render. Returns the admin (owner) URL."""
+    engine = create_engine(migrated_database_url, poolclass=pool.NullPool)
+    sync_login_role(engine, TEST_APP_PASSWORD)
+    engine.dispose()
+    monkeypatch.setenv(ADMIN_DATABASE_URL_VAR, migrated_database_url)
+    monkeypatch.setenv(APP_PASSWORD_VAR, TEST_APP_PASSWORD)
+    return migrated_database_url
 
 
 @pytest.fixture(autouse=True)

@@ -1,4 +1,4 @@
-"""Tests for fish_server.app (T2.1 subtask 12)."""
+"""Tests for fish_server.app (T2.1 subtasks 12-14)."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,7 +8,7 @@ from fish_rules.version import RULESET_VERSION
 from fish_server.app import app
 from fish_server.database import get_engine
 from fish_server.protocol import PROTOCOL_VERSION, ServerHello
-from fish_server.settings import DATABASE_URL_VAR
+from fish_server.settings import ADMIN_DATABASE_URL_VAR, APP_PASSWORD_VAR
 
 
 @pytest.fixture
@@ -46,23 +46,22 @@ def test_echo_returns_every_message_in_order(client: TestClient) -> None:
             assert ws.receive_text() == message
 
 
-def test_health_db_reports_the_migrated_revision(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch, migrated_database_url: str
-) -> None:
-    monkeypatch.setenv(DATABASE_URL_VAR, migrated_database_url)
+@pytest.mark.usefixtures("server_env")
+def test_health_db_reports_the_revision_as_seen_by_the_app_login(client: TestClient) -> None:
     response = client.get("/health/db")
     assert response.status_code == 200
-    assert response.json() == {"database": "ok", "schema_revision": "0001"}
+    assert response.json() == {"database": "ok", "schema_revision": "0002"}
 
 
 @pytest.mark.parametrize("url", [None, "postgresql://u:p@127.0.0.1:1/nothing_listens_here"])
 def test_health_db_is_503_without_a_database(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, url: str | None
 ) -> None:
+    monkeypatch.setenv(APP_PASSWORD_VAR, "app-pw-0123456789abcdef")
     if url is None:
-        monkeypatch.delenv(DATABASE_URL_VAR, raising=False)
+        monkeypatch.delenv(ADMIN_DATABASE_URL_VAR, raising=False)
     else:
-        monkeypatch.setenv(DATABASE_URL_VAR, url)
+        monkeypatch.setenv(ADMIN_DATABASE_URL_VAR, url)
     response = client.get("/health/db")
     assert response.status_code == 503
     assert response.json() == {"database": "unavailable", "schema_revision": None}
@@ -72,14 +71,12 @@ def test_health_db_is_503_without_a_database(
 def test_health_does_not_need_a_database(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delenv(DATABASE_URL_VAR, raising=False)
+    monkeypatch.delenv(ADMIN_DATABASE_URL_VAR, raising=False)
     assert client.get("/health").status_code == 200
 
 
-def test_server_shutdown_closes_database_connections(
-    monkeypatch: pytest.MonkeyPatch, migrated_database_url: str
-) -> None:
-    monkeypatch.setenv(DATABASE_URL_VAR, migrated_database_url)
+@pytest.mark.usefixtures("server_env")
+def test_server_shutdown_closes_database_connections() -> None:
     with TestClient(app) as running:  # "with" runs the startup and shutdown hooks
         assert running.get("/health/db").status_code == 200
         assert get_engine.cache_info().currsize == 1
