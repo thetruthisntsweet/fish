@@ -67,9 +67,6 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 15
-    env:
-      FISH_DATABASE_URL: postgresql+psycopg://fish:fish_dev@localhost:5432/fish
-      FISH_TEST_DATABASE_URL: postgresql+psycopg://fish:fish_dev@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.0 # setup-uv publishes no short major tag (v10)
@@ -78,10 +75,10 @@ jobs:
         run: uv run pytest --cov --cov-report=term-missing
       - name: fish-rules coverage must be 100%
         run: uv run coverage report --include="*/fish_rules/*" --fail-under=100
-      - name: Migrations apply to the real database
-        run: |
-          uv run alembic upgrade head
-          uv run alembic current | grep -q "(head)"
+      - name: Pre-deploy (migrations, server login, privilege check) on the real database
+        run: uv run python -m fish_server.deploy
+      - name: Privilege check again, on its own
+        run: uv run python -m fish_server.privileges check
 
   # ---------------------------------------------------------------- determinism (§6)
   determinism:

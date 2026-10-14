@@ -3,8 +3,9 @@
 * ``fish_app`` (no login): the privileges. Reads and inserts on every table the migrations
   create, never UPDATE, DELETE or TRUNCATE, never creating tables. Granted by migration
   0002 as *default privileges*, so each future table gets exactly this automatically.
-* ``fish_server`` (login): the identity the server connects as. A member of ``fish_app``
-  and nothing else. Its password comes from FISH_APP_DB_PASSWORD; ``sync`` sets it.
+* ``fish_server`` (login; the name can be changed with FISH_APP_DB_USER, which only the
+  tests do): the identity the server connects as. A member of ``fish_app`` and nothing
+  else. Its password comes from FISH_APP_DB_PASSWORD; ``sync`` sets it.
 
 Tables that must never change once written (the event log, T3.2) are additionally made
 append-only with a trigger (``append_only_sql``), which stops UPDATE, DELETE and TRUNCATE
@@ -22,8 +23,8 @@ from sqlalchemy import Connection, Engine, create_engine, pool, text
 from sqlalchemy.exc import DBAPIError
 
 from fish_server.settings import (
-    APP_LOGIN_ROLE,
     admin_database_url,
+    app_login_role,
     app_password,
     database_url,
 )
@@ -49,22 +50,23 @@ def sync_login_role(engine: Engine, password: str) -> str:
     """Create the ``fish_server`` login, or update its password, and make it a member of
     ``fish_app``. Safe to run on every deploy. Returns "created" or "updated"."""
     password = validate_password(password)
+    role = app_login_role()
     with engine.begin() as conn:
         exists = conn.execute(
-            text("SELECT 1 FROM pg_roles WHERE rolname = :role"), {"role": APP_LOGIN_ROLE}
+            text("SELECT 1 FROM pg_roles WHERE rolname = :role"), {"role": role}
         ).scalar()
         if exists:
             # Only the password: restating attributes such as NOSUPERUSER needs superuser
             # rights, which the database owner on Render does not have.
-            conn.execute(text(f"ALTER ROLE {APP_LOGIN_ROLE} WITH LOGIN PASSWORD '{password}'"))
+            conn.execute(text(f"ALTER ROLE {role} WITH LOGIN PASSWORD '{password}'"))
         else:
             conn.execute(
                 text(
-                    f"CREATE ROLE {APP_LOGIN_ROLE} WITH LOGIN NOSUPERUSER NOCREATEDB "
+                    f"CREATE ROLE {role} WITH LOGIN NOSUPERUSER NOCREATEDB "
                     f"NOCREATEROLE PASSWORD '{password}'"
                 )
             )
-        conn.execute(text(f"GRANT {APP_GROUP_ROLE} TO {APP_LOGIN_ROLE}"))
+        conn.execute(text(f"GRANT {APP_GROUP_ROLE} TO {role}"))
     return "updated" if exists else "created"
 
 
@@ -87,6 +89,7 @@ def check(app_engine: Engine) -> list[str]:
     or act as a superuser. Nothing is changed: every probe is rolled back.
     """
     problems: list[str] = []
+    expected = app_login_role()
     with app_engine.connect() as conn:
         who = conn.execute(
             text(
@@ -96,12 +99,12 @@ def check(app_engine: Engine) -> list[str]:
             ),
             {"group": APP_GROUP_ROLE},
         ).one()
-        if who[0] != APP_LOGIN_ROLE:
-            problems.append(f"connected as {who[0]!r}, expected {APP_LOGIN_ROLE!r}")
+        if who[0] != expected:
+            problems.append(f"connected as {who[0]!r}, expected {expected!r}")
         if who[1] or who[2] or who[3]:
             problems.append("has superuser, create-role or create-database rights")
         if not who[4]:
-            problems.append(f"is not a member of {APP_GROUP_ROLE}")
+            problems.append(f"is not a member of {app_login_role()}")
         try:
             conn.execute(text("SELECT version_num FROM alembic_version")).all()
         except DBAPIError:
@@ -135,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "sync":
         admin = create_engine(admin_database_url(), poolclass=pool.NullPool)
         try:
-            print(f"{APP_LOGIN_ROLE}: {sync_login_role(admin, app_password())}.")
+            print(f"{app_login_role()}: {sync_login_role(admin, app_password())}.")
         finally:
             admin.dispose()
         return 0
@@ -145,9 +148,9 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         app.dispose()
     for problem in problems:
-        print(f"FAIL: {APP_LOGIN_ROLE} {problem}")
+        print(f"FAIL: {app_login_role()} {problem}")
     if not problems:
-        print(f"PASS: {APP_LOGIN_ROLE} can read, and cannot create tables or roles.")
+        print(f"PASS: {app_login_role()} can read, and cannot create tables or roles.")
     return 1 if problems else 0
 
 
