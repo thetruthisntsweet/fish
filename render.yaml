@@ -25,6 +25,7 @@ services:
 databases:
   - name: fish-staging-db # cannot be renamed later
     plan: 0.1c-256mb # $6/month; paid plans include point-in-time recovery
+    diskSizeGB: 1 # staging holds almost nothing; storage can grow later but never shrink
     region: virginia # same region as the server, so they talk over Render's private network
     postgresMajorVersion: "17" # matches infra/docker-compose.yml and CI; cannot change later
     databaseName: fish
