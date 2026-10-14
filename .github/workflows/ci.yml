@@ -18,8 +18,9 @@ permissions:
   contents: read
 
 env:
-  FORCE_COLOR: "1"
-  HYPOTHESIS_PROFILE: ci # 1,000 examples, derandomized (conftest.py)
+  FISH_ADMIN_DATABASE_URL: postgresql+psycopg://fish:fish_dev@localhost:5432/fish
+  FISH_APP_DB_PASSWORD: ci-app-password-0123456789
+  FISH_TEST_DATABASE_URL: postgresql+psycopg://fish:fish_dev@localhost:5432/postgres
 
 jobs:
   # ---------------------------------------------------------------- every pre-commit hook
