@@ -1,8 +1,7 @@
-# Render Blueprint (T2.1 subtask 12). Render reads this file from the repository root.
+# Render Blueprint (T2.1 subtasks 12-13). Render reads this file from the repository root.
 # Reference: https://render.com/docs/blueprint-spec
 #
-# Staging only for now. The staging database is added in subtask 13; production (deployed
-# from tagged releases) is added before launch.
+# Staging only for now; production (deployed from tagged releases) is added before launch.
 services:
   - type: web
     name: fish-staging
@@ -14,3 +13,20 @@ services:
     branch: main
     autoDeployTrigger: checksPass # deploy a new commit on main only once CI has passed
     healthCheckPath: /health
+    # Runs after each build, before the new version starts. If a migration fails, the
+    # deploy is cancelled and the running version is left alone.
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: FISH_DATABASE_URL # the private (internal) URL; settings.py adds the driver
+        fromDatabase:
+          name: fish-staging-db
+          property: connectionString
+
+databases:
+  - name: fish-staging-db # cannot be renamed later
+    plan: 0.1c-256mb # $6/month; paid plans include point-in-time recovery
+    region: virginia # same region as the server, so they talk over Render's private network
+    postgresMajorVersion: "17" # matches infra/docker-compose.yml and CI; cannot change later
+    databaseName: fish
+    user: fish
+    ipAllowList: [] # no connections from outside Render at all

@@ -15,11 +15,18 @@ COPY . .
 RUN uv sync --locked --no-dev --no-editable --package fish-server
 
 # ---------------------------------------------------------------- runtime stage
-# Only Python and the finished virtual environment: no uv, no source tree, no tests.
+# Only Python, the finished virtual environment and the migrations: no uv, no source tree,
+# no tests.
 FROM python:3.14-slim
-RUN useradd --create-home --uid 10001 fish
+# A non-root user with a login shell and a ~/.ssh folder: Render's Shell page and SSH
+# need both for Docker services (used for the restore drill, docs/runbooks/restore-drill.md).
+RUN useradd --create-home --uid 10001 --shell /bin/bash fish \
+    && install -d -m 0700 -o fish -g fish /home/fish/.ssh
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
+# Render's pre-deploy command runs `alembic upgrade head` from /app (render.yaml).
+COPY --from=build /app/alembic.ini /app/alembic.ini
+COPY --from=build /app/packages/fish-server/migrations /app/packages/fish-server/migrations
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 USER fish
