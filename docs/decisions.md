@@ -91,7 +91,7 @@ UPDATE, DELETE and TRUNCATE even from the owner. `python -m fish_server.deploy` 
 Render's pre-deploy command and refuses to deploy if the login has too many rights.
 Render's generated password means no person ever sees it.
 Depends on: Render's database owner having the CREATEROLE attribute.
-Verified on staging: 10/14, PASS: marker present.
+Verified on staging: 2026-10-14, `PASS: fish_server can read, and cannot create tables or roles.`
 Limitation: Render runs the pre-deploy step in the server's environment, so the owner URL is
 present there too. This protects against bugs and SQL injection, not against a full takeover
 of the server machine.
@@ -111,4 +111,4 @@ take more than a day.
 
 **D18 · 2026-10-12 · Licences: Apache-2.0 for code, CC BY 4.0 for the corpus.**
 Alternatives: MIT (no patent grant), CC0, CC BY-NC (blocks some research use). The consent
-screen (T1.5) must state the CC BY 4.0 release (T2.1 subtask 17).
+screen (T1.5) must state the CC BY 4.0 release.
