@@ -18,7 +18,7 @@ from fish_server.privileges import (
     sync_login_role,
     validate_password,
 )
-from fish_server.settings import APP_LOGIN_ROLE, database_url
+from fish_server.settings import app_login_role, database_url
 
 INSUFFICIENT_PRIVILEGE = "42501"
 
@@ -68,10 +68,11 @@ def test_app_login_can_read_and_insert(app: Engine) -> None:
         "CREATE TABLE intruder (x int)",
         "DROP TABLE sample",
         "CREATE ROLE intruder",
-        "ALTER ROLE fish_server CREATEROLE",
+        "ALTER ROLE {login} CREATEROLE",
     ],
 )
 def test_app_login_is_refused_everything_else(app: Engine, statement: str) -> None:
+    statement = statement.format(login=app_login_role())
     assert refused(app, statement), statement
 
 
@@ -97,7 +98,7 @@ def test_check_passes_for_the_app_login(app: Engine) -> None:
 
 def test_check_flags_a_login_with_too_many_rights(owner: Engine) -> None:
     problems = check(owner)  # the owner: wrong user, superuser in tests, can create tables
-    assert any("expected 'fish_server'" in p for p in problems)
+    assert any(f"expected {app_login_role()!r}" in p for p in problems)
     assert "has superuser, create-role or create-database rights" in problems
     assert "can create tables" in problems
 
@@ -111,7 +112,7 @@ def test_check_flags_a_login_that_cannot_read(owner: Engine, app: Engine) -> Non
 def test_sync_creates_then_updates_and_old_password_stops_working(server_env: str) -> None:
     owner = create_engine(server_env, poolclass=pool.NullPool)
     with owner.begin() as conn:
-        conn.execute(text(f"DROP ROLE IF EXISTS {APP_LOGIN_ROLE}"))
+        conn.execute(text(f"DROP ROLE IF EXISTS {app_login_role()}"))
     assert sync_login_role(owner, "first-password-0123456789") == "created"
     assert sync_login_role(owner, "second-password-0123456789") == "updated"
     owner.dispose()
@@ -141,7 +142,7 @@ def test_render_generated_style_passwords_are_accepted() -> None:
 @pytest.mark.usefixtures("server_env")
 def test_command_line_sync_and_check(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["sync"]) == 0
-    assert f"{APP_LOGIN_ROLE}: updated." in capsys.readouterr().out
+    assert f"{app_login_role()}: updated." in capsys.readouterr().out
     assert main(["check"]) == 0
     assert "PASS" in capsys.readouterr().out
 
@@ -154,4 +155,4 @@ def test_command_line_check_reports_failures(
         conn.execute(text(f"REVOKE SELECT ON alembic_version FROM {APP_GROUP_ROLE}"))
     owner.dispose()
     assert main(["check"]) == 1
-    assert "FAIL: fish_server cannot read alembic_version" in capsys.readouterr().out
+    assert f"FAIL: {app_login_role()} cannot read alembic_version" in capsys.readouterr().out

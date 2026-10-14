@@ -1,0 +1,114 @@
+# Decision log
+
+Every significant choice made while setting up the project (T2.1), with the alternatives and
+the reason, so that later readers — reviewers, the paper, future you — can see why things
+are the way they are. Newest decisions are added at the end; a decision that is reversed
+gets a new entry pointing back to the old one, rather than being edited away.
+
+Format: **D-number · date · decision.** Then the alternatives considered and why.
+
+---
+
+**D1 · 2026-10-12 · The engine is written in Python 3.14.**
+Alternatives: TypeScript (one language with the client), Rust (speed). Python is what
+researchers who would use the benchmark already use (Plan §3). 3.14 was the newest version
+supported by both PyTorch and PettingZoo. Rust remains the route for any hot path that
+profiling shows is too slow (T2.1 §13).
+
+**D2 · 2026-10-12 · One repository, a uv workspace of five packages with enforced boundaries.**
+`fish-rules` (standard library only), `fish-env`, `fish-agents`, `fish-server`,
+`fish-research`, plus the client. Alternatives: one package; separate repositories.
+One repository keeps an engine change and the server or client change that depends on it in
+one commit; import-linter in CI stops the boundaries eroding, so there is never a second
+implementation of the rules (Plan §3).
+
+**D3 · 2026-10-12 · A project-owned random-number scheme, `splitmix64-sha256-v1`, frozen.**
+Alternatives: Python's `random`; NumPy's `Generator`. Neither promises identical shuffles
+across versions, and a recorded game is only a seed plus an event log, so replays must match
+forever. SplitMix64 per named stream, seeded from SHA-256 of (seed, name, index); 223 frozen
+test vectors, independently recomputed by a JavaScript implementation in CI. Specified in
+`docs/determinism.md`.
+
+**D4 · 2026-10-12 · The multi-agent interface will be PettingZoo's AEC API.** (Built in T2.3.)
+Alternatives: Gymnasium wrappers, RLlib, OpenSpiel. AEC steps one agent at a time, which
+fits asks, sequential window polling and votes, and is widely known.
+
+**D5 · 2026-10-12 · Message types are defined once, in Python, and generated for the client.**
+Pydantic models → JSON Schema (`schemas/`) → TypeScript (`client/src/generated/`), with a
+drift check in the hooks and CI. Alternatives: hand-written TypeScript types; Protocol
+Buffers. Per-field titles are dropped from the schemas because they made the generator emit
+colliding type names.
+
+**D6 · 2026-10-12 · Client: React + TypeScript + Vite, with ESLint (type-checked rules),
+Prettier and Vitest.** The current Vite template ships oxlint instead; it was swapped for
+ESLint as T2.1 §3 specifies, for its type-aware rules. Node 24 LTS (or 22.22.2+) because the
+test DOM library requires it.
+
+**D7 · 2026-10-12 · PostgreSQL 17 everywhere: Docker locally, the same image in CI, pinned on
+Render.** SQLAlchemy Core with Alembic migrations, numbered revisions (`0001`, `0002`, …),
+a constraint naming convention set before any table exists, and Ruff run automatically on
+every generated migration. Alternatives: SQLite (no concurrent writers), MongoDB.
+
+**D8 · 2026-10-12 · Pre-commit hooks run each tool from the repository's own lock files.**
+Alternative: pre-commit's usual downloaded copies of Ruff, Prettier and others, which can
+silently differ from the versions CI uses.
+
+**D9 · 2026-10-12 · CI on GitHub Actions: five parallel jobs plus a nightly run.**
+Hooks; Python tests with a real PostgreSQL and the pre-deploy command; determinism (vectors,
+two hash seeds); client; server image. Actions pinned to versions checked at setup;
+`astral-sh/setup-uv` pinned to `v10.3.0` because it publishes no short `v10` tag.
+
+**D10 · 2026-10-13 · Hosting on Render: Virginia region, $7/month server, $6/month database.**
+Alternatives compared on current pricing pages: Fly.io (managed PostgreSQL from $38/month),
+Railway (usage-based, harder to predict). Render met every T2.1 §10 requirement: no maximum
+WebSocket duration, managed PostgreSQL with point-in-time recovery on the free Hobby
+workspace, custom domains, a US East region. The free server plan was rejected because it
+sleeps and drops WebSockets. Staging deploys from `main` only after CI passes; production
+is added before launch.
+
+**D11 · 2026-10-13 · Starlette's test client uses `httpx2`.** The current Starlette deprecates
+`httpx` for its test client, and the project treats warnings as errors.
+
+**D12 · 2026-10-13 · The server image: two stages, non-root user, migrations included.**
+Only Python, the installed packages and the migrations reach the runtime image; uv pinned to
+0.11.32; the user has a login shell and `~/.ssh` because Render's Shell page needs both.
+
+**D13 · 2026-10-14 · The staging database accepts no connections from outside Render.**
+`ipAllowList: []`. Alternative: allow your own IP for convenience. The data will be
+participants' gameplay; admin work goes through the server's Shell instead. Disk 1 GB,
+which can grow later but never shrink.
+
+**D14 · 2026-10-14 · Backups are Render's point-in-time recovery, rehearsed.**
+A restore creates a new database at a chosen moment (3-day window on Hobby). Drill on
+2026-10-14: marker written, deleted, restored to the moment before deletion, found.
+Restore took 7 minutes. PASS. Repeat before launch (T3.6). `docs/runbooks/restore-drill.md`.
+
+**D15 · 2026-10-14 · Least privilege for the running server (T2.1 §11).**
+The server logs in as `fish_server`, a member of `fish_app`, which may read and insert on
+every table migrations create (default privileges) and nothing else. The owner (`fish`)
+runs migrations and admin tools. Tables that must never change get triggers that refuse
+UPDATE, DELETE and TRUNCATE even from the owner. `python -m fish_server.deploy` runs as
+Render's pre-deploy command and refuses to deploy if the login has too many rights.
+Render's generated password means no person ever sees it.
+Depends on: Render's database owner having the CREATEROLE attribute.
+Verified on staging: 10/14, PASS: marker present.
+Limitation: Render runs the pre-deploy step in the server's environment, so the owner URL is
+present there too. This protects against bugs and SQL injection, not against a full takeover
+of the server machine.
+
+**D16 · 2026-10-14 · The test suite uses its own database login.**
+Found while writing `docs/setup.md`: logins belong to the whole database server, so tests
+that changed `fish_server`'s password broke the local development server after every
+`check.sh`. Tests now use `fish_server_test_<random>` (via `FISH_APP_DB_USER`) and remove it
+when they finish.
+
+**D17 · 2026-10-14 · Training runs on the M5 MacBook Pro; no GPU request.**
+Replaces T2.1 subtask 15. B3 trains on the Mac's GPU through PyTorch's MPS backend (PyTorch
+2.14.1 ships Python 3.14 builds for Apple Silicon). GPU training is not bit-for-bit
+repeatable, so final evaluation runs on the CPU and every training run records device,
+library versions and seeds. Fallback: rent a cloud GPU for a single run only if it would
+take more than a day.
+
+**D18 · 2026-10-12 · Licences: Apache-2.0 for code, CC BY 4.0 for the corpus.**
+Alternatives: MIT (no patent grant), CC0, CC BY-NC (blocks some research use). The consent
+screen (T1.5) must state the CC BY 4.0 release (T2.1 subtask 17).

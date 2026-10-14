@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import create_engine, pool
 
 from fish_server.database import dispose_engine, get_engine, schema_revision
-from fish_server.settings import ADMIN_DATABASE_URL_VAR, APP_LOGIN_ROLE, APP_PASSWORD_VAR
+from fish_server.settings import ADMIN_DATABASE_URL_VAR, APP_PASSWORD_VAR, app_login_role
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def test_get_engine_is_shared_and_logs_in_as_the_app() -> None:
     engine = get_engine()
     assert engine is get_engine()
     assert engine.url.drivername == "postgresql+psycopg"
-    assert engine.url.username == APP_LOGIN_ROLE
+    assert engine.url.username == app_login_role()
 
 
 @pytest.mark.usefixtures("placeholder_env")
