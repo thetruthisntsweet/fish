@@ -1,29 +1,18 @@
 """Tests for the Alembic migrations (T2.1 subtask 9).
 
-The offline tests always run. The database tests need FISH_TEST_DATABASE_URL (see
-.env.example): each creates a throwaway database, migrates it, and drops it afterwards,
-so your development data is never touched.
+The offline tests always run. The database test uses the ``fresh_database_url`` fixture
+from conftest.py, so it is skipped without FISH_TEST_DATABASE_URL.
 """
 
 import io
-import os
-import uuid
-from collections.abc import Iterator
 from pathlib import Path
 
-import pytest
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine, inspect, make_url, pool, text
+from sqlalchemy import create_engine, inspect, pool, text
 
 REPO = Path(__file__).resolve().parents[3]
-ADMIN_URL = os.environ.get("FISH_TEST_DATABASE_URL", "").strip()
-
-needs_database = pytest.mark.skipif(
-    not ADMIN_URL,
-    reason="FISH_TEST_DATABASE_URL not set: start infra/docker-compose.yml and create .env",
-)
 
 
 def alembic_config(url: str, output: io.StringIO | None = None) -> Config:
@@ -49,21 +38,6 @@ def test_offline_sql_creates_only_the_version_table() -> None:
     assert "INSERT INTO alembic_version (version_num) VALUES ('0001')" in sql
 
 
-@pytest.fixture
-def fresh_database_url() -> Iterator[str]:
-    """Create an empty database for one test; drop it afterwards, even if the test fails."""
-    name = f"fish_test_{uuid.uuid4().hex[:12]}"
-    admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT", poolclass=pool.NullPool)
-    with admin.connect() as conn:
-        conn.execute(text(f'CREATE DATABASE "{name}"'))
-    try:
-        yield make_url(ADMIN_URL).set(database=name).render_as_string(hide_password=False)
-    finally:
-        with admin.connect() as conn:
-            conn.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
-        admin.dispose()
-
-
 def current_versions(url: str) -> list[str]:
     engine = create_engine(url, poolclass=pool.NullPool)
     try:
@@ -75,7 +49,6 @@ def current_versions(url: str) -> list[str]:
         engine.dispose()
 
 
-@needs_database
 def test_upgrade_downgrade_upgrade_round_trip(fresh_database_url: str) -> None:
     cfg = alembic_config(fresh_database_url)
     head = ScriptDirectory.from_config(cfg).get_current_head()

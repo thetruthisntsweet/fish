@@ -1,23 +1,38 @@
-"""The Fish game server (T2.1 subtask 12: health check and WebSocket echo only).
+"""The Fish game server (T2.1 subtasks 12-13: health checks and WebSocket echo only).
 
 Game logic arrives in T3.1. Until then the server proves the deployment works end to end:
-``GET /health`` for the hosting platform's health checks, and ``/ws/echo`` to show that
-long-lived WebSocket connections survive the platform's proxy (T2.1 §10, §17).
+``GET /health`` for the hosting platform's health checks, ``GET /health/db`` to confirm the
+database is reachable and migrated, and ``/ws/echo`` to show that long-lived WebSocket
+connections survive the platform's proxy (T2.1 §10, §17).
 
 Run locally:  uv run uvicorn fish_server.app:app --reload
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Literal
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
 
 from fish_rules.rng import RNG_ALGORITHM
 from fish_rules.version import RULESET_VERSION
 from fish_server import __version__
+from fish_server.database import dispose_engine, get_engine, schema_revision
 from fish_server.protocol import PROTOCOL_VERSION, server_hello
 
-app = FastAPI(title="Fish server", version=__version__, docs_url=None, redoc_url=None)
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Runs around the server's whole life: on shutdown, close database connections."""
+    yield
+    dispose_engine()
+
+
+app = FastAPI(
+    title="Fish server", version=__version__, docs_url=None, redoc_url=None, lifespan=lifespan
+)
 
 
 class Health(BaseModel):
@@ -41,6 +56,28 @@ def health() -> Health:
         rng_algorithm=RNG_ALGORITHM,
         protocol_version=PROTOCOL_VERSION,
     )
+
+
+class DatabaseHealth(BaseModel):
+    """What ``/health/db`` reports. Never includes error details: they can contain hostnames."""
+
+    database: Literal["ok", "unavailable"]
+    schema_revision: str | None
+
+
+@app.get("/health/db")
+def health_db(response: Response) -> DatabaseHealth:
+    """Is the database reachable, and which migration is it at? 503 if unreachable.
+
+    Separate from ``/health`` on purpose: Render's health check must not restart a working
+    server because of a database problem.
+    """
+    try:
+        revision = schema_revision(get_engine())
+    except SQLAlchemyError, RuntimeError:
+        response.status_code = 503
+        return DatabaseHealth(database="unavailable", schema_revision=None)
+    return DatabaseHealth(database="ok", schema_revision=revision)
 
 
 @app.websocket("/ws/echo")
