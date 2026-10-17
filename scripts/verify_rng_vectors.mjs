@@ -1,6 +1,7 @@
-// Independent check of the frozen RNG vectors (T2.1 subtask 6.6).
-// A from-scratch JavaScript implementation of fish-rng-v1, written from docs/determinism.md,
-// recomputes every value in rng_v1.json. Run: node scripts/verify_rng_vectors.mjs
+// Independent check of the frozen vectors (T2.1 subtask 6.6; T2.2 subtask 1).
+// A from-scratch JavaScript implementation of fish-rng-v1, the card numbering and the deal,
+// written from docs/determinism.md, recomputes every value in rng_v1.json and deal_v1.json.
+// Run: node scripts/verify_rng_vectors.mjs
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
@@ -40,8 +41,9 @@ function stream(seed, name, index = 0n) {
   return new SplitMix64(createHash("sha256").update(data).digest().readBigUInt64BE(0));
 }
 
-const path = new URL("../packages/fish-rules/tests/vectors/rng_v1.json", import.meta.url);
-const v = JSON.parse(readFileSync(path, "utf8"));
+const load = (name) =>
+  JSON.parse(readFileSync(new URL(`../packages/fish-rules/tests/vectors/${name}`, import.meta.url), "utf8"));
+const v = load("rng_v1.json");
 let checked = 0;
 const eq = (got, want, what) => {
   if (got !== want) throw new Error(`${what}: got ${got}, want ${want}`);
@@ -65,4 +67,28 @@ for (const c of v.shuffled_range_54.cases) {
   const got = stream(BigInt(c.seed), v.shuffled_range_54.stream).shuffled([...Array(54).keys()]);
   eq(JSON.stringify(got), JSON.stringify(c.order), `shuffle seed=${c.seed}`);
 }
+
+// ---------------------------------------------------------------- cards and deal (§6)
+const SUITS = ["C", "D", "H", "S"];
+const cardNames = [
+  ...SUITS.flatMap((s) => ["2", "3", "4", "5", "6", "7"].map((r) => r + s)),
+  ...SUITS.flatMap((s) => ["9", "10", "J", "Q", "K", "A"].map((r) => r + s)),
+  ...SUITS.map((s) => "8" + s),
+  "RJ",
+  "BJ",
+];
+const setNames = [...SUITS.map((s) => `low-${s}`), ...SUITS.map((s) => `high-${s}`), "eights"];
+
+const d = load("deal_v1.json");
+eq(d.algorithm, "splitmix64-sha256-v1", "deal algorithm");
+eq(JSON.stringify(d.card_names), JSON.stringify(cardNames), "card names");
+eq(JSON.stringify(d.set_names), JSON.stringify(setNames), "set names");
+for (const c of d.deals) {
+  const seed = BigInt(c.seed);
+  const order = stream(seed, "deal").shuffled([...Array(54).keys()]);
+  const hands = [0, 1, 2, 3, 4, 5].map((k) => order.slice(9 * k, 9 * k + 9).sort((a, b) => a - b));
+  eq(JSON.stringify(hands), JSON.stringify(c.hands), `deal seed=${c.seed}`);
+  eq(Number(stream(seed, "first_player").below(6n)), c.first_player, `first player seed=${c.seed}`);
+}
+
 console.log(`All ${checked} vector values match.`);

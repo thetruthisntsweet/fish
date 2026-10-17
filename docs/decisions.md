@@ -112,3 +112,13 @@ take more than a day.
 **D18 · 2026-10-12 · Licences: Apache-2.0 for code, CC BY 4.0 for the corpus.**
 Alternatives: MIT (no patent grant), CC0, CC BY-NC (blocks some research use). The consent
 screen (T1.5) must state the CC BY 4.0 release.
+
+**D19 · 2026-10-17 · Card numbering and the deal are frozen with the generator.**
+Card = 6 × set + position; sets are low clubs to low spades, high clubs to high spades, then
+the 8s and jokers; suits in bridge order (clubs, diamonds, hearts, spades); the red joker
+before the black. The deal shuffles 0–53 with the `deal` stream and gives seat *k* positions
+9*k* to 9*k* + 8; the first player is `below(6)` on `first_player`. Alternatives: dealing
+round-robin (one card to each seat in turn), or numbering by suit and rank. Both are equally
+good; what matters is choosing once, because the event log names cards by number. Frozen
+deals for ten seeds, checked by the JavaScript implementation. Specified in
+`docs/determinism.md` §6.
