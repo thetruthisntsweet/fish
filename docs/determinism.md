@@ -2,9 +2,9 @@
 
 Every Fish game is recorded as a **seed plus an ordered event log**. Replaying that record
 must reproduce the same deal, first player, call-priority orders and tie-breaks, forever,
-on any machine and in any language. This page specifies the random-number scheme exactly
-enough to reimplement it from scratch; `scripts/verify_rng_vectors.mjs` is such a
-reimplementation, in JavaScript.
+on any machine and in any language. This page specifies the random-number scheme, the card
+numbering and the deal exactly enough to reimplement them from scratch;
+`scripts/verify_rng_vectors.mjs` is such a reimplementation, in JavaScript.
 
 The algorithm is named `splitmix64-sha256-v1` (`fish_rules.rng.RNG_ALGORITHM`). It is
 recorded in every game next to the ruleset version. **It is frozen:** any change, however
@@ -94,3 +94,29 @@ A reimplementation is correct when it reproduces all of them.
 The file was written once by `scripts/make_rng_vectors.py`, which refuses to overwrite it,
 and is checked on every run of `scripts/check.sh` by both the Python tests and the
 independent JavaScript implementation.
+
+## 6. Cards and the deal
+
+Every card has a fixed number, 0 to 53, and the event log names cards by number, so the
+numbering is frozen along with the generator (`fish_rules.cards`).
+
+**Card number = 6 × set + position.** Sets, by number:
+
+| Set | Name | Cards, by position 0–5 |
+|---|---|---|
+| 0–3 | `low-C`, `low-D`, `low-H`, `low-S` | 2, 3, 4, 5, 6, 7 of that suit |
+| 4–7 | `high-C`, `high-D`, `high-H`, `high-S` | 9, 10, J, Q, K, A of that suit |
+| 8 | `eights` | 8C, 8D, 8H, 8S, red joker (`RJ`), black joker (`BJ`) |
+
+Suits are always in the order clubs, diamonds, hearts, spades. So `2C` is 0, `10H` is 37,
+`RJ` is 52 and `BJ` is 53.
+
+**Deal (R.1.4).** Shuffle the list 0, 1, …, 53 (§4) with stream `deal`, index 0. Seat *k*
+receives positions 9*k* to 9*k* + 8 of the shuffled list. Each hand is then sorted ascending.
+
+**First player (R.1.4).** `below(6)` on stream `first_player`, index 0.
+
+`packages/fish-rules/tests/vectors/deal_v1.json` freezes the card names, the set names, and
+the deal and first player for ten seeds (0–8 and 2^64 − 1). It was written once by
+`scripts/make_deal_vectors.py`, which refuses to overwrite it, and is checked by the Python
+tests and by `scripts/verify_rng_vectors.mjs`.
