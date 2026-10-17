@@ -1,6 +1,7 @@
-// Independent check of the frozen vectors (T2.1 subtask 6.6; T2.2 subtask 1).
-// A from-scratch JavaScript implementation of fish-rng-v1, the card numbering and the deal,
-// written from docs/determinism.md, recomputes every value in rng_v1.json and deal_v1.json.
+// Independent check of the frozen vectors (T2.1 subtask 6.6; T2.2 subtasks 1-2).
+// A from-scratch JavaScript implementation of fish-rng-v1, the card numbering, the deal and
+// call priority, written from docs/determinism.md, recomputes every value in rng_v1.json,
+// deal_v1.json and priority_v1.json.
 // Run: node scripts/verify_rng_vectors.mjs
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -89,6 +90,20 @@ for (const c of d.deals) {
   const hands = [0, 1, 2, 3, 4, 5].map((k) => order.slice(9 * k, 9 * k + 9).sort((a, b) => a - b));
   eq(JSON.stringify(hands), JSON.stringify(c.hands), `deal seed=${c.seed}`);
   eq(Number(stream(seed, "first_player").below(6n)), c.first_player, `first player seed=${c.seed}`);
+}
+
+// ---------------------------------------------------------------- call priority (§7)
+const nextTeammate = (seat) => 3 * Math.floor(seat / 3) + ((seat % 3) + 1) % 3;
+const p = load("priority_v1.json");
+eq(p.algorithm, "splitmix64-sha256-v1", "priority algorithm");
+for (const c of p.orders) {
+  const g = stream(BigInt(c.seed), "priority", BigInt(c.window));
+  const firstTeam = Number(g.below(2n));
+  const starts = [Number(g.below(3n)), 3 + Number(g.below(3n))];
+  let [a, b] = [starts[firstTeam], starts[1 - firstTeam]];
+  const order = [];
+  for (let i = 0; i < 3; i++) { order.push(a, b); [a, b] = [nextTeammate(a), nextTeammate(b)]; }
+  eq(JSON.stringify(order), JSON.stringify(c.order), `priority seed=${c.seed} window=${c.window}`);
 }
 
 console.log(`All ${checked} vector values match.`);

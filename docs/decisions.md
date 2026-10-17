@@ -122,3 +122,12 @@ round-robin (one card to each seat in turn), or numbering by suit and rank. Both
 good; what matters is choosing once, because the event log names cards by number. Frozen
 deals for ten seeds, checked by the JavaScript implementation. Specified in
 `docs/determinism.md` §6.
+
+**D20 · 2026-10-17 · Call priority uses three fixed draws per window.**
+`below(2)` for the team that goes first, then `below(3)` for team 0's starting seat, then
+`below(3)` for team 1's, from the `priority` stream at the window index; all three are always
+drawn, so the order of the draws never depends on an earlier result. Each of the 18 possible
+orders has probability 1/18. Alternative: a single `below(18)`. Equivalent in distribution;
+three draws read directly off R.8.1. Run-out callers (R.6.2) come from the same order. Frozen
+orders for 53 (seed, window) pairs, checked by the JavaScript implementation. Specified in
+`docs/determinism.md` §7.
