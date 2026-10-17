@@ -1,7 +1,7 @@
-// Independent check of the frozen vectors (T2.1 subtask 6.6; T2.2 subtasks 1-2).
-// A from-scratch JavaScript implementation of fish-rng-v1, the card numbering, the deal and
-// call priority, written from docs/determinism.md, recomputes every value in rng_v1.json,
-// deal_v1.json and priority_v1.json.
+// Independent check of the frozen vectors (T2.1 subtask 6.6; T2.2 subtasks 1, 2 and 6).
+// A from-scratch JavaScript implementation of fish-rng-v1, the card numbering, the deal, call
+// priority and the after-call tie-break, written from docs/determinism.md, recomputes every
+// value in rng_v1.json, deal_v1.json, priority_v1.json and tiebreak_v1.json.
 // Run: node scripts/verify_rng_vectors.mjs
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -104,6 +104,16 @@ for (const c of p.orders) {
   const order = [];
   for (let i = 0; i < 3; i++) { order.push(a, b); [a, b] = [nextTeammate(a), nextTeammate(b)]; }
   eq(JSON.stringify(order), JSON.stringify(c.order), `priority seed=${c.seed} window=${c.window}`);
+}
+
+// ---------------------------------------------------------------- after-call tie-break (§8)
+const t = load("tiebreak_v1.json");
+eq(t.algorithm, "splitmix64-sha256-v1", "tiebreak algorithm");
+for (const c of t.choices) {
+  const among = [...new Set(c.among)].sort((a, b) => a - b);
+  const g = stream(BigInt(c.seed), "tiebreak", BigInt(c.call_event));
+  const chosen = among[Number(g.below(BigInt(among.length)))];
+  eq(chosen, c.chosen, `tiebreak seed=${c.seed} event=${c.call_event} among=${c.among}`);
 }
 
 console.log(`All ${checked} vector values match.`);

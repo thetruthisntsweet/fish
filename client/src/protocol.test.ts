@@ -10,7 +10,7 @@ test("generated message types match the server's messages", () => {
   const reply: ServerHello = {
     type: "server_hello",
     protocol_version: 1,
-    ruleset_version: "1.0",
+    ruleset_version: "1.1",
     rng_algorithm: "splitmix64-sha256-v1",
   };
   expect(hello.type).toBe("client_hello");

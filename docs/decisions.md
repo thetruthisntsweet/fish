@@ -142,3 +142,13 @@ between website and environment and depend on server-only rows). Only asks, call
 after-call choices are numbered, the R.4.2 meaning of "event"; the tie-break stream uses the
 call's number. Every record is marked public or log-only, the starting point for the
 projection (T2.4). Specified in `docs/determinism.md` §8.
+
+**D22 · 2026-10-17 · Canonical Ruleset v1.1: the seed breaks a tied vote among the tied
+seats.**
+v1.0's R.5.2 said the seed chooses the seat on a tie without saying among which seats, so a
+seat with no votes could have won. v1.1 states it: among the tied seats on a tie, among the
+scoring team's players holding cards when the caller does not choose or no votes are cast.
+Changed before any game was recorded, so no v1.0 games exist; `RULESET_VERSION` is "1.1".
+The draw is `choice` over the seats in ascending order from the `tiebreak` stream at the
+call's event number, frozen with 65 vectors checked by the JavaScript implementation
+(`docs/determinism.md` §8).
