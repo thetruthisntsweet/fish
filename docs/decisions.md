@@ -131,3 +131,14 @@ orders has probability 1/18. Alternative: a single `below(18)`. Equivalent in di
 three draws read directly off R.8.1. Run-out callers (R.6.2) come from the same order. Frozen
 orders for 53 (seed, window) pairs, checked by the JavaScript implementation. Specified in
 `docs/determinism.md` §7.
+
+**D21 · 2026-10-17 · Immutable state; a game is a seed plus its actions; events numbered by
+R.4.2 only.**
+The engine takes an immutable `State` and an action and returns a new state and the records
+of what happened, so replay is `new_game(seed)` followed by the actions in order, and any
+state can be kept, compared or hashed. Alternatives: a mutable game object (faster, but
+replay and tests need copies); the server's log position as the event number (would differ
+between website and environment and depend on server-only rows). Only asks, calls and
+after-call choices are numbered, the R.4.2 meaning of "event"; the tie-break stream uses the
+call's number. Every record is marked public or log-only, the starting point for the
+projection (T2.4). Specified in `docs/determinism.md` §8.
