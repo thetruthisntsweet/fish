@@ -3,8 +3,8 @@
 Every Fish game is recorded as a **seed plus an ordered event log**. Replaying that record
 must reproduce the same deal, first player, call-priority orders and tie-breaks, forever,
 on any machine and in any language. This page specifies the random-number scheme, the card
-numbering, the deal and call priority exactly enough to reimplement them from scratch;
-`scripts/verify_rng_vectors.mjs` is such a reimplementation, in JavaScript.
+numbering, the deal, call priority and event numbering exactly enough to reimplement them
+from scratch; `scripts/verify_rng_vectors.mjs` is such a reimplementation, in JavaScript.
 
 The algorithm is named `splitmix64-sha256-v1` (`fish_rules.rng.RNG_ALGORITHM`). It is
 recorded in every game next to the ruleset version. **It is frozen:** any change, however
@@ -147,3 +147,23 @@ the run-out window, computed the same way. Each run-out selection counts as a wi
 indices 0–9, plus (42, 2^64 − 1), (2^64 − 1, 0) and (2^64 − 1, 2^64 − 1). It was written once
 by `scripts/make_priority_vectors.py`, which refuses to overwrite it, and is checked by the
 Python tests and by `scripts/verify_rng_vectors.mjs`.
+
+## 8. Event numbers and replay
+
+**A game record is the seed plus the ordered list of actions** (`fish_rules.events`).
+Applying the actions to `new_game(seed)` reproduces every state and every record.
+
+**Event numbers.** An *event* is an ask and its answer, a call and its result, or an
+after-call choice (R.4.2). Events are numbered 0, 1, 2, … in the order they happen. Nothing
+else advances the number: window openings, declarations, discarded declarations, votes,
+run-out selections and the end of the game are recorded but not numbered, and neither are
+the server's own log rows (round-trip times, rejected presses). Streams indexed by event
+number (§2) therefore come out the same on the website and in the environment.
+
+**Tie-break index.** When the game seed chooses who takes the turn after a call (R.5.2), it
+draws from stream `tiebreak` with the *call's* event number as the index.
+
+**State hash.** Golden replays check `fish_rules.state.state_hash` after every action: the
+SHA-256 of the state's canonical encoding (fixed keys, plain values, compact JSON with sorted
+keys), named `fish-state-v1`. A hash is a test aid, not part of the game record, so the
+encoding may change, but only under a new name and with the golden replays regenerated.
