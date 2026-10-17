@@ -3,7 +3,7 @@
 Every Fish game is recorded as a **seed plus an ordered event log**. Replaying that record
 must reproduce the same deal, first player, call-priority orders and tie-breaks, forever,
 on any machine and in any language. This page specifies the random-number scheme, the card
-numbering and the deal exactly enough to reimplement them from scratch;
+numbering, the deal and call priority exactly enough to reimplement them from scratch;
 `scripts/verify_rng_vectors.mjs` is such a reimplementation, in JavaScript.
 
 The algorithm is named `splitmix64-sha256-v1` (`fish_rules.rng.RNG_ALGORITHM`). It is
@@ -120,3 +120,30 @@ receives positions 9*k* to 9*k* + 8 of the shuffled list. Each hand is then sort
 the deal and first player for ten seeds (0–8 and 2^64 − 1). It was written once by
 `scripts/make_deal_vectors.py`, which refuses to overwrite it, and is checked by the Python
 tests and by `scripts/verify_rng_vectors.mjs`.
+
+## 7. Call priority
+
+When a declaration window closes, the declared call that comes first in the window's
+priority order proceeds (R.4.3, R.8.1). The order depends only on the game seed and the
+window's index (the number of windows opened earlier in the game, from 0), and is computed
+by `fish_rules.priority`.
+
+**Draws.** From stream `priority` with the window index as its index, always all three and
+always in this order:
+
+1. `below(2)`: the team that goes first (0 or 1);
+2. `below(3)`: the starting seat of team 0 (0, 1 or 2);
+3. `below(3)`: the starting seat of team 1 (3 + the draw).
+
+**Order.** Start with the first team's starting seat, then the other team's. After each pair,
+move each team on to its next seat clockwise, wrapping within the team (0 → 1 → 2 → 0 and
+3 → 4 → 5 → 3). Six seats result, alternating teams. For example, team 0 first with starts
+1 and 4 gives 1, 4, 2, 5, 0, 3.
+
+**Run-out (R.6.2).** The caller is the first seat of the team holding cards in the order of
+the run-out window, computed the same way. Each run-out selection counts as a window.
+
+`packages/fish-rules/tests/vectors/priority_v1.json` freezes 53 orders: seeds 0–4 at window
+indices 0–9, plus (42, 2^64 − 1), (2^64 − 1, 0) and (2^64 − 1, 2^64 − 1). It was written once
+by `scripts/make_priority_vectors.py`, which refuses to overwrite it, and is checked by the
+Python tests and by `scripts/verify_rng_vectors.mjs`.
