@@ -1,4 +1,4 @@
-"""The rules engine: applies one action to a state (Canonical Ruleset v1.0).
+"""The rules engine: applies one action to a state (Canonical Ruleset v1.1).
 
 ``apply(state, action)`` returns the new state and the records of what happened, or raises
 ``IllegalActionError`` and leaves nothing changed (the state is immutable). The engine has no
@@ -10,6 +10,7 @@ the same rules can be checked against hands a player might hold: Layer 2 (T5.3) 
 leakage estimate need exactly that.
 """
 
+from collections.abc import Iterable
 from dataclasses import replace
 
 from fish_rules.cards import (
@@ -35,6 +36,8 @@ from fish_rules.events import (
     Assign,
     Call,
     CallEvent,
+    ChoiceEvent,
+    Choose,
     CloseWindow,
     DeclarationDiscarded,
     Declare,
@@ -43,10 +46,14 @@ from fish_rules.events import (
     OpenWindow,
     Pass,
     Record,
+    SeedChose,
+    Vote,
+    VoteCast,
     WindowClosed,
     WindowOpened,
 )
 from fish_rules.priority import first_in_priority, priority_order
+from fish_rules.rng import stream
 from fish_rules.state import (
     MAX_ASKS,
     CallSource,
@@ -369,6 +376,97 @@ def _after_call(state: State, record: CallEvent, correct: bool) -> Step:
     return replace(state, phase=phase, choice=choice), (record,)
 
 
+# ---------------------------------------------------------------- after-call choice (R.5)
+
+
+def tiebreak_seat(game_seed: int, call_event: int, among: Iterable[Seat]) -> Seat:
+    """R.5.2: the seat the game seed chooses, from ``among``, after the call numbered
+    ``call_event``.
+
+    FROZEN (``docs/determinism.md`` §8): ``choice`` over the seats in ascending order, from
+    stream ``tiebreak`` with the call's event number as the index.
+    """
+    seats = sorted({check_seat(seat) for seat in among})
+    return stream(game_seed, "tiebreak", call_event).choice(seats)
+
+
+def _chosen(state: State, value: object) -> Seat:
+    """R.5.1: the turn can only go to one of the scoring team's players holding cards."""
+    choice = state.choice
+    assert choice is not None
+    seat = _seat(value, "chosen")
+    if seat not in choice.candidates:
+        raise IllegalActionError(
+            f"seat {seat} cannot take the turn; the choice is among {choice.candidates} (R.5.1)"
+        )
+    return seat
+
+
+def _give_turn(state: State, seat: Seat, records: tuple[Record, ...]) -> Step:
+    """R.5: the after-call choice is made; ``seat`` becomes the current player. This is an
+    event (R.4.2); in the environment the next window opens now."""
+    choice = state.choice
+    assert choice is not None
+    record = ChoiceEvent(number=state.events, team=choice.team, seat=seat)
+    state = replace(state, phase=Phase.TURN, choice=None, current=seat, events=state.events + 1)
+    return state, (*records, record)
+
+
+def _choose(state: State, action: Choose) -> Step:
+    """R.5.2: if the caller's team is choosing, the caller makes the choice."""
+    _require(state, Phase.CHOOSE, "choose")
+    choice = state.choice
+    assert choice is not None
+    seat = _seat(action.seat, "seat")
+    if seat != choice.chooser:
+        raise IllegalActionError(f"only the caller, seat {choice.chooser}, chooses (R.5.2)")
+    return _give_turn(state, _chosen(state, action.chosen), ())
+
+
+def _settle_vote(state: State, records: tuple[Record, ...]) -> Step:
+    """R.5.2: count the votes cast. The seat with the most votes takes the turn. If the vote
+    ties, the game seed chooses among the tied seats; if no votes were cast, among the scoring
+    team's players holding cards. Only the outcome is public."""
+    choice = state.choice
+    assert choice is not None
+    counts = [(sum(1 for vote in choice.votes if vote == seat), seat) for seat in choice.candidates]
+    most = max(count for count, _ in counts)
+    leaders = tuple(seat for count, seat in counts if count == most)
+    if len(leaders) == 1:
+        return _give_turn(state, leaders[0], records)
+    seat = tiebreak_seat(state.seed, choice.call_event, leaders)
+    seed_record = SeedChose(call_event=choice.call_event, among=leaders, chosen=seat)
+    return _give_turn(state, seat, (*records, seed_record))
+
+
+def _vote(state: State, action: Vote) -> Step:
+    """R.5.2: if the other team is choosing, its members vote. All members vote, including
+    those with no cards; each votes once. Individual votes are recorded in the event log but
+    not shown. In the environment every member votes (R.8.6), so the vote is settled when the
+    third vote is cast."""
+    _require(state, Phase.VOTE, "vote")
+    choice = state.choice
+    assert choice is not None
+    seat = _seat(action.seat, "seat")
+    members = team_seats(choice.team)
+    if seat not in members:
+        raise IllegalActionError(f"only members of team {choice.team} vote (R.5.2)")
+    position = members.index(seat)
+    if choice.votes[position] is not None:
+        raise IllegalActionError(f"seat {seat} has already voted (R.5.2)")
+    chosen = _chosen(state, action.chosen)
+    votes = (
+        chosen if position == 0 else choice.votes[0],
+        chosen if position == 1 else choice.votes[1],
+        chosen if position == 2 else choice.votes[2],
+    )
+    state = replace(state, choice=replace(choice, votes=votes))
+    record = VoteCast(call_event=choice.call_event, seat=seat, chosen=chosen)
+    if any(vote is None for vote in votes):
+        return state, (record,)
+    return _settle_vote(state, (record,))
+
+
 # ---------------------------------------------------------------- end of game (R.7, R.8.2)
 
 
@@ -404,5 +502,9 @@ def apply(state: State, action: Action) -> Step:
             return _call(state, action)
         case Assign():
             return _assign(state, action)
+        case Choose():
+            return _choose(state, action)
+        case Vote():
+            return _vote(state, action)
         case _:
-            raise NotImplementedError(f"{type(action).__name__} is added in a later subtask")
+            raise IllegalActionError(f"not an action: {action!r}")

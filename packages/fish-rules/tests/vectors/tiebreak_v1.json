@@ -1,0 +1,591 @@
+{
+  "algorithm": "splitmix64-sha256-v1",
+  "choices": [
+    {
+      "seed": "0",
+      "call_event": "0",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 3
+    },
+    {
+      "seed": "0",
+      "call_event": "0",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "0",
+      "call_event": "0",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "0",
+      "call_event": "0",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "0",
+      "call_event": "1",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 5
+    },
+    {
+      "seed": "0",
+      "call_event": "1",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 0
+    },
+    {
+      "seed": "0",
+      "call_event": "1",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 1
+    },
+    {
+      "seed": "0",
+      "call_event": "1",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "0",
+      "call_event": "7",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 5
+    },
+    {
+      "seed": "0",
+      "call_event": "7",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "0",
+      "call_event": "7",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "0",
+      "call_event": "7",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "0",
+      "call_event": "99",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 3
+    },
+    {
+      "seed": "0",
+      "call_event": "99",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "0",
+      "call_event": "99",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "0",
+      "call_event": "99",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "1",
+      "call_event": "0",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "1",
+      "call_event": "0",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 0
+    },
+    {
+      "seed": "1",
+      "call_event": "0",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 1
+    },
+    {
+      "seed": "1",
+      "call_event": "0",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "1",
+      "call_event": "1",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "1",
+      "call_event": "1",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "1",
+      "call_event": "1",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "1",
+      "call_event": "1",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "1",
+      "call_event": "7",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "1",
+      "call_event": "7",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "1",
+      "call_event": "7",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "1",
+      "call_event": "7",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "1",
+      "call_event": "99",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 5
+    },
+    {
+      "seed": "1",
+      "call_event": "99",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "1",
+      "call_event": "99",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "1",
+      "call_event": "99",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "2",
+      "call_event": "0",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 3
+    },
+    {
+      "seed": "2",
+      "call_event": "0",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "2",
+      "call_event": "0",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "2",
+      "call_event": "0",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "2",
+      "call_event": "1",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "2",
+      "call_event": "1",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "2",
+      "call_event": "1",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "2",
+      "call_event": "1",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "2",
+      "call_event": "7",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "2",
+      "call_event": "7",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "2",
+      "call_event": "7",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "2",
+      "call_event": "7",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "2",
+      "call_event": "99",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 5
+    },
+    {
+      "seed": "2",
+      "call_event": "99",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 0
+    },
+    {
+      "seed": "2",
+      "call_event": "99",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 1
+    },
+    {
+      "seed": "2",
+      "call_event": "99",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "3",
+      "call_event": "0",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 3
+    },
+    {
+      "seed": "3",
+      "call_event": "0",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 0
+    },
+    {
+      "seed": "3",
+      "call_event": "0",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 1
+    },
+    {
+      "seed": "3",
+      "call_event": "0",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "3",
+      "call_event": "1",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 5
+    },
+    {
+      "seed": "3",
+      "call_event": "1",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 0
+    },
+    {
+      "seed": "3",
+      "call_event": "1",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 1
+    },
+    {
+      "seed": "3",
+      "call_event": "1",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "3",
+      "call_event": "7",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "3",
+      "call_event": "7",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "3",
+      "call_event": "7",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "3",
+      "call_event": "7",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "3",
+      "call_event": "99",
+      "among": [
+        3,
+        4,
+        5
+      ],
+      "chosen": 5
+    },
+    {
+      "seed": "3",
+      "call_event": "99",
+      "among": [
+        0,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "3",
+      "call_event": "99",
+      "among": [
+        1,
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "seed": "3",
+      "call_event": "99",
+      "among": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "seed": "18446744073709551615",
+      "call_event": "18446744073709551615",
+      "among": [
+        0,
+        1,
+        2
+      ],
+      "chosen": 0
+    }
+  ]
+}

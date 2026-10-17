@@ -160,8 +160,17 @@ run-out selections and the end of the game are recorded but not numbered, and ne
 the server's own log rows (round-trip times, rejected presses). Streams indexed by event
 number (§2) therefore come out the same on the website and in the environment.
 
-**Tie-break index.** When the game seed chooses who takes the turn after a call (R.5.2), it
-draws from stream `tiebreak` with the *call's* event number as the index.
+**Tie-break (R.5.2, ruleset v1.1).** When the game seed chooses who takes the turn after a
+call, it uses `choice` over the seats it chooses among, in ascending order, from stream
+`tiebreak` with the *call's* event number as the index. It chooses among the tied seats if a
+vote ties, and among all of the scoring team's players holding cards if the caller does not
+choose or no votes are cast (website only; R.8.6).
+
+`packages/fish-rules/tests/vectors/tiebreak_v1.json` freezes 65 choices: seeds 0–3 at call
+event numbers 0, 1, 7 and 99, each with the seats (3, 4, 5), (0, 2), (1, 2) and (4), plus
+seed and event 2^64 − 1 with seats (0, 1, 2). It was written once by
+`scripts/make_tiebreak_vectors.py`, which refuses to overwrite it, and is checked by the
+Python tests and by `scripts/verify_rng_vectors.mjs`.
 
 **State hash.** Golden replays check `fish_rules.state.state_hash` after every action: the
 SHA-256 of the state's canonical encoding (fixed keys, plain values, compact JSON with sorted
