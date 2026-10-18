@@ -172,3 +172,14 @@ games (`docs/determinism.md` §8) replay on every run; the whole-game test check
 invariants at every step of a tenth of the profile's examples (100 games in CI). CI now sets
 `HYPOTHESIS_PROFILE=ci`, which T2.1 §9 intended but the workflow had not set. The driver is a
 test tool: the environment (T2.3) and B0 (T5.1) replace it for anything else.
+
+**D25 · 2026-10-17 · Rule traceability is checked: every rule is cited by a test or owed.**
+`scripts/check_rule_citations.py` lists the 37 rules of Canonical Ruleset v1.1 (R.9 counts as
+one) and scans every package's tests for citations: "R.x.y" in a docstring or comment, a range
+"R.x.y-R.x.z", or a test named `test_rx_y_...`. It fails on a rule nobody cites that is not
+owed, on an owed rule that is now cited, on a citation of a rule that does not exist, and when
+`RULESET_VERSION` no longer matches the version its list was written for. Five rules can only
+be tested in the website or client and are owed: R.2.5 and R.2.6 by T3.4, R.8.4 and R.8.5 by
+T3.1, R.8.8 by T3.5. Alternative: a hand-kept matrix in the doc. It would drift; the script
+runs as a pre-commit hook (so in CI's hooks job) and in `scripts/check.sh`. A citation shows a
+test exists, not that it is right; review still judges that.
