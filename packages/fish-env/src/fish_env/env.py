@@ -16,6 +16,12 @@ The hand is a placeholder: T2.4 replaces it with the per-player projection. The 
 ``fish_rules.action_index.legal_mask``, so it allows exactly what the engine accepts. An
 action the mask does not allow raises ``IllegalActionError`` and changes nothing; a benchmark
 should fail loudly on a broken agent rather than score it.
+
+The reward is the game result, given once at the end (R.7.1): +1 to every seat of the team
+that claimed five sets and -1 to every seat of the other, so the two teams' rewards sum to
+zero. Every other step rewards 0. A game stopped at 1,000 asks (R.8.2) has no result: every
+agent is truncated rather than terminated, with reward 0. At the end each agent's ``infos``
+entry holds ``{"outcome": "finished" or "unfinished", "winner": team or None}``.
 """
 
 import operator
@@ -29,7 +35,7 @@ from pettingzoo import AECEnv
 from pettingzoo.utils import wrappers
 
 from fish_rules.action_index import NUM_ACTIONS, decode, legal_mask
-from fish_rules.cards import NUM_CARDS, SEATS, Seat
+from fish_rules.cards import NUM_CARDS, SEATS, Seat, team_of
 from fish_rules.engine import acting_seats, apply
 from fish_rules.events import (
     Action,
@@ -40,13 +46,19 @@ from fish_rules.events import (
     OpenWindow,
     Record,
 )
-from fish_rules.state import Phase, State, new_game
+from fish_rules.state import Outcome, Phase, State, new_game
 
 AGENTS: Final[tuple[str, ...]] = tuple(f"seat_{seat}" for seat in SEATS)
 """Agent names. ``AGENTS[seat]`` plays ``seat``."""
 
 SEED_BOUND: Final = 2**64
 """Game seeds are unsigned 64-bit integers."""
+
+WIN_REWARD: Final = 1.0
+"""R.7.1: each seat of the team that claimed five sets."""
+
+LOSS_REWARD: Final = -1.0
+"""Each seat of the other team."""
 
 type Observation = dict[str, NDArray[np.int8]]
 type ActionIndex = int | None
@@ -126,9 +138,26 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
             else:
                 break
         if self.game.phase is Phase.OVER:
-            self.terminations = dict.fromkeys(self.agents, True)
+            self._finish()
         else:
             self.agent_selection = AGENTS[acting_seats(self.game)[0]]
+
+    def _finish(self) -> None:
+        """End the episode. R.7.1: a finished game terminates every agent and rewards each
+        seat +1 if its team won and -1 if not. R.8.2: an unfinished game has no result, so
+        every agent is truncated with reward 0."""
+        outcome = self.game.outcome
+        assert outcome is not None
+        winner = self.game.winner() if outcome is Outcome.FINISHED else None
+        assert (winner is None) == (outcome is Outcome.UNFINISHED)
+        for agent in self.agents:
+            self.infos[agent] = {"outcome": str(outcome), "winner": winner}
+            if winner is None:
+                self.truncations[agent] = True
+            else:
+                self.terminations[agent] = True
+                won = team_of(seat_of(agent)) == winner
+                self.rewards[agent] = WIN_REWARD if won else LOSS_REWARD
 
     # ------------------------------------------------------------ PettingZoo API
 
