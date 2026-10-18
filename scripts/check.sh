@@ -24,6 +24,8 @@ echo "== Tests + coverage"
 uv run pytest --cov --cov-report=term-missing
 echo "== Coverage: fish-rules must be 100%"
 uv run coverage report --include="*/fish_rules/*" --fail-under=100
+echo "== Coverage: fish-env must be 100%"
+uv run coverage report --include="*/fish_env/*" --fail-under=100
 echo "== RNG vectors: independent JavaScript check"
 node scripts/verify_rng_vectors.mjs
 

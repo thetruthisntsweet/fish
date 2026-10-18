@@ -188,10 +188,9 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
 
     def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> None:
         """Start a new game from ``seed``, an unsigned 64-bit integer. Without one, a seed is
-        drawn from the operating system's secure source; ``game_seed`` always holds it. There
-        are no options."""
-        if options:
-            raise ValueError(f"the Fish environment takes no reset options, got {options!r}")
+        drawn from the operating system's secure source; ``game_seed`` always holds it.
+        ``options`` is accepted, as PettingZoo requires, and ignored: a game has no settings
+        beyond its seed."""
         if seed is None:
             seed = secrets.randbelow(SEED_BOUND)
         seed = operator.index(seed)

@@ -99,11 +99,13 @@ def test_an_unseeded_game_records_its_seed() -> None:
     assert game.game.hands == deal(game.game_seed)
 
 
-def test_reset_takes_no_options() -> None:
-    game = FishEnv()
-    game.reset(seed=1, options={})
-    with pytest.raises(ValueError, match="no reset options"):
-        game.reset(seed=1, options={"memory": "full"})
+def test_reset_ignores_options() -> None:
+    """PettingZoo passes options to reset; a game has no settings beyond its seed."""
+    plain = FishEnv()
+    plain.reset(seed=1)
+    with_options = FishEnv()
+    with_options.reset(seed=1, options={"anything": 1})
+    assert with_options.state_hash() == plain.state_hash()
 
 
 def test_record_needs_a_reset() -> None:

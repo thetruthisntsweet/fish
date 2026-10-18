@@ -231,3 +231,14 @@ replay does not end as recorded. `FishEnv.reset(seed=s)` uses `s` as the game se
 nothing else; without a seed it draws one from the operating system's secure source and
 keeps it in `game_seed`, so an unseeded game is still reproducible from its record. The
 environment uses no NumPy or Python random state, so PettingZoo's `np_random` plays no part.
+
+**D30 · 2026-10-18 · Environment conformance: PettingZoo's checks, the golden games, 100%
+coverage.**
+The environment passes PettingZoo's `api_test` (wrapped and raw) and `seed_test` on every run,
+with three of `api_test`'s advisory warnings allowed and the reasons written beside them. Every
+golden game, given to the environment one seat action at a time, reproduces its actions and
+its state hash after every agent step, and reference games from `fish_rules.playout` produce
+identical action logs, so the environment and the reference driver apply the same mechanics
+(R.4.2, R.8.9). fish-env joins fish-rules at 100% branch coverage in CI and `scripts/check.sh`.
+`reset` now accepts and ignores `options`, because `api_test` passes options and expects an
+environment without settings to accept them; D29's rejection of options is withdrawn.
