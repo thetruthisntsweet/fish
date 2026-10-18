@@ -210,3 +210,12 @@ not allow raises `IllegalActionError` and changes nothing. Alternative: PettingZ
 `TerminateIllegalWrapper`, which ends the game with a penalty; a benchmark would then score a
 broken agent instead of failing. Until T2.4 the observation is the seat's own hand plus the
 mask.
+
+**D28 · 2026-10-18 · The environment's reward is the game result, once, at the end.**
+When a game finishes (R.7.1), every seat of the winning team is rewarded +1 and every seat of
+the other team -1, so the teams' rewards sum to zero; every earlier step rewards 0. A game
+stopped at 1,000 asks (R.8.2) has no result: every agent is truncated, not terminated, and
+rewarded 0, matching its exclusion from analysis. `infos` holds the outcome and the winner at
+the end. Alternative: +1/-1 per set claimed. It would reward a team that claims four sets and
+loses, and the research questions measure beliefs and calls, not set counts; per-set reward
+is easy to rebuild from the events for anyone who wants it.
