@@ -161,3 +161,14 @@ rejected (R.8.7). Alternative: the server decides these itself. That would be a 
 implementation of rules, which Plan §3 rules out, and the outcomes would be untested by the
 rules suite. A timed-out call is recorded with `assignment` None. The environment never
 applies these actions (R.8.6).
+
+**D24 · 2026-10-17 · Whole-game testing: a reference driver, golden replays, CI profile.**
+`fish_rules.playout.random_game` plays complete games under environment mechanics (a window
+at the start and after every event, every seat asked in every window) with a seeded, legal,
+deliberately skewed policy: random calls are rare and a team that holds a whole set often
+calls it, so correct calls and the caller's after-call choice occur. A uniform random policy
+almost never made a correct call, which left the caller-chooses path untested. Eight golden
+games (`docs/determinism.md` §8) replay on every run; the whole-game test checks the R.9
+invariants at every step of a tenth of the profile's examples (100 games in CI). CI now sets
+`HYPOTHESIS_PROFILE=ci`, which T2.1 §9 intended but the workflow had not set. The driver is a
+test tool: the environment (T2.3) and B0 (T5.1) replace it for anything else.

@@ -176,3 +176,15 @@ Python tests and by `scripts/verify_rng_vectors.mjs`.
 SHA-256 of the state's canonical encoding (fixed keys, plain values, compact JSON with sorted
 keys), named `fish-state-v1`. A hash is a test aid, not part of the game record, so the
 encoding may change, but only under a new name and with the golden replays regenerated.
+
+**Actions as data.** `fish_rules.codec` writes each action as `{"type": <name>, <field>:
+<int or list of ints>}`, named `fish-actions-v1`, and reads it back exactly.
+
+**Golden replays.** `packages/fish-rules/tests/golden/` holds eight complete games, each its
+seed, its actions and the state hash after every action, chosen so that together they include
+run-out, a seed tie-break, a discarded declaration, a call on a turn, the caller choosing, the
+team voting, and each team winning. They were played by `fish_rules.playout.random_game`
+under environment mechanics and written once by `scripts/make_golden_games.py`, which
+refuses to overwrite them. Every test run replays them. A golden game that stops replaying is
+a rule that changed: regenerate (`--regenerate`) only with a new ruleset version or a new
+state encoding, and record why in the decision log.
