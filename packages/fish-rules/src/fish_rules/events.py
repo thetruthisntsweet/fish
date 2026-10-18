@@ -4,7 +4,9 @@
 it, so replaying the actions reproduces every state and record (``docs/determinism.md`` §8).
 Seat actions name the seat acting. ``OpenWindow`` and ``CloseWindow`` are control actions:
 the environment applies them around every event, the server only when a player presses Call
-and when the 1-second window ends (R.4.2, R.8.3).
+and when the 1-second window ends (R.4.2, R.8.3). ``AssignTimeout`` and ``ChoiceTimeout`` are
+control actions too, applied only by the server when a website timer runs out (R.4.3, R.5.2);
+the environment has no timers and never uses them (R.8.6).
 
 **Records** are the outputs, one or more per action, in order. Three kinds are *events* in
 the sense of R.4.2 and carry an event number: an ask and its answer (``AskEvent``), a call
@@ -106,7 +108,31 @@ class CloseWindow:
     """R.4.3: close the open window; the declared call with the highest priority proceeds."""
 
 
-type Action = Ask | Call | Declare | Pass | Assign | Choose | Vote | OpenWindow | CloseWindow
+@dataclass(frozen=True, slots=True)
+class AssignTimeout:
+    """R.4.3: the caller did not finish assigning in 30 seconds, which is an incorrect call.
+    Website only (R.8.6)."""
+
+
+@dataclass(frozen=True, slots=True)
+class ChoiceTimeout:
+    """R.5.2: the 15 seconds for the after-call choice ran out. If the caller did not choose,
+    the game seed chooses; votes not cast are ignored. Website only (R.8.6)."""
+
+
+type Action = (
+    Ask
+    | Call
+    | Declare
+    | Pass
+    | Assign
+    | Choose
+    | Vote
+    | OpenWindow
+    | CloseWindow
+    | AssignTimeout
+    | ChoiceTimeout
+)
 """Every input the engine accepts."""
 
 
@@ -131,8 +157,9 @@ class CallEvent:
     """R.4.4-R.4.5, R.2.3: a call and its result.
 
     ``assignment[i]`` and ``holders[i]`` are the assigned and true holders of the set's i-th
-    card; the true holders are revealed to all players. ``scored_by`` is the caller's team if
-    the call was correct, otherwise the other team. All six cards leave play.
+    card; the true holders are revealed to all players. ``assignment`` is None if the caller
+    did not finish assigning in time, which is an incorrect call (R.4.3). ``scored_by`` is the
+    caller's team if the call was correct, otherwise the other team. All six cards leave play.
     """
 
     visibility: ClassVar[Visibility] = Visibility.PUBLIC
@@ -140,7 +167,7 @@ class CallEvent:
     caller: Seat
     set_id: SetId
     source: CallSource
-    assignment: tuple[Seat, ...]
+    assignment: tuple[Seat, ...] | None
     holders: tuple[Seat, ...]
     correct: bool
     scored_by: Team

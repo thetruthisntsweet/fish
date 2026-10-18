@@ -8,6 +8,10 @@ Legality checks that need only a player's own hand and public information are pl
 functions of those values (``ask_violation``, ``legal_asks``, ``assignment_violation``), so
 the same rules can be checked against hands a player might hold: Layer 2 (T5.3) and RQ2's
 leakage estimate need exactly that.
+
+The website's timers live in the server (T3.1), but what happens when one runs out is a rule,
+so it is here: ``AssignTimeout`` and ``ChoiceTimeout``, and ``press_is_stale`` for R.8.7.
+The server never decides a rule outcome itself.
 """
 
 from collections.abc import Iterable
@@ -36,9 +40,11 @@ from fish_rules.events import (
     Ask,
     AskEvent,
     Assign,
+    AssignTimeout,
     Call,
     CallEvent,
     ChoiceEvent,
+    ChoiceTimeout,
     Choose,
     CloseWindow,
     DeclarationDiscarded,
@@ -333,12 +339,27 @@ def _assign(state: State, action: Assign) -> Step:
     why = assignment_violation(call.caller, holders)
     if why is not None:
         raise IllegalActionError(why)
+    return _resolve_call(state, holders)
 
+
+def _assign_timeout(state: State) -> Step:
+    """R.4.3: a caller who does not finish assigning in 30 seconds has made an incorrect call.
+    The set scores for the other team, its cards leave play and their holders are revealed, as
+    for any incorrect call. Website only (R.8.6)."""
+    _require(state, Phase.ASSIGN, "time out an assignment")
+    return _resolve_call(state, None)
+
+
+def _resolve_call(state: State, holders: tuple[Seat, ...] | None) -> Step:
+    """R.4.4, R.4.5, R.2.3: score the pending call. ``holders`` is the caller's assignment, or
+    None if the caller ran out of time (always incorrect)."""
+    call = state.call
+    assert call is not None
     cards = set_cards(call.set_id)
     true_holders = tuple(state.holder(card) for card in cards)
     revealed = tuple(holder for holder in true_holders if holder is not None)
     assert len(revealed) == len(cards), "every card of a set in play is in some hand"
-    correct = revealed == holders
+    correct = holders is not None and revealed == holders
     caller_team = team_of(call.caller)
     scoring_team = caller_team if correct else opponent_team(caller_team)
     record = CallEvent(
@@ -438,10 +459,11 @@ def _choose(state: State, action: Choose) -> Step:
     return _give_turn(state, _chosen(state, action.chosen), ())
 
 
-def _settle_vote(state: State, records: tuple[Record, ...]) -> Step:
+def _settle_choice(state: State, records: tuple[Record, ...]) -> Step:
     """R.5.2: count the votes cast. The seat with the most votes takes the turn. If the vote
-    ties, the game seed chooses among the tied seats; if no votes were cast, among the scoring
-    team's players holding cards. Only the outcome is public."""
+    ties, the game seed chooses among the tied seats; if no votes were cast, or the caller did
+    not choose, among the scoring team's players holding cards. With a single seat to choose
+    from, that seat takes the turn and no draw is made. Only the outcome is public."""
     choice = state.choice
     assert choice is not None
     counts = [(sum(1 for vote in choice.votes if vote == seat), seat) for seat in choice.candidates]
@@ -479,7 +501,42 @@ def _vote(state: State, action: Vote) -> Step:
     record = VoteCast(call_event=choice.call_event, seat=seat, chosen=chosen)
     if any(vote is None for vote in votes):
         return state, (record,)
-    return _settle_vote(state, (record,))
+    return _settle_choice(state, (record,))
+
+
+def _choice_timeout(state: State) -> Step:
+    """R.5.2: the 15 seconds ran out. If the caller did not choose, the game seed chooses among
+    the scoring team's players holding cards. Votes not cast are ignored: the votes that were
+    cast decide, ties and no votes going to the seed. Website only (R.8.6)."""
+    if state.phase not in (Phase.CHOOSE, Phase.VOTE):
+        raise IllegalActionError(
+            f"cannot time out a choice now; the game is in phase {state.phase}"
+        )
+    return _settle_choice(state, ())
+
+
+# ---------------------------------------------------------------- stale Call presses (R.8.7)
+
+
+def press_is_stale(newer: Iterable[Record], set_id: SetId) -> bool:
+    """R.8.7: whether a Call press naming ``set_id`` must be rejected because of events the
+    player had not yet seen.
+
+    ``newer`` is every record applied after the last event the player had seen. The press is
+    rejected only if one of those events scored the named set or moved one of its cards; a
+    failed ask moves nothing, and a call moves only its own set's cards. Otherwise the press
+    is accepted against the current state. A rejected press is not a declaration.
+    """
+    check_set(set_id)
+    for record in newer:
+        match record:
+            case AskEvent(success=True, card=card) if set_of(card) == set_id:
+                return True
+            case CallEvent(set_id=called) if called == set_id:
+                return True
+            case _:
+                pass
+    return False
 
 
 # ---------------------------------------------------------------- run-out (R.6.2)
@@ -547,5 +604,9 @@ def apply(state: State, action: Action) -> Step:
             return _choose(state, action)
         case Vote():
             return _vote(state, action)
+        case AssignTimeout():
+            return _assign_timeout(state)
+        case ChoiceTimeout():
+            return _choice_timeout(state)
         case _:
             raise IllegalActionError(f"not an action: {action!r}")

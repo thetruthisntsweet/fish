@@ -152,3 +152,12 @@ Changed before any game was recorded, so no v1.0 games exist; `RULESET_VERSION` 
 The draw is `choice` over the seats in ascending order from the `tiebreak` stream at the
 call's event number, frozen with 65 vectors checked by the JavaScript implementation
 (`docs/determinism.md` §8).
+
+**D23 · 2026-10-17 · Timer outcomes are engine actions; the server only keeps time.**
+When a website timer runs out, the server applies `AssignTimeout` (R.4.3: an incorrect call)
+or `ChoiceTimeout` (R.5.2: the seed chooses if the caller did not choose; votes not cast are
+ignored), and asks `press_is_stale` whether a Call press that crossed a newer event must be
+rejected (R.8.7). Alternative: the server decides these itself. That would be a second
+implementation of rules, which Plan §3 rules out, and the outcomes would be untested by the
+rules suite. A timed-out call is recorded with `assignment` None. The environment never
+applies these actions (R.8.6).
