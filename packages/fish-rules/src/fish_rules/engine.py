@@ -14,8 +14,9 @@ so it is here: ``AssignTimeout`` and ``ChoiceTimeout``, and ``press_is_stale`` f
 The server never decides a rule outcome itself.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import replace
+from itertools import product
 
 from fish_rules.cards import (
     CARDS_PER_SET,
@@ -72,6 +73,7 @@ from fish_rules.state import (
     Phase,
     State,
     Window,
+    new_game,
 )
 
 type Step = tuple[State, tuple[Record, ...]]
@@ -573,6 +575,90 @@ def _end(state: State, outcome: Outcome, records: tuple[Record, ...]) -> Step:
     winner = state.winner() if outcome is Outcome.FINISHED else None
     state = replace(state, phase=Phase.OVER, outcome=outcome, current=None)
     return state, (*records, GameOver(outcome=outcome, winner=winner))
+
+
+# ---------------------------------------------------------------- who may act, and how
+
+
+def legal_actions(state: State, seat: Seat) -> tuple[Action, ...]:
+    """Every seat action ``seat`` may take now, in a fixed order. Empty if ``seat`` may not act.
+
+    Control actions (``OpenWindow``, ``CloseWindow``, the timeouts) are not seat actions and
+    are not listed; the environment or the server applies them. Every action listed is accepted
+    by ``apply``, and every seat action ``apply`` accepts is listed. R.9: the current player can
+    always act, because a call on any set in play is always valid.
+    """
+    seat = check_seat(seat)
+    match state.phase:
+        case Phase.TURN | Phase.RUNOUT if seat == state.current:
+            calls = tuple(Call(seat, set_id) for set_id in state.sets_in_play())
+            if state.phase is Phase.RUNOUT:
+                return calls
+            sizes = tuple(len(hand) for hand in state.hands)
+            return (*legal_asks(seat, state.hands[seat], sizes), *calls)
+        case Phase.WINDOW:
+            assert state.window is not None
+            if state.window.responded[seat]:
+                return ()
+            declares = (Declare(seat, set_id) for set_id in state.sets_in_play())
+            return (Pass(seat), *declares)
+        case Phase.ASSIGN:
+            assert state.call is not None
+            if seat != state.call.caller:
+                return ()
+            mates = team_seats(team_of(seat))
+            return tuple(Assign(seat, holders) for holders in product(mates, repeat=CARDS_PER_SET))
+        case Phase.CHOOSE:
+            assert state.choice is not None
+            if seat != state.choice.chooser:
+                return ()
+            return tuple(Choose(seat, chosen) for chosen in state.choice.candidates)
+        case Phase.VOTE:
+            assert state.choice is not None
+            members = team_seats(state.choice.team)
+            if seat not in members or state.choice.votes[members.index(seat)] is not None:
+                return ()
+            return tuple(Vote(seat, chosen) for chosen in state.choice.candidates)
+        case _:
+            return ()
+
+
+def acting_seats(state: State) -> tuple[Seat, ...]:
+    """The seats that may take a seat action now, ascending. In the environment these are the
+    agents to ask next (R.8.9); empty once the game is over."""
+    match state.phase:
+        case Phase.TURN | Phase.RUNOUT:
+            assert state.current is not None
+            return (state.current,)
+        case Phase.WINDOW:
+            assert state.window is not None
+            return tuple(seat for seat in SEATS if not state.window.responded[seat])
+        case Phase.ASSIGN:
+            assert state.call is not None
+            return (state.call.caller,)
+        case Phase.CHOOSE:
+            assert state.choice is not None
+            assert state.choice.chooser is not None
+            return (state.choice.chooser,)
+        case Phase.VOTE:
+            assert state.choice is not None
+            members = team_seats(state.choice.team)
+            return tuple(s for s, v in zip(members, state.choice.votes, strict=True) if v is None)
+        case _:
+            return ()
+
+
+# ---------------------------------------------------------------- replay
+
+
+def replay(game_seed: int, actions: Iterable[Action]) -> Iterator[Step]:
+    """A game record is its seed plus its actions (``docs/determinism.md`` §8). Yields the state
+    and records after each action, in order; raises ``IllegalActionError`` at the first action
+    the rules do not allow."""
+    state = new_game(game_seed)
+    for action in actions:
+        state, records = apply(state, action)
+        yield state, records
 
 
 # ---------------------------------------------------------------- dispatch
