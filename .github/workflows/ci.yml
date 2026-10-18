@@ -78,6 +78,8 @@ jobs:
         run: uv run pytest --cov --cov-report=term-missing
       - name: fish-rules coverage must be 100%
         run: uv run coverage report --include="*/fish_rules/*" --fail-under=100
+      - name: fish-env coverage must be 100%
+        run: uv run coverage report --include="*/fish_env/*" --fail-under=100
       - name: Pre-deploy (migrations, server login, privilege check) on the real database
         run: uv run python -m fish_server.deploy
       - name: Privilege check again, on its own
