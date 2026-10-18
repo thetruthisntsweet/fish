@@ -188,3 +188,26 @@ under environment mechanics and written once by `scripts/make_golden_games.py`, 
 refuses to overwrite them. Every test run replays them. A golden game that stops replaying is
 a rule that changed: regenerate (`--regenerate`) only with a new ruleset version or a new
 state encoding, and record why in the decision log.
+
+## 9. Action indices
+
+Agents choose among integers rather than action objects. `fish_rules.action_index` gives every
+seat action an index in `range(913)`, read from the acting seat's point of view so one policy
+serves every seat. Opponent index *i* is the *i*-th seat of the other team and teammate index
+*j* the *j*-th seat of the seat's own team (itself included), both ascending.
+
+| Indices | Action |
+|---|---|
+| 0–161 | `Ask`: 54 × opponent index + card |
+| 162–170 | `Call`: 162 + set |
+| 171–179 | `Declare`: 171 + set |
+| 180 | `Pass` |
+| 181–909 | `Assign`: 181 + the six holders' teammate indices as a base-3 number, the set's first card most significant |
+| 910–912 | Nominate teammate *j*: `Choose` in the after-call choice, `Vote` in the team vote (R.5.2) |
+
+The layout is named `fish-action-index-v1`. Game records do not use it (they store actions
+with `fish-actions-v1`, §8), but trained agents do, so it is frozen like the vectors:
+`packages/fish-rules/tests/vectors/action_index_v1.json` lists all 913 indices for seat 1
+(team 0) and seat 4 (team 1), written once by `scripts/make_action_index_vectors.py`, which
+refuses to overwrite it. `legal_indices` and `legal_mask` are built from
+`fish_rules.engine.legal_actions`, so a mask allows exactly the actions the engine accepts.

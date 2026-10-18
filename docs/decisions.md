@@ -183,3 +183,17 @@ be tested in the website or client and are owed: R.2.5 and R.2.6 by T3.4, R.8.4 
 T3.1, R.8.8 by T3.5. Alternative: a hand-kept matrix in the doc. It would drift; the script
 runs as a pre-commit hook (so in CI's hooks job) and in `scripts/check.sh`. A citation shows a
 test exists, not that it is right; review still judges that.
+
+**D26 · 2026-10-17 · Action indices: one flat space of 913, relative to the acting seat, in
+fish-rules.**
+T2.1 §16 left the discrete action encoding to T2.3. Every seat action is an index in
+`range(913)` (`docs/determinism.md` §9): asks by opponent index and card, calls and
+declarations by set, a pass, the 729 assignments of six cards to three teammates as one
+base-3 number, and one block of three "nominate teammate" indices that is a choice or a vote
+by phase. Targets are relative to the acting seat, so one policy plays any seat. It lives in
+fish-rules, not fish-env, so the projection (T2.4) can put the mask in the observation and
+the website can use the same mask without NumPy or PettingZoo. Alternatives: absolute seats
+(a policy would have to learn six copies of each action); assignments as six one-card steps
+(a smaller space, but the engine takes the call whole and a half-made assignment would be a
+new state the rules do not have); separate Choose and Vote blocks (three extra indices with
+the same meaning). The layout is frozen with vectors, as `fish-action-index-v1`.
