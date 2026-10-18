@@ -219,3 +219,15 @@ rewarded 0, matching its exclusion from analysis. `infos` holds the outcome and 
 the end. Alternative: +1/-1 per set claimed. It would reward a team that claims four sets and
 loses, and the research questions measure beliefs and calls, not set counts; per-set reward
 is easy to rebuild from the events for anyone who wants it.
+
+**D29 · 2026-10-18 · A game record format in fish-rules; the environment seeds only from the
+game seed.**
+`fish_rules.record` defines the record every component writes: the ruleset version, the
+action encoding, the seed as a decimal string, the outcome, the winner and every action
+(`docs/determinism.md` §8). It lives in fish-rules so the server (T3.2) writes the same
+record without importing fish-env; the corpus schema (T1.6) wraps it rather than replacing
+it. `replay_record` rejects a record from another ruleset version or encoding, or one whose
+replay does not end as recorded. `FishEnv.reset(seed=s)` uses `s` as the game seed and
+nothing else; without a seed it draws one from the operating system's secure source and
+keeps it in `game_seed`, so an unseeded game is still reproducible from its record. The
+environment uses no NumPy or Python random state, so PettingZoo's `np_random` plays no part.

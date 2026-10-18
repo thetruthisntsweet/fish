@@ -180,6 +180,13 @@ encoding may change, but only under a new name and with the golden replays regen
 **Actions as data.** `fish_rules.codec` writes each action as `{"type": <name>, <field>:
 <int or list of ints>}`, named `fish-actions-v1`, and reads it back exactly.
 
+**Game records.** `fish_rules.record.game_record` writes a game as plain data:
+`{"ruleset", "action_encoding", "seed", "outcome", "winner", "actions"}`, with the seed as a
+decimal string and the outcome and winner None until the game is over. `replay_record`
+replays it and checks the ruleset version (R.10.2), the action encoding and the recorded
+outcome; it ignores keys it does not know, so the golden replays and the corpus schema (T1.6)
+can add their own. The environment's `FishEnv.record()` returns one.
+
 **Golden replays.** `packages/fish-rules/tests/golden/` holds eight complete games, each its
 seed, its actions and the state hash after every action, chosen so that together they include
 run-out, a seed tie-break, a discarded declaration, a call on a turn, the caller choosing, the
