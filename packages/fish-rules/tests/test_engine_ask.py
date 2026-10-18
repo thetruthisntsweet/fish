@@ -226,21 +226,15 @@ def test_r9_asks_conserve_cards_and_turn_never_falls_to_a_player_without_cards(
     state = new_game(seed)
     for step in range(40):
         asks = asks_of(state)
-        safe = [  # stop short of run-out (R.6.2), which subtask 7 adds
-            a
-            for a in asks
-            if not (
-                a.card in state.hands[a.target]
-                and sum(len(state.hands[s]) for s in team_seats(team_of(a.target))) == 1
-            )
-        ]
-        if not safe:
+        if not asks:
             break
-        state, records = apply(state, data.draw(st.sampled_from(safe)))
+        state, records = apply(state, data.draw(st.sampled_from(asks)))
         check_consistency(state)
-        assert len(state.hands[current(state)]) > 0
         assert records[0] == replace(records[0], number=step)
         assert (state.events, state.asks) == (step + 1, step + 1)
+        if state.phase is Phase.RUNOUT:  # R.6.2: asking ends; tested in test_engine_runout.py
+            break
+        assert len(state.hands[current(state)]) > 0
 
 
 # ---------------------------------------------------------------- R.8.2 the ask limit

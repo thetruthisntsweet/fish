@@ -16,10 +16,12 @@ from dataclasses import replace
 from fish_rules.cards import (
     CARDS_PER_SET,
     SEATS,
+    TEAMS,
     Card,
     Hand,
     Seat,
     SetId,
+    Team,
     check_card,
     check_seat,
     check_set,
@@ -46,13 +48,14 @@ from fish_rules.events import (
     OpenWindow,
     Pass,
     Record,
+    RunoutCallerSelected,
     SeedChose,
     Vote,
     VoteCast,
     WindowClosed,
     WindowOpened,
 )
-from fish_rules.priority import first_in_priority, priority_order
+from fish_rules.priority import first_in_priority, priority_order, runout_caller
 from fish_rules.rng import stream
 from fish_rules.state import (
     MAX_ASKS,
@@ -186,8 +189,8 @@ def _ask(state: State, action: Ask) -> Step:
     )
     if state.asks >= MAX_ASKS:
         return _end(state, Outcome.UNFINISHED, (record,))
-    if not all(state.team_has_cards(team) for team in (0, 1)):
-        raise NotImplementedError("run-out (R.6.2) is added in T2.2 subtask 7")
+    if _runout_team(state) is not None:
+        return _select_runout_caller(state, (record,))
     return state, (record,)
 
 
@@ -272,16 +275,28 @@ def _close_window(state: State) -> Step:
 
 
 def _call(state: State, action: Call) -> Step:
-    """R.4.2: if a window closes with no declaration, the current player may call; the call
-    goes directly to the assignment step. (Run-out calls, R.6.2, are added in subtask 7.)"""
-    _require(state, Phase.TURN, "call without a window")
+    """Name a set to call without a window; the call goes directly to the assignment step.
+
+    R.4.2: if a window closes with no declaration, the current player may call. R.6.2: during
+    run-out, only the selected caller may call; players on the team without cards may no
+    longer call.
+    """
+    if state.phase not in (Phase.TURN, Phase.RUNOUT):
+        raise IllegalActionError(
+            f"cannot call without a window now; the game is in phase {state.phase}"
+        )
     seat = _seat(action.seat, "seat")
     if seat != state.current:
+        if state.phase is Phase.RUNOUT:
+            raise IllegalActionError(
+                f"during run-out only the selected caller, seat {state.current}, may call (R.6.2)"
+            )
         raise IllegalActionError(
             f"only the current player, seat {state.current}, may call on their turn (R.3.1)"
         )
     set_id = _set_in_play(state, action.set_id)
-    call = PendingCall(caller=seat, set_id=set_id, source=CallSource.TURN)
+    source = CallSource.RUNOUT if state.phase is Phase.RUNOUT else CallSource.TURN
+    call = PendingCall(caller=seat, set_id=set_id, source=source)
     return replace(state, phase=Phase.ASSIGN, call=call), ()
 
 
@@ -355,14 +370,14 @@ def _after_call(state: State, record: CallEvent, correct: bool) -> Step:
     """What follows a resolved call.
 
     R.7.2: if the call brought a team to five sets, the game ends at once with no choice.
-    R.6.2: if one team now holds no cards, run-out begins and no choice is made (subtask 7).
+    R.6.2: if one team now holds no cards, run-out begins or continues and no choice is made.
     R.5.1-R.5.2: otherwise the scoring team chooses which of its players holding cards takes
     the turn: the caller chooses if the caller's team scored, otherwise that team votes.
     """
     if state.winner() is not None:
         return _end(state, Outcome.FINISHED, (record,))
-    if not all(state.team_has_cards(team) for team in (0, 1)):
-        raise NotImplementedError("run-out (R.6.2) is added in T2.2 subtask 7")
+    if _runout_team(state) is not None:
+        return _select_runout_caller(state, (record,))
     team = record.scored_by
     candidates = tuple(seat for seat in team_seats(team) if state.hands[seat])
     choice = PendingChoice(
@@ -465,6 +480,32 @@ def _vote(state: State, action: Vote) -> Step:
     if any(vote is None for vote in votes):
         return state, (record,)
     return _settle_vote(state, (record,))
+
+
+# ---------------------------------------------------------------- run-out (R.6.2)
+
+
+def _runout_team(state: State) -> Team | None:
+    """R.6.2: the team holding cards when the other team holds none, else None."""
+    holding = [team for team in TEAMS if state.team_has_cards(team)]
+    return holding[0] if len(holding) == 1 else None
+
+
+def _select_runout_caller(state: State, records: tuple[Record, ...]) -> Step:
+    """R.6.2: if one team holds no cards, asking ends and the team holding cards calls the
+    remaining sets one at a time, until R.7 ends the game. Before each call, the caller is the
+    first member of that team in the R.8.1 priority order; each selection counts as a
+    declaration window for the window index. No after-call choice is made (R.5.1).
+
+    The selected caller need not hold cards (R.6.1). Only a finished game can leave both teams
+    without cards, so there is always a team holding cards here.
+    """
+    team = _runout_team(state)
+    assert team is not None
+    index = state.windows_opened
+    caller = runout_caller(state.seed, index, team)
+    state = replace(state, phase=Phase.RUNOUT, current=caller, windows_opened=index + 1)
+    return state, (*records, RunoutCallerSelected(window=index, seat=caller))
 
 
 # ---------------------------------------------------------------- end of game (R.7, R.8.2)
