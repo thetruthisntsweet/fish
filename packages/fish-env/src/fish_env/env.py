@@ -22,6 +22,13 @@ that claimed five sets and -1 to every seat of the other, so the two teams' rewa
 zero. Every other step rewards 0. A game stopped at 1,000 asks (R.8.2) has no result: every
 agent is truncated rather than terminated, with reward 0. At the end each agent's ``infos``
 entry holds ``{"outcome": "finished" or "unfinished", "winner": team or None}``.
+
+Every game is reproducible. ``reset(seed=s)`` deals from ``s`` and nothing else: the engine
+draws all its randomness from the game seed (docs/determinism.md), never from NumPy, Python's
+``random`` or the clock, so the same seed and the same agent actions give the same game on any
+machine. ``reset()`` without a seed draws one from the operating system and keeps it in
+``game_seed``. ``record()`` is the game as plain data, which ``fish_rules.record.replay_record``
+replays exactly.
 """
 
 import operator
@@ -46,7 +53,8 @@ from fish_rules.events import (
     OpenWindow,
     Record,
 )
-from fish_rules.state import Outcome, Phase, State, new_game
+from fish_rules.record import game_record
+from fish_rules.state import Outcome, Phase, State, new_game, state_hash
 
 AGENTS: Final[tuple[str, ...]] = tuple(f"seat_{seat}" for seat in SEATS)
 """Agent names. ``AGENTS[seat]`` plays ``seat``."""
@@ -116,6 +124,17 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
         """Every action applied since ``reset``, control actions included, in order."""
         return tuple(self._actions)
 
+    def record(self) -> dict[str, object]:
+        """The game so far as a record (``fish_rules.record``): the ruleset version, the action
+        encoding, the seed and every action, plus the outcome and winner once it is over."""
+        state = self.game
+        assert self.game_seed is not None
+        return game_record(self.game_seed, self._actions, state)
+
+    def state_hash(self) -> str:
+        """``fish_rules.state.state_hash`` of the current state: equal hashes, equal games."""
+        return state_hash(self.game)
+
     def _apply(self, action: Action) -> tuple[Record, ...]:
         """Apply ``action``. Raises ``IllegalActionError`` and changes nothing if it is not
         allowed. An event (R.4.2) makes a window due before the next turn."""
@@ -169,7 +188,10 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
 
     def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> None:
         """Start a new game from ``seed``, an unsigned 64-bit integer. Without one, a seed is
-        drawn from the operating system's secure source; ``game_seed`` always holds it."""
+        drawn from the operating system's secure source; ``game_seed`` always holds it. There
+        are no options."""
+        if options:
+            raise ValueError(f"the Fish environment takes no reset options, got {options!r}")
         if seed is None:
             seed = secrets.randbelow(SEED_BOUND)
         seed = operator.index(seed)
