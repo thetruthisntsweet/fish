@@ -197,3 +197,16 @@ the website can use the same mask without NumPy or PettingZoo. Alternatives: abs
 (a smaller space, but the engine takes the call whole and a half-made assignment would be a
 new state the rules do not have); separate Choose and Vote blocks (three extra indices with
 the same meaning). The layout is frozen with vectors, as `fish-action-index-v1`.
+
+**D27 · 2026-10-17 · The environment applies windows itself, selects the lowest acting seat,
+and raises on an illegal action.**
+`fish_env.FishEnv` is a PettingZoo AEC environment with agents `seat_0` to `seat_5`. It opens
+a window at the start and after every event and closes it once all six seats have answered
+(R.4.2, R.8.9); agents choose only seat actions, never `OpenWindow` or `CloseWindow`. When
+several seats may act (a window, a vote), `agent_selection` is the lowest of them: the order
+`fish_rules.playout` used to play the golden games. Window answers are
+hidden from the other seats, so the order cannot change the result. An action the mask does
+not allow raises `IllegalActionError` and changes nothing. Alternative: PettingZoo's
+`TerminateIllegalWrapper`, which ends the game with a penalty; a benchmark would then score a
+broken agent instead of failing. Until T2.4 the observation is the seat's own hand plus the
+mask.
