@@ -276,3 +276,17 @@ action indices travel with the view, so the client disables illegal actions with
 logic (Plan §3). There is no `view_from_data`: nothing in Python reads views back, and the
 client's TypeScript types come from the server's protocol models (T3.1), which mirror this
 layout.
+
+**D34 · 2026-10-24 · Agents observe fish-obs-v1: 648 bits, seat-relative, built from the view.**
+`fish_rules.observation.encode(view)` writes everything in a seat's view as fixed blocks of
+bits (`docs/determinism.md` §11): own hand, hand sizes, the state of each set, phase,
+current player, the call being assigned, the choice in progress with the seat's own vote, the
+seat's own window answer, the most recent event (a call's assignment and true holders card by
+card), and the outcome. It encodes the view, never the state, so it cannot see more than the
+projection allows. Seats are slots relative to the observer, in the same order as the action
+layout, so one policy plays any seat and a nominate index points at the same teammate in the
+observation and the action. Hand sizes are one-hot rather than counts, so every entry is 0 or
+1. It lives in fish-rules so the baselines and the website's bots (T3.5) encode views the
+same way without NumPy. Alternatives: a dict of arrays per field (policies flatten it
+anyway); absolute seats (six copies of every pattern to learn). Frozen
+with vectors as `fish-obs-v1`. The legal mask stays beside it, not inside it.

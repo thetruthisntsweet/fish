@@ -250,3 +250,50 @@ and `scored_by`; a choice's `number`, `team` and `seat`.
 `packages/fish-rules/tests/vectors/view_v1.json` freezes 124 views: from each golden game,
 the first state in each phase and the first after each kind of event, for seats 0 and 4. It
 was written once by `scripts/make_view_vectors.py`, which refuses to overwrite it.
+
+## 11. Observations for agents
+
+`fish_rules.observation.encode` turns a seat's view (§10, `fish_rules.view`) into 648 bits,
+named `fish-obs-v1`, so an agent observes exactly what the projection allows. Seats appear as
+*seat slots* relative to the observer, matching the action layout (§9): slots 0–2 are the
+observer's team in ascending seat order (the observer included; `me` says which), slots 3–5
+the other team in ascending order. "Mine" and "theirs" are the observer's team and the other.
+A one-hot block with no bit set means "none" or "not applicable".
+
+| Bits | Block | Contents |
+|---|---|---|
+| 0–53 | `hand` | own cards: bit *c* is card *c* (§6) |
+| 54–56 | `me` | one-hot: which own-team slot (0–2) is this seat |
+| 57–386 | `hand_sizes` | per seat slot, one-hot over 0–54 cards: bit 55 × slot + size |
+| 387–413 | `sets` | per set, one-hot: 3 × set + 0 in play, 1 scored by mine, 2 scored by theirs |
+| 414–420 | `phase` | one-hot: turn, window, assign, choose, vote, runout, over |
+| 421–426 | `current` | one-hot seat slot whose turn it is; none once the game is over |
+| 427–432 | `call_caller` | while a call is assigned: the caller's seat slot |
+| 433–441 | `call_set` | and its set |
+| 442–443 | `choice_team` | during an after-call choice, one-hot: mine, theirs |
+| 444–449 | `choice_candidates` | flags: the seat slots that may be chosen |
+| 450–455 | `choice_chooser` | one-hot: the caller, when the caller chooses; none in a vote |
+| 456–461 | `own_vote` | one-hot: this seat's vote, once cast |
+| 462–470 | `own_declaration` | one-hot: this seat's declaration in the open window |
+| 471 | `responded` | this seat has answered the open window |
+| 472–474 | `event` | most recent event, one-hot: ask, call, choice; none before the first |
+| 475–480 | `ask_asker` | ask: asker's seat slot |
+| 481–486 | `ask_target` | ask: target's seat slot |
+| 487–540 | `ask_card` | ask: the card |
+| 541 | `ask_success` | ask: the target held it |
+| 542–547 | `call_event_caller` | call: caller's seat slot |
+| 548–556 | `call_event_set` | call: the set |
+| 557–559 | `call_event_source` | call, one-hot: window, turn, runout |
+| 560–595 | `call_event_assignment` | call: per card *i* of the set, bit 6 × *i* + the assigned seat slot |
+| 596 | `call_event_timed_out` | call: no assignment (the caller ran out of time; website only) |
+| 597–632 | `call_event_holders` | call: per card *i*, bit 6 × *i* + the true holder's seat slot (R.2.3) |
+| 633 | `call_event_correct` | call: it was correct |
+| 634–635 | `call_event_scored_by` | call, one-hot: scored by mine, theirs |
+| 636–637 | `choice_event_team` | choice, one-hot: mine, theirs |
+| 638–643 | `choice_event_seat` | choice: the chosen seat slot |
+| 644–645 | `outcome` | once over, one-hot: finished, unfinished |
+| 646–647 | `winner` | once a finished game is over, one-hot: mine, theirs |
+
+`packages/fish-rules/tests/vectors/obs_v1.json` freezes the observations of the 124 views in
+`view_v1.json`, as the indices of the bits set. It was written once by
+`scripts/make_obs_vectors.py`, which refuses to overwrite it.
