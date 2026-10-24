@@ -255,3 +255,14 @@ whether its declaration will proceed. The most recent event is passed in, tracke
 `latest_event`, rather than stored in `State`, which would change the state hash and every
 golden replay. Alternative: a projection per platform; two functions would drift, and a leak
 in either would be invisible to the other's tests.
+
+**D32 · 2026-10-24 · Leak tests change what is hidden and require the view not to move.**
+A seat's view must be a function of what that seat may know. The leak tests check it
+directly: at every step of random games and for every seat, they deal the other seats' cards
+again among themselves with every hand size kept, replace the seed, and redraw other seats'
+window answers and other members' votes, and the seat's view (legal actions included) must
+not change. They also check that every seat sees the same public information, and that no
+view holds an earlier event or a log-only record. Each kind of leak was introduced on
+purpose once (another seat's cards, declaration or vote, the seed, others' window progress) to
+confirm the tests catch it. The pre-pilot audit of what the server actually sends (T3.7)
+builds on this; it does not replace it.
