@@ -242,3 +242,16 @@ identical action logs, so the environment and the reference driver apply the sam
 (R.4.2, R.8.9). fish-env joins fish-rules at 100% branch coverage in CI and `scripts/check.sh`.
 `reset` now accepts and ignores `options`, because `api_test` passes options and expects an
 environment without settings to accept them; D29's rejection of options is withdrawn.
+
+**D31 · 2026-10-24 · One projection, in fish-rules, decides what every player sees.**
+`fish_rules.view.project(state, seat, last_event)` gives a seat its own hand, every hand
+size, the scored sets, the most recent event (with a call's true holders), the phase and
+current player, the call being assigned, the choice in progress with only its own vote,
+whether a window is open with only its own answer, the outcome, and its legal action indices
+(R.2, R.4.3, R.5.2, R.8.3). The website and the environment both use it (Plan §3). It never
+holds the seed, other hands, other seats' declarations or votes, or a window's priority
+order: website players cannot see the priority order, and seeing it would tell a seat
+whether its declaration will proceed. The most recent event is passed in, tracked with
+`latest_event`, rather than stored in `State`, which would change the state hash and every
+golden replay. Alternative: a projection per platform; two functions would drift, and a leak
+in either would be invisible to the other's tests.
