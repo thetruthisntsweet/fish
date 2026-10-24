@@ -266,3 +266,13 @@ view holds an earlier event or a log-only record. Each kind of leak was introduc
 purpose once (another seat's cards, declaration or vote, the seed, others' window progress) to
 confirm the tests catch it. The pre-pilot audit of what the server actually sends (T3.7)
 builds on this; it does not replace it.
+
+**D33 · 2026-10-24 · Views travel as fish-view-v1 JSON, written in fish-rules.**
+The server sends each client its view as plain JSON written by `fish_rules.view.view_to_data`
+(`docs/determinism.md` §10), so the website and the environment start from the same
+projection and the same encoding of it. The layout is named `fish-view-v1` and frozen with
+124 vectors from the golden games, covering every phase and every kind of event. The legal
+action indices travel with the view, so the client disables illegal actions without any rules
+logic (Plan §3). There is no `view_from_data`: nothing in Python reads views back, and the
+client's TypeScript types come from the server's protocol models (T3.1), which mirror this
+layout.

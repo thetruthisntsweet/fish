@@ -26,10 +26,16 @@ declarations or votes, a window's priority order, or any LOG_ONLY record.
 
 The most recent event is passed in rather than read from the state, so ``State`` and its
 hash stay unchanged; ``latest_event`` keeps track of it from the records ``apply`` returns.
+
+``view_to_data`` writes a view as plain JSON data, named ``fish-view-v1``: what the server
+sends each client (T3.1) and the client renders (T3.4). Its layout is in docs/determinism.md
+§10 and frozen with vectors.
 """
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
+from enum import StrEnum
+from typing import Final
 
 from fish_rules.action_index import legal_indices
 from fish_rules.cards import Hand, Seat, SetId, Team, check_seat, team_seats
@@ -144,3 +150,60 @@ def project(state: State, seat: Seat, last_event: Event | None) -> PlayerView:
         winner=winner,
         legal=legal_indices(state, seat),
     )
+
+
+# ---------------------------------------------------------------- as data (fish-view-v1)
+
+VIEW_ENCODING: Final = "fish-view-v1"
+"""Names the layout ``view_to_data`` writes. A different layout needs a new name."""
+
+
+def _plain(value: object) -> object:
+    """``value`` as JSON data: enums as their strings, tuples as lists."""
+    if isinstance(value, StrEnum):
+        return str(value)
+    if isinstance(value, tuple):
+        items: tuple[object, ...] = value  # pyright: ignore[reportUnknownVariableType]
+        return [_plain(item) for item in items]
+    return value
+
+
+def event_to_data(event: Event) -> dict[str, object]:
+    """``event`` as ``{"type": <class name>, <field>: <value>, ...}``, every value an int, a
+    bool, a string, None or a list of ints."""
+    data: dict[str, object] = {"type": type(event).__name__}
+    for field in fields(event):
+        data[field.name] = _plain(getattr(event, field.name))
+    return data
+
+
+def view_to_data(view: PlayerView) -> dict[str, object]:
+    """``view`` as plain data, ready for JSON (``fish-view-v1``). ``window`` is None unless a
+    window is open; ``call``, ``choice`` and ``last_event`` are None when there is none."""
+    call = view.call
+    choice = view.choice
+    return {
+        "encoding": VIEW_ENCODING,
+        "seat": view.seat,
+        "hand": list(view.hand),
+        "hand_sizes": list(view.hand_sizes),
+        "scored_by": list(view.scored_by),
+        "phase": str(view.phase),
+        "current": view.current,
+        "call": None if call is None else {"caller": call.caller, "set_id": call.set_id},
+        "choice": None
+        if choice is None
+        else {
+            "team": choice.team,
+            "candidates": list(choice.candidates),
+            "chooser": choice.chooser,
+            "own_vote": choice.own_vote,
+        },
+        "window": {"own_declaration": view.own_declaration, "responded": view.responded}
+        if view.window_open
+        else None,
+        "last_event": None if view.last_event is None else event_to_data(view.last_event),
+        "outcome": None if view.outcome is None else str(view.outcome),
+        "winner": view.winner,
+        "legal": list(view.legal),
+    }

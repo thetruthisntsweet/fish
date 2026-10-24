@@ -218,3 +218,35 @@ with `fish-actions-v1`, §8), but trained agents do, so it is frozen like the ve
 (team 0) and seat 4 (team 1), written once by `scripts/make_action_index_vectors.py`, which
 refuses to overwrite it. `legal_indices` and `legal_mask` are built from
 `fish_rules.engine.legal_actions`, so a mask allows exactly the actions the engine accepts.
+
+## 10. Views as data
+
+`fish_rules.view.view_to_data` writes what one seat may know (`fish_rules.view.project`,
+T2.4) as plain JSON, named `fish-view-v1`. The server sends it to each client, and the client
+renders it.
+
+| Key | Value |
+|---|---|
+| `encoding` | `"fish-view-v1"` |
+| `seat` | the seat this view belongs to |
+| `hand` | the seat's own cards, ascending card numbers (§6) |
+| `hand_sizes` | six ints, one per seat |
+| `scored_by` | nine entries, one per set: the team that scored it, or `null` while in play |
+| `phase` | `"turn"`, `"window"`, `"assign"`, `"choose"`, `"vote"`, `"runout"` or `"over"` |
+| `current` | the seat whose turn it is, or `null` once the game is over |
+| `call` | `{"caller", "set_id"}` while a call is being assigned, else `null` |
+| `choice` | `{"team", "candidates", "chooser", "own_vote"}` during an after-call choice, else `null`; `chooser` is `null` when the team votes, `own_vote` is this seat's vote only |
+| `window` | `{"own_declaration", "responded"}` while a window is open, else `null`; this seat's answer only |
+| `last_event` | the most recent event, `{"type": "AskEvent" \| "CallEvent" \| "ChoiceEvent", ...its fields}`, or `null` before the first |
+| `outcome` | `"finished"` or `"unfinished"` once the game is over, else `null` |
+| `winner` | the winning team once a finished game is over, else `null` |
+| `legal` | the indices of the actions this seat may take now, ascending (§9) |
+
+An event's fields are those of `fish_rules.events`: an ask's `number`, `asker`, `target`,
+`card` and `success`; a call's `number`, `caller`, `set_id`, `source`, `assignment` (`null`
+if the caller ran out of time), `holders` (the true holder of each card, R.2.3), `correct`
+and `scored_by`; a choice's `number`, `team` and `seat`.
+
+`packages/fish-rules/tests/vectors/view_v1.json` freezes 124 views: from each golden game,
+the first state in each phase and the first after each kind of event, for seats 0 and 4. It
+was written once by `scripts/make_view_vectors.py`, which refuses to overwrite it.
