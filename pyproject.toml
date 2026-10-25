@@ -67,7 +67,7 @@ filterwarnings = ["error"]  # any warning fails the test run
 # ---------------------------------------------------------------- Pyright
 [tool.pyright]
 pythonVersion = "3.14"
-include = ["packages"]
+include = ["packages", "examples"]
 exclude = ["**/__pycache__", "**/.venv"]
 venvPath = "."
 venv = ".venv"
