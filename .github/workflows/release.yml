@@ -51,17 +51,55 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------- PyPI
-  # The "pypi" environment is the one PyPI's trusted publishers name; only tags may use it
-  # (docs/runbooks/release.md). --check-url skips files already on PyPI, so a run that
+  # Each package publishes from its own environment (pypi-rules, pypi-env, pypi-agents), because
+  # PyPI accepts one pending trusted publisher per workflow and environment; only tags may use
+  # them (docs/runbooks/release.md). The packages go up in dependency order, so each is
+  # installable the moment it appears. --check-url skips files already on PyPI, so a run that
   # failed halfway can be re-run.
-  pypi:
-    name: Publish to PyPI
+  pypi-rules:
+    name: Publish fish-rules to PyPI
     if: github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
-      name: pypi
+      name: pypi-rules
+      url: https://pypi.org/project/fish-rules/
+    permissions:
+      id-token: write # the OIDC token PyPI exchanges for an upload token
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/ dist/fish_rules-*
+
+  pypi-env:
+    name: Publish fish-env to PyPI
+    if: github.ref_type == 'tag'
+    needs: pypi-rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi-env
+      url: https://pypi.org/project/fish-env/
+    permissions:
+      id-token: write # the OIDC token PyPI exchanges for an upload token
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/ dist/fish_env-*
+
+  pypi-agents:
+    name: Publish fish-agents to PyPI
+    if: github.ref_type == 'tag'
+    needs: pypi-env
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi-agents
       url: https://pypi.org/project/fish-agents/
     permissions:
       id-token: write # the OIDC token PyPI exchanges for an upload token
@@ -70,14 +108,14 @@ jobs:
         with:
           name: release
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/ dist/*
+      - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/ dist/fish_agents-*
 
   # ---------------------------------------------------------------- GitHub release
   # After PyPI, so a GitHub release always means the packages are installable.
   github:
     name: GitHub release
     if: github.ref_type == 'tag'
-    needs: pypi
+    needs: pypi-agents
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

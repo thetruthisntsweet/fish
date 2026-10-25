@@ -3,7 +3,7 @@ message: "If you use this benchmark, please cite it as below."
 title: "Fish: a benchmark for signalling under adversarial observation"
 type: software
 authors:
-  - name: "The Fish benchmark contributors"
+  - name: "Sanjeev Kumar"
 version: 0.1.0
 date-released: "2026-11-01"
 license: Apache-2.0
