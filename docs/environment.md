@@ -107,3 +107,9 @@ Every run of the test suite does the following:
 - requires 100% branch coverage of `fish_env`.
 - checks that every observation is its seat's view, encoded, and that a seat's view never
   changes when anything hidden from it does (`fish_rules` leak tests);
+
+## Agents
+
+`docs/agents.md` describes the agent interface (`fish_agents`): an agent gets its seat's view
+and a generator and returns an action index, and `fish_agents.play.play_game` runs six of them
+in this environment. B0, the random legal agent, is the first.
