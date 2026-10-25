@@ -361,3 +361,17 @@ on the development container) and a legal mask 10 times faster (1.5 µs). The fi
 that check every seat at every step of whole games now run a fortieth of the profile's
 examples (10 in dev, 25 in CI, 1,250 nightly) rather than a tenth; at a tenth, the nightly
 profile would have asked them for 5,000 whole games each, past the job's 120-minute limit.
+
+**D41 · 2026-10-24 · The engine is property-tested under website mechanics too.**
+Every whole-game property test before T2.5 played environment games: a window after every
+event, every seat answering, no timers. The website's mechanics were covered only by unit
+tests. `test_website_machine.py` is a Hypothesis state machine that, from any seed,
+interleaves Call presses that open windows on any turn, windows closed whoever has answered,
+assignment and choice timeouts, legal seat actions, and arbitrary seat actions that may be
+illegal. After every step it checks the consistency and R.9 invariants, that the engine
+accepts a seat action exactly when its index is legal and that the legal indices equal the
+encoded legal actions, and, for every seat, that the view ignores everything hidden from it
+and encodes to an observation. At the end the actions must replay to the same final state.
+Runs are up to 300 actions, a twentieth of the profile's examples (50 in CI). In 50 runs,
+30 reached the end of a game, 21 had a call time out and 25 a choice time out. Letting a seat
+that has already voted vote again was caught.
