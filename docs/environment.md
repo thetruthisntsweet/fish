@@ -3,7 +3,8 @@
 `fish_env` is a [PettingZoo](https://pettingzoo.farama.org) environment using the Agent
 Environment Cycle (AEC) API: six agents, one acting at a time. It wraps the rules engine
 (`fish_rules`), so it plays Canonical Ruleset v1.1 exactly. The [README](../README.md#quick-start)
-has a complete example.
+has a complete example, and [`examples/`](../examples/README.md) has four more, from a random
+game to the shape of a training loop.
 
 ```text
 fish_env.env()       the environment with PettingZoo's bounds and order checks

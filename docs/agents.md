@@ -17,6 +17,8 @@ class Agent(Protocol):
   (`docs/determinism.md` §9). Anything else raises `IllegalActionError`.
 
 An agent never gets the game seed, because the seed would reveal the deal.
+[`examples/02_your_own_agent.py`](../examples/02_your_own_agent.py) writes one, reads its view,
+decodes the legal action indices, and plays it against B0.
 
 ## Randomness
 
