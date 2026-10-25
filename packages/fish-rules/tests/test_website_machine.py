@@ -14,9 +14,11 @@ legal, and after every step checks:
 - for every seat, that its view does not change when everything hidden from it does (other
   hands, sizes kept; the seed; other seats' window answers and votes), and that its
   observation is the view encoded (R.2);
-- at the end, that the actions replay to the same final state.
+- at the end, that the game's log replays exactly: its record, written to JSON text and read
+  back, replays to the same records and the same state after every action.
 """
 
+import json
 from dataclasses import replace
 
 from hypothesis import event, settings
@@ -33,6 +35,7 @@ from hypothesis.stateful import (
 from fish_rules import observation
 from fish_rules.action_index import NUM_ACTIONS, decode, encode, legal_indices
 from fish_rules.cards import SEATS, Hand, Seat, team_seats
+from fish_rules.codec import action_from_data
 from fish_rules.engine import IllegalActionError, acting_seats, apply, legal_actions, replay
 from fish_rules.events import (
     Action,
@@ -42,7 +45,9 @@ from fish_rules.events import (
     CloseWindow,
     Event,
     OpenWindow,
+    Record,
 )
+from fish_rules.record import game_record, replay_record
 from fish_rules.rng import SplitMix64
 from fish_rules.state import Phase, State, check_consistency, new_game, state_hash
 from fish_rules.view import latest_event, project
@@ -97,6 +102,7 @@ class WebsiteGame(RuleBasedStateMachine):
         self.state = new_game(0)
         self.last: Event | None = None
         self.actions: list[Action] = []
+        self.steps: list[tuple[str, tuple[Record, ...]]] = []
         self.rng = SplitMix64(0)
         self.timed_out_calls = 0
 
@@ -109,6 +115,7 @@ class WebsiteGame(RuleBasedStateMachine):
     def play(self, action: Action) -> None:
         self.state, records = apply(self.state, action)
         self.actions.append(action)
+        self.steps.append((state_hash(self.state), records))
         self.last = latest_event(records, self.last)
         self.timed_out_calls += sum(
             isinstance(r, CallEvent) and r.assignment is None for r in records
@@ -198,11 +205,13 @@ class WebsiteGame(RuleBasedStateMachine):
             assert len(observation.encode(view)) == observation.OBS_SIZE
 
     def teardown(self) -> None:
-        """The game is its seed and its actions: they replay to the same final state."""
-        final = new_game(self.seed)
-        for step in replay(self.seed, self.actions):
-            final = step[0]
-        assert state_hash(final) == state_hash(self.state)
+        """R.10.2: the game is its log. Its record, as JSON text and back, replays to the same
+        records and the same state after every action, and ``replay_record`` accepts it."""
+        data = json.loads(json.dumps(game_record(self.seed, self.actions, self.state)))
+        actions = [action_from_data(item) for item in data["actions"]]
+        replayed = [(state_hash(s), r) for s, r in replay(int(data["seed"]), actions)]
+        assert replayed == self.steps
+        assert state_hash(replay_record(data)) == state_hash(self.state)
         event(f"ended in phase {self.state.phase}")
         event(f"timed-out calls: {min(self.timed_out_calls, 2)}")
         event(f"events: {min(self.state.events // 10 * 10, 50)}+")

@@ -375,3 +375,16 @@ and encodes to an observation. At the end the actions must replay to the same fi
 Runs are up to 300 actions, a twentieth of the profile's examples (50 in CI). In 50 runs,
 30 reached the end of a game, 21 had a call time out and 25 a choice time out. Letting a seat
 that has already voted vote again was caught.
+
+**D42 · 2026-10-24 · Games are checked through their logs, and a frozen digest is compared
+across hash seeds.**
+A game is its record (seed and actions, R.10.2), so the property tests now replay games from
+the record as JSON text, not from the actions in memory: random playout games, finished or
+cut short, and every website-mechanics run must replay to the same records and the same
+state after every action. `scripts/replay_digest.py` hashes the replays of 300 fixed games
+(100 each of playout, B0 and website mechanics: 109,224 actions) into one digest, frozen in
+`packages/fish-agents/tests/vectors/replay_digest_v1.json`. CI's determinism job recomputes
+it under `PYTHONHASHSEED` 0 and 4242 and compares the outputs, so a change in how any game
+plays out, or a dependence on hash order anywhere from the deal to B0's choices, fails the
+build. It takes about 10 seconds per run. Reversing the order of the seed tie-break changed
+all three kinds' digests.

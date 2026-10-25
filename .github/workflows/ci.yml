@@ -113,6 +113,22 @@ jobs:
         run: uv run pytest packages/fish-rules -p no:cacheprovider
         env:
           PYTHONHASHSEED: "4242"
+      # 300 games (playout, B0, website mechanics), each replayed from its record as JSON and
+      # hashed state by state, against the frozen digest; both hash seeds must agree (T2.5).
+      - name: Replay digest with PYTHONHASHSEED=0
+        run: >-
+          uv run python scripts/replay_digest.py --out digest-0.json
+          --check packages/fish-agents/tests/vectors/replay_digest_v1.json
+        env:
+          PYTHONHASHSEED: "0"
+      - name: Replay digest with PYTHONHASHSEED=4242
+        run: >-
+          uv run python scripts/replay_digest.py --out digest-4242.json
+          --check packages/fish-agents/tests/vectors/replay_digest_v1.json
+        env:
+          PYTHONHASHSEED: "4242"
+      - name: Both hash seeds give the same result
+        run: cmp digest-0.json digest-4242.json
 
   # ---------------------------------------------------------------- client
   client:
