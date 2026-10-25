@@ -43,6 +43,7 @@ See [the environment guide](docs/environment.md) for agents, actions, rewards an
 
 - [Setup](docs/setup.md): get a working copy, everyday commands, troubleshooting
 - [Environment](docs/environment.md): the multi-agent interface, its actions, rewards and seeding
+- [Agents](docs/agents.md): the agent interface, B0, and the checks that run B0 games
 - [Decision log](docs/decisions.md): what was chosen, and why
 - [Determinism](docs/determinism.md): the random-number scheme behind every recorded game,
   and the frozen encodings of actions, records, views and observations
