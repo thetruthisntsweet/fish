@@ -103,6 +103,7 @@ the [changelog](CHANGELOG.md).
 - [Setup](docs/setup.md): working on the code: a working copy, everyday commands,
   troubleshooting
 - [Restore drill](docs/runbooks/restore-drill.md): rehearsing a database restore on staging
+- [Releasing](docs/runbooks/release.md): publishing a new version
 
 ## Citing and licence
 
