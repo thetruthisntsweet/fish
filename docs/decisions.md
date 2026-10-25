@@ -326,3 +326,13 @@ through which actions are legal; a hand with fewer legal asks makes each of its 
 likelier, so the H1c placebo gain over B2 should be near zero but not exactly zero (T5.5 and
 T6.4 must allow for this, for example by comparing against B0's exact action likelihood).
 The definition is frozen as `b0-v1` and pinned by five frozen games.
+
+**D38 · 2026-10-24 · The performance smoke: 1,000 B0 games per CI run, numbers kept.**
+`scripts/bench_b0.py` plays B0-vs-B0 environment games and reports games per second,
+microseconds per legal-mask computation, and the games' mean actions, asks and calls. CI's
+performance job plays 1,000 games (about 45 seconds), shows the numbers in the run summary
+and uploads them as the `performance` artifact. It fails only if the script fails: timings
+vary between runner machines, so a slowdown is read from the trend rather than a fixed
+threshold. The game statistics do not vary between machines, so a change in them is a change
+in behaviour. First numbers, on the development container: 24 games a second, 16 µs per
+mask, 418 actions, 36 asks and 7.6 calls per game.
