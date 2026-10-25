@@ -500,8 +500,10 @@ main and that the tag, the three versions, the changelog and the citation agree
 (`scripts/check_release.py`); builds the files once, through the install check, and uploads
 exactly the files that check installed and ran; publishes them to PyPI with `uv publish`;
 then makes a GitHub release with the same files and the changelog entry as its text. PyPI
-trusts the workflow through OIDC (trusted publishing), and only version tags may use its
-`pypi` environment, which waits for an approval. Its actions are pinned to commits, since it
+trusts the workflow through OIDC (trusted publishing). Each package publishes from its own
+environment (`pypi-rules`, `pypi-env`, `pypi-agents`), since PyPI accepts only one pending
+publisher per workflow and environment; only version tags may use them, and the first waits
+for an approval, which covers the other two. Its actions are pinned to commits, since it
 holds the right to publish. Alternatives: an API token in the repository's secrets (a
 long-lived credential that anything able to read the secret could use); uploading by hand
 (not repeatable, and the files would not be the ones CI checked). Uploads skip files already
