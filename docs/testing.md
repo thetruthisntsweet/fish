@@ -108,6 +108,13 @@ uniformly, passes in a window except 1 time in 100, and replays its frozen games
 - *Hash seeds.* The game packages' tests and the replay digest run under `PYTHONHASHSEED` 0
   and 4242, and the two digests must be identical, so nothing depends on set or dict order.
 
+**Installing.** `scripts/check_install.py` builds the three published packages, checks them
+with `twine check`, installs the wheels into an empty environment outside the repository
+(everything else from PyPI, as for a user), checks each package imports from there at its
+declared version, and runs every Python block of the READMEs (the root one and the three PyPI
+pages) and every script in `examples/`. A README example that stops working fails CI.
+`test_packaging.py` checks the metadata itself: one version, the licence, links and bounds.
+
 **Scale.** `scripts/bench_b0.py` plays 1,000 B0 games in CI and records games per second and
 microseconds per legal mask as an artifact. `scripts/soak_b0.py` plays 100,000 B0 games every
 night and checks every R.9 invariant at every state. Both have tests that run them small.
@@ -119,6 +126,7 @@ night and checks every R.9 invariant at every state. Both have tests that run th
 | Pre-commit (every commit) | Ruff, Pyright, package boundaries, rule citations, generated types, client lint |
 | CI: *Python tests + coverage + migrations* | every test at the `ci` profile with Postgres; 100% coverage of fish_rules, fish_env and fish_agents |
 | CI: *Determinism* | RNG vectors in JavaScript; golden replays; fish-rules, fish-env and fish-agents tests under two hash seeds; the replay digest under both, checked and compared |
+| CI: *Install from the built packages* | fish-rules, fish-env and fish-agents built, installed into an empty environment with their dependencies from PyPI, and every README code block and example run there (`scripts/check_install.py`) |
 | CI: *Performance smoke* | 1,000 B0 games, timings kept as an artifact |
 | Nightly: *Hypothesis* | fish-rules at the `nightly` profile; fish-env and fish-agents in a second job |
 | Nightly: *Soak* | 100,000 B0 games with every R.9 check |
