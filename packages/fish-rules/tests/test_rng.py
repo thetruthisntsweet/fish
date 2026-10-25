@@ -58,7 +58,7 @@ def test_stream_matches_frozen_values(
     assert [rng.next_u64() for _ in range(3)] == expected
 
 
-def test_stream_names_are_the_six_in_section_6() -> None:
+def test_stream_names_are_the_seven_in_section_2() -> None:
     assert STREAM_NAMES == (
         "deal",
         "first_player",
@@ -66,6 +66,7 @@ def test_stream_names_are_the_six_in_section_6() -> None:
         "tiebreak",
         "bot_delay",
         "bot_policy",
+        "cohort",
     )
 
 

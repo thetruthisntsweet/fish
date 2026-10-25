@@ -414,3 +414,18 @@ every person who held a seat in it is eligible; one ineligible person removes th
 since their actions are in every other seat's history. The release keeps times relative to
 the game's start and the month it was played, under per-release pseudonyms; contact data,
 internal ids, wall-clock times and network identifiers never leave the server.
+
+**D45 · 2026-10-25 · The corpus record (`fish-corpus-v1`) and the cohort draw
+(`fish-cohort-v1`) live in fish-rules.**
+Both are plain data and pure functions, so they sit with the rules, standard library only,
+where the server, the research code and anyone reading the released corpus all use the same
+definition. A corpus record is a game record plus the game's conditions, its six seats, per
+action the received and sent times and the cause (a seat or a timer), and the server log
+rows. `read_corpus_record` checks every field and replays the game; `corpus_record` refuses
+to write a record that does not read. Response time and the record-level analysis flags are
+functions of the record, never stored. Under website mechanics no call-entry freeze falls
+inside a decision point (only the caller acts in one, and it ends with the call), so nothing
+is subtracted for it. The format is for website games only; T5.4 will define the synthetic
+set's. The cohort draw adds a seventh RNG stream, `cohort`, seeded by the cohort seed:
+3 positions from a shuffle of each block of 20 sign-ups. Its vectors are checked in Python
+and JavaScript.

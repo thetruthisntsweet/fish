@@ -41,8 +41,16 @@ shifts another. A stream is identified by the game seed, a name and an index.
 | `tiebreak` | event number | Seat chosen when the caller does not choose or a vote ties | R.5.2 |
 | `bot_delay` | event number × 6 + seat | Website bot delays | R.8.8 |
 | `bot_policy` | event number × 6 + seat | Random choices made by bots | — |
+| `cohort` | block number | Held-out cohort positions, seeded by the cohort seed, not a game seed | corpus.md §2.1 |
 
 Run-out (R.6.2) uses `priority` with the run-out window's index; it has no stream of its own.
+
+`fish_rules.cohort` (`fish-cohort-v1`) takes the first 3 entries of `shuffled(range(20))`
+from stream `cohort` with the block number as the index, sorted: those positions of the block
+of sign-ups `20 × block` onward are in the held-out cohort. `tests/vectors/cohort_v1.json`
+freezes 17 blocks (seeds 0, 1, 2026 and 2^64 − 1 at blocks 0, 1, 2 and 249, and seed 12345 at
+block 2^64 − 1). It was written once by `scripts/make_cohort_vectors.py`, which refuses to
+overwrite it, and is checked by the Python tests and by `scripts/verify_rng_vectors.mjs`.
 
 The stream's starting state is the first 8 bytes, read big-endian, of SHA-256 over these
 bytes in order:
