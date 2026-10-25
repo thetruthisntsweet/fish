@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this benchmark, please cite it as below."
+title: "Fish: a benchmark for signalling under adversarial observation"
+type: software
+authors:
+  - name: "The Fish benchmark contributors"
+version: 0.1.0
+date-released: "2026-11-01"
+license: Apache-2.0
+repository-code: "https://github.com/thetruthisntsweet/fish"
+abstract: >-
+  A rules engine, a PettingZoo multi-agent environment and baseline agents for the
+  six-player team card game Fish, for measuring how much the way players act reveals
+  about hidden information, how much they leak about their own hands, and whether any of
+  it is deliberate signalling.
+keywords:
+  - card game
+  - hidden information
+  - multi-agent
+  - reinforcement learning
+  - benchmark
+  - signalling

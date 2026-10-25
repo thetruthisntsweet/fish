@@ -5,7 +5,8 @@ the interface they share, from the [Fish benchmark](https://github.com/thetruthi
 
 - `Agent`: an agent is any object with `act(view, rng) -> int`. It sees only its own seat's
   view and draws its randomness from the generator it is given, so games replay exactly.
-- `B0` (`b0-v1`): plays uniformly at random among its legal actions.
+- `B0` (`b0-v1`): plays uniformly at random among its legal actions, except that in a
+  declaration window it passes all but 1 time in 100.
 - `play_game(agents, seed)` plays one game with six agents and returns its record (needs the
   `env` extra).
 
