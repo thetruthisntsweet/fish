@@ -216,7 +216,7 @@ or one played under another ruleset, stops the export with an error instead.
 | T3.5 | bot seats, memory settings, handovers |
 | T4.4 | weekly integrity checks and the handover share |
 | T4.5 | the freeze, the split seed, anonymisation |
-| T7.1 | the release datasheet |
+| T7.1 | the release datasheet, following [datasheet-plan.md](datasheet-plan.md) |
 
 ## 9. Tables
 
