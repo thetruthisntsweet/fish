@@ -400,3 +400,17 @@ wrong check in `test_conformance.py`: it required the run-out caller to hold car
 R.6.2 does not (R.9 makes run-out its exception). The engine was right; the check now
 applies to turns only, and the failing game (seed 1759, policy seed 735) is kept as an
 `@example`. `docs/testing.md` describes the whole suite.
+
+**D44 · 2026-10-24 · The corpus design (T1.6).**
+`docs/corpus.md` fixes what every website game records before the server writes one. The
+log is the seed and the engine actions, each stamped on the server's monotonic clock when
+its input arrived and when its update was sent, with its cause (a seat or a timer). Round
+trips, rejected inputs, connections, handovers and bot delays are server log rows. Response
+time is derived from the log by one function, never stored. Every play and consent table is
+append-only; a withdrawal is a new consent row. The held-out cohort is drawn in blocks of 20
+sign-ups, 3 per block from a frozen stream, so it is exactly 15% at every multiple of 20. A
+game enters the corpus only if it was completed (finished or stopped at 1,000 asks) and
+every person who held a seat in it is eligible; one ineligible person removes the whole game,
+since their actions are in every other seat's history. The release keeps times relative to
+the game's start and the month it was played, under per-release pseudonyms; contact data,
+internal ids, wall-clock times and network identifiers never leave the server.
