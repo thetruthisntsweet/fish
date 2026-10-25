@@ -48,6 +48,8 @@ See [the environment guide](docs/environment.md) for agents, actions, rewards an
   fails
 - [Corpus](docs/corpus.md): what every website game records, who is in the corpus, and what
   is released
+- [Datasheet plan](docs/datasheet-plan.md): how each question of the corpus datasheet will
+  be answered, and when
 - [Decision log](docs/decisions.md): what was chosen, and why
 - [Determinism](docs/determinism.md): the random-number scheme behind every recorded game,
   and the frozen encodings of actions, records, views and observations

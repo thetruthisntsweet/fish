@@ -453,3 +453,14 @@ bits per person per export, never derived from internal ids, so two releases can
 by them. The export connects as the server's read-and-insert login. The website-mechanics
 game driver moved from the fish-rules tests into `fish_rules.playout` as
 `random_website_game`, so both packages' corpus tests use the same games.
+
+**D48 · 2026-10-25 · The datasheet is planned before collection (T1.6 close-out).**
+`docs/datasheet-plan.md` takes each question of *Datasheets for Datasets* (Gebru et al.,
+2021) and says what answers it and when: most are fixed now by the corpus design, counts
+come from the frozen export through `fish_rules.corpus` and are never counted by hand, and
+the rest are written at release. Six questions need decisions outside the design (creators
+and contact, funding and compensation, the ethics approval reference and impact analysis,
+hosting and a DOI, whether older versions stay available after withdrawals, and how long raw
+data is kept); they are listed there for T7.1. T1.6 is complete: the design
+(`docs/corpus.md`), the record format and cohort draw (D44, D45), the tables (D46), the
+membership and export (D47), and this plan.
