@@ -30,12 +30,16 @@ def test_history_is_a_single_line_starting_at_the_baseline() -> None:
     assert revisions[-1].down_revision is None
 
 
-def test_offline_sql_creates_only_the_version_table() -> None:
+def test_offline_sql_creates_the_version_table_and_the_corpus_tables() -> None:
     out = io.StringIO()
     command.upgrade(alembic_config("postgresql+psycopg://x@localhost/x", out), "head", sql=True)
     sql = out.getvalue()
     assert "CREATE TABLE alembic_version" in sql
     assert "INSERT INTO alembic_version (version_num) VALUES ('0001')" in sql
+    assert "CREATE SEQUENCE signup_numbers" in sql
+    for table in ("players", "games", "seats", "actions", "server_log"):
+        assert f"CREATE TABLE {table} (" in sql
+    assert "CREATE TRIGGER actions_no_update_delete" in sql
 
 
 def current_versions(url: str) -> list[str]:

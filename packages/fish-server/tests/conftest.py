@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, make_url, pool, text
 
 from fish_server.database import dispose_engine
@@ -68,6 +69,14 @@ def migrated_database_url(fresh_database_url: str) -> str:
     cfg.set_main_option("sqlalchemy.url", fresh_database_url.replace("%", "%%"))
     command.upgrade(cfg, "head")
     return fresh_database_url
+
+
+@pytest.fixture(scope="session")
+def head_revision() -> str:
+    """The latest migration, which a migrated database is at."""
+    head = ScriptDirectory.from_config(Config(str(REPO / "alembic.ini"))).get_current_head()
+    assert head is not None
+    return head
 
 
 @pytest.fixture
