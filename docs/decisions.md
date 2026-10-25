@@ -429,3 +429,15 @@ is subtracted for it. The format is for website games only; T5.4 will define the
 set's. The cohort draw adds a seventh RNG stream, `cohort`, seeded by the cohort seed:
 3 positions from a shuffle of each block of 20 sign-ups. Its vectors are checked in Python
 and JavaScript.
+
+**D46 · 2026-10-25 · The corpus tables (migration 0003).**
+Ten tables and a sequence hold docs/corpus.md §2 to §5, defined once in `fish_server.db` and
+created by migration 0003. A test compares the two with Alembic's autogenerate and fails on
+any difference. Every table except `player_contacts` gets the append-only triggers, so a
+game's ending is a row of its own (`game_endings`) rather than a column filled in later, and
+contact addresses are the only rows that can be deleted. Check constraints repeat the
+single-row rules of `fish-corpus-v1`; rules that need the whole game stay in
+`fish_rules.corpus`. Nothing is stored twice: a note answer is keyed by seat, not person, and
+whether a seat was bot-filled follows from its controller. Seeds are `numeric(20,0)`, because
+a 64-bit unsigned seed does not fit `bigint`. Tests that named the head revision now read it
+from the migration scripts.

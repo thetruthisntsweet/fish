@@ -37,5 +37,5 @@ def test_schema_revision_of_an_unmigrated_database_is_none(fresh_database_url: s
 
 
 @pytest.mark.usefixtures("server_env")
-def test_the_app_login_can_read_the_schema_revision() -> None:
-    assert schema_revision(get_engine()) == "0002"
+def test_the_app_login_can_read_the_schema_revision(head_revision: str) -> None:
+    assert schema_revision(get_engine()) == head_revision

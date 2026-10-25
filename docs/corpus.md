@@ -76,7 +76,7 @@ stops part-way and is kept in the log but never enters the corpus.
 | `seat` | 0–5 | |
 | controller | a person (`player_id`) or a bot (`agent`, its version, e.g. `b1-v1`) | matchmaking |
 | `memory` | `human` for a person; `full`, `last-k` with its k, or `none` for a bot (T2.8) | matchmaking |
-| `bot_filled` | a bot held the seat from the start | matchmaking (T3.5) |
+| `bot_filled` | a bot held the seat from the start; derived from the controller, not stored | matchmaking (T3.5) |
 
 **4.1 Handovers.** Under R.8.4 a person who does not act within the 60-second turn timer,
 or does not reconnect within 30 seconds, is replaced by a B1 bot for the rest of the game
@@ -208,3 +208,28 @@ reads it back, so no writer can produce a record that does not read.
 | T4.4 | weekly integrity checks and the handover share |
 | T4.5 | the freeze, the split seed, anonymisation |
 | T7.1 | the release datasheet |
+
+## 9. Tables
+
+`fish_server.db` defines the tables and migration 0003 creates them. A test checks that the
+two agree. Every table but `player_contacts` is append-only (§1).
+
+| Table | Holds | Becomes in the record |
+|---|---|---|
+| `players` | `player_id`, `signup_number` (from the `signup_numbers` sequence), `cohort`, `signed_up_at` (§2) | each person's pseudonym and cohort flag |
+| `player_contacts` | the email address for sign-in links; the only table rows can be deleted from | nothing |
+| `consent_events`, `age_events` | §2.2 | membership only (§6) |
+| `games` | §3 except the ending; the seed as `numeric(20,0)`, since 64-bit seeds do not fit PostgreSQL's signed `bigint` | `seed`, versions, `game` |
+| `game_endings` | `completion` and `ended_at`, one row written when the game ends | `game.completion`; a game with no row has not ended |
+| `seats` | the six controllers at the start (§4) | `seats` |
+| `note_answers` | one row per seat that answered (§4.2) | the seat's `note`; no row is `unanswered` |
+| `actions` | §5.1, with the cause as `cause_seat` or `cause_timer` | `actions`, `times`, `causes` |
+| `server_log` | §5.2: `after_seq`, `at_us`, `seat`, `type`, and the type's own fields as `data` | `log` |
+
+Check constraints repeat what a single row can show of the record format: seats 0 to 5, a
+person's seat has memory `human` and no agent, `k` exactly when memory is `last-k`, exactly
+one cause, an action sent no earlier than received, the allowed names of every enumerated
+field. Whatever needs the whole game, such as legality and times never going back, is checked
+by `fish_rules.corpus` when the record is read (subtask 4). A sign-up number drawn for a
+sign-up that then fails is never reused, so the cohort is exactly 3 in every block of 20
+numbers rather than of 20 players.

@@ -47,10 +47,12 @@ def test_echo_returns_every_message_in_order(client: TestClient) -> None:
 
 
 @pytest.mark.usefixtures("server_env")
-def test_health_db_reports_the_revision_as_seen_by_the_app_login(client: TestClient) -> None:
+def test_health_db_reports_the_revision_as_seen_by_the_app_login(
+    client: TestClient, head_revision: str
+) -> None:
     response = client.get("/health/db")
     assert response.status_code == 200
-    assert response.json() == {"database": "ok", "schema_revision": "0002"}
+    assert response.json() == {"database": "ok", "schema_revision": head_revision}
 
 
 @pytest.mark.parametrize("url", [None, "postgresql://u:p@127.0.0.1:1/nothing_listens_here"])
