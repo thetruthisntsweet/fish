@@ -1,7 +1,8 @@
 // Independent check of the frozen vectors (T2.1 subtask 6.6; T2.2 subtasks 1, 2 and 6).
 // A from-scratch JavaScript implementation of fish-rng-v1, the card numbering, the deal, call
-// priority and the after-call tie-break, written from docs/determinism.md, recomputes every
-// value in rng_v1.json, deal_v1.json, priority_v1.json and tiebreak_v1.json.
+// priority, the after-call tie-break and the held-out cohort draw, written from
+// docs/determinism.md, recomputes every value in rng_v1.json, deal_v1.json, priority_v1.json,
+// tiebreak_v1.json and cohort_v1.json.
 // Run: node scripts/verify_rng_vectors.mjs
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -115,5 +116,13 @@ for (const c of t.choices) {
   const chosen = among[Number(g.below(BigInt(among.length)))];
   eq(chosen, c.chosen, `tiebreak seed=${c.seed} event=${c.call_event} among=${c.among}`);
 }
-
+// ---------------------------------------------------------------- held-out cohort (corpus.md §2.1)
+const co = load("cohort_v1.json");
+eq(co.algorithm, "splitmix64-sha256-v1", "cohort algorithm");
+eq(co.draw, "fish-cohort-v1", "cohort draw");
+for (const c of co.positions) {
+  const order = stream(BigInt(c.seed), "cohort", BigInt(c.block)).shuffled([...Array(co.block).keys()]);
+  const got = order.slice(0, co.per_block).sort((a, b) => a - b);
+  eq(JSON.stringify(got), JSON.stringify(c.positions), `cohort seed=${c.seed} block=${c.block}`);
+}
 console.log(`All ${checked} vector values match.`);

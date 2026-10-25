@@ -91,9 +91,9 @@ uniformly, passes in a window except 1 time in 100, and replays its frozen games
 **Determinism.** These hold the code to frozen behaviour (§5):
 
 - *Frozen vectors.* `packages/fish-rules/tests/vectors/` pins the random-number generator,
-  the deal, call priority, the seed tie-break, action indices, views and observations; the
-  generator vectors are also recomputed by an independent JavaScript implementation
-  (`scripts/verify_rng_vectors.mjs`).
+  the deal, call priority, the seed tie-break, the cohort draw, action indices, views and
+  observations; the generator, deal, priority, tie-break and cohort vectors are also
+  recomputed by an independent JavaScript implementation (`scripts/verify_rng_vectors.mjs`).
 - *Golden replays.* Eight complete games in `packages/fish-rules/tests/golden/` must replay
   to the same state hash after every action.
 - *Log-to-replay.* A game is its record. `test_record.py` and the website state machine

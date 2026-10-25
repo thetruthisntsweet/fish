@@ -96,8 +96,11 @@ class SplitMix64:
 
 # ---------------------------------------------------------------- streams (§6)
 
-StreamName = Literal["deal", "first_player", "priority", "tiebreak", "bot_delay", "bot_policy"]
-"""The named streams of a game. Each use of randomness draws from its own stream (§6)."""
+StreamName = Literal[
+    "deal", "first_player", "priority", "tiebreak", "bot_delay", "bot_policy", "cohort"
+]
+"""The named streams. Each use of randomness draws from its own stream (§6). ``cohort`` is
+seeded by the cohort seed, not a game seed (``fish_rules.cohort``)."""
 
 STREAM_NAMES: Final[tuple[StreamName, ...]] = get_args(StreamName)
 

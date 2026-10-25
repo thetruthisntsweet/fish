@@ -36,13 +36,14 @@ rules are the Canonical Ruleset v1.1.
 | contact | email for sign-in links | sign-up; a separate table, never exported (§7) |
 
 **2.1 Held-out cohort.** At sign-up, before a first game, a player is assigned to the
-held-out cohort by a frozen draw (built in subtask 2): sign-ups are taken in blocks of 20 by
-`signup_number`, and in each block 3 positions, drawn from stream `cohort` of the cohort
-seed with the block number as the index, are in the cohort. This gives exactly 15% at every
-multiple of 20 sign-ups (about 750 of 5,000), which a 15% coin flip per player would only
-approximate, and nobody can choose their own assignment. The cohort seed is a fixed 64-bit
-value held in the server's settings and published with the frozen corpus, so the assignment
-can be checked. Cohort players are matched only with each other (T3.1).
+held-out cohort by a frozen draw (`fish_rules.cohort`, `fish-cohort-v1`): sign-ups are taken
+in blocks of 20 by `signup_number`, and in each block 3 positions, drawn from stream
+`cohort` of the cohort seed with the block number as the index, are in the cohort. This
+gives exactly 15% at every multiple of 20 sign-ups (about 750 of 5,000), which a 15% coin
+flip per player would only approximate, and nobody can choose their own assignment. The
+cohort seed is a fixed 64-bit value held in the server's settings and published with the
+frozen corpus, so the assignment can be checked. Cohort players are matched only with each
+other (T3.1).
 
 **2.2 Consent and age.** Two append-only event tables. A player's status at any moment is
 their latest event of each kind.
@@ -99,12 +100,19 @@ order applied, including the control actions the server applies itself.
 | `seq` | position in the game's action list |
 | `action` | the action as `fish-actions-v1` data |
 | `cause` | `{"seat": s}` for an input from seat s, including the Call press that opens a window; `{"timer": t}` for the server's timers (`window`, `assignment`, `choice`) |
-| `controller` | `human` or `bot`, for a seat input (§4.1) |
 | `received_us` | when the input reached the server, or the timer fired |
 | `sent_us` | when the update it produced was handed to the transport for every connected seat |
 
 Both times are microseconds since the game started, on the server's monotonic clock, so they
-are unaffected by clock adjustments; the game's wall-clock start is in §3.
+are unaffected by clock adjustments; the game's wall-clock start is in §3. Received times
+never go back, sent times never go back, and each action is sent no earlier than received.
+Whether a person or a bot gave a seat input is not stored: the seats and handovers (§4)
+decide it.
+
+A Call press (R.8.3) is recorded as `OpenWindow`, when no window is open, followed by the
+presser's `Declare`, both caused by the presser and with the same received time; a press
+inside an open window is a `Declare` alone. Windows close only by the window timer, and
+nobody passes on the website.
 
 **5.2 Server log rows.** Things that happen but are not engine actions, each with the
 number of actions applied so far and a server time (`at_us`), in an append-only table:
@@ -125,17 +133,26 @@ log:
   could act and stayed able to act until it did (the deal counts as an action sent at 0);
 - for a Call press, the start is the `sent_us` of the action that produced the most recent
   numbered event (determinism.md §8);
-- the response time is the action's `received_us` minus the start, less any call-entry
-  freeze (the assignment step, R.4.3) in between;
+- the response time is the action's `received_us` minus the start; it belongs to the
+  press's `Declare`, not its `OpenWindow`;
 - it is computed only for a person's input: bot actions and timer actions have none.
 
-The round-trip times beside it let an analysis allow for each player's network delay. Both
-are computed from the log by `fish_rules.corpus` (subtask 2), never stored separately, so
-there is one definition.
+No call-entry freeze (the assignment step, R.4.3) ever falls inside a decision point: only
+the caller can act during one, and it ends with the call, a numbered event, so T1.1's rule
+that the freeze is not counted holds without subtracting anything. A declaration window does
+fall inside the current player's decision point, since they could press during it. A value
+can be negative when an input arrived while the update it answers was still being sent.
+
+The round-trip times beside it let an analysis allow for each player's network delay.
+Response times are computed from the log by `fish_rules.corpus.response_times`, never stored,
+so there is one definition.
 
 ## 6. Membership and analysis sets
 
-Computed at every export from the latest flags (subtask 4).
+Membership is computed at every export from the latest flags (subtask 4). The analysis-set
+flags that depend only on the game (completed, finished, solo, any bot, note answers,
+cohort) are computed from the record itself by `fish_rules.corpus.analysis_flags`, so every
+reader gets the same sets without trusting a stored copy.
 
 - **Eligible person.** At export time: latest age event confirmed 18+, and latest consent
   event with `research_use` yes. For the public release, also `public_release` yes.
@@ -155,17 +172,21 @@ Computed at every export from the latest flags (subtask 4).
 - **In-population split:** every other corpus game, assigned to train 70%, validation 15%
   and test 15% by a frozen draw on the release game number, with the seed recorded at the
   freeze (T4.5).
-- **Synthetic set:** bot-only games are not website corpus games; T5.4 writes them
-  separately in the same record format.
+- **Synthetic set:** bot-only games are played under environment mechanics, not website
+  mechanics, so they are not `fish-corpus-v1` records; T5.4 defines their format, which
+  shares the game record of determinism.md §8.
 
 ## 7. What is released
 
-The export (`fish-corpus-v1`, one JSON record per game, built in subtask 2) extends the game
-record of determinism.md §8, so `replay_record` still replays it.
+The export is one `fish-corpus-v1` record per game (`fish_rules.corpus`): the game record of
+determinism.md §8, so `replay_record` still replays it, plus `corpus`, `game` (§3), `seats`
+(§4), `times` and `causes` (§5.1, one per action) and `log` (§5.2).
+`read_corpus_record` checks every field and replays the game; `corpus_record` writes one and
+reads it back, so no writer can produce a record that does not read.
 
 | Released | Coarsened | Never leaves the server |
 |---|---|---|
-| seed, actions, causes, versions; seat controllers, memory settings, handovers; matchmaking, cohort table, completion; note answers; action times and server log rows as microseconds since game start; analysis-set flags | the game date, to the month | email and contact data; internal player and game ids; wall-clock times; IP addresses, user agents; consent texts and attestation times |
+| seed, actions, causes, versions; seat controllers, memory settings, handovers; matchmaking, cohort table, completion; each person's cohort flag and note answer; action times and server log rows as microseconds since game start | the game date, to the month | email and contact data; internal player and game ids; wall-clock times; IP addresses, user agents; consent texts and attestation times |
 
 - **Players** appear under a pseudonym drawn at random for each release, the same for every
   game of that release and unrelated to any internal identifier, so per-player analyses
@@ -179,7 +200,7 @@ record of determinism.md §8, so `replay_record` still replays it.
 | Task | Part |
 |---|---|
 | T1.5 | the consent text and its versions (§2.2) |
-| T1.6 | this design; the record format and cohort draw (fish-rules); the tables; membership and export; the datasheet plan |
+| T1.6 | this design; the record format (`fish_rules.corpus`) and cohort draw (`fish_rules.cohort`); the tables; membership and export; the datasheet plan |
 | T3.1 | writing players, games, seats, actions and server log rows; cohort matchmaking |
 | T3.2 | the logging pipeline and completion status |
 | T3.3 | the age event |

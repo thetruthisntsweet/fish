@@ -1,0 +1,161 @@
+{
+  "algorithm": "splitmix64-sha256-v1",
+  "draw": "fish-cohort-v1",
+  "block": 20,
+  "per_block": 3,
+  "positions": [
+    {
+      "seed": "0",
+      "block": "0",
+      "positions": [
+        3,
+        13,
+        19
+      ]
+    },
+    {
+      "seed": "0",
+      "block": "1",
+      "positions": [
+        4,
+        14,
+        15
+      ]
+    },
+    {
+      "seed": "0",
+      "block": "2",
+      "positions": [
+        7,
+        13,
+        17
+      ]
+    },
+    {
+      "seed": "0",
+      "block": "249",
+      "positions": [
+        2,
+        17,
+        18
+      ]
+    },
+    {
+      "seed": "1",
+      "block": "0",
+      "positions": [
+        15,
+        16,
+        18
+      ]
+    },
+    {
+      "seed": "1",
+      "block": "1",
+      "positions": [
+        0,
+        15,
+        19
+      ]
+    },
+    {
+      "seed": "1",
+      "block": "2",
+      "positions": [
+        2,
+        10,
+        18
+      ]
+    },
+    {
+      "seed": "1",
+      "block": "249",
+      "positions": [
+        10,
+        13,
+        18
+      ]
+    },
+    {
+      "seed": "2026",
+      "block": "0",
+      "positions": [
+        8,
+        10,
+        18
+      ]
+    },
+    {
+      "seed": "2026",
+      "block": "1",
+      "positions": [
+        2,
+        3,
+        12
+      ]
+    },
+    {
+      "seed": "2026",
+      "block": "2",
+      "positions": [
+        1,
+        6,
+        11
+      ]
+    },
+    {
+      "seed": "2026",
+      "block": "249",
+      "positions": [
+        3,
+        5,
+        8
+      ]
+    },
+    {
+      "seed": "18446744073709551615",
+      "block": "0",
+      "positions": [
+        12,
+        17,
+        18
+      ]
+    },
+    {
+      "seed": "18446744073709551615",
+      "block": "1",
+      "positions": [
+        0,
+        8,
+        15
+      ]
+    },
+    {
+      "seed": "18446744073709551615",
+      "block": "2",
+      "positions": [
+        4,
+        5,
+        8
+      ]
+    },
+    {
+      "seed": "18446744073709551615",
+      "block": "249",
+      "positions": [
+        12,
+        14,
+        15
+      ]
+    },
+    {
+      "seed": "12345",
+      "block": "18446744073709551615",
+      "positions": [
+        6,
+        10,
+        16
+      ]
+    }
+  ]
+}
