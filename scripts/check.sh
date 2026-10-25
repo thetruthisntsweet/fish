@@ -30,6 +30,8 @@ echo "== Coverage: fish-agents must be 100%"
 uv run coverage report --include="*/fish_agents/*" --fail-under=100
 echo "== RNG vectors: independent JavaScript check"
 node scripts/verify_rng_vectors.mjs
+echo "== Install the built packages as a user would; run the README examples"
+uv run --no-project --python 3.14 python scripts/check_install.py
 
 echo "== Client: install"
 npm --prefix client ci --no-audit --no-fund
