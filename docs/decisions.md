@@ -348,3 +348,16 @@ checked games a second per core that is roughly 50 minutes on a 2-core runner (t
 is private) and 25 on a 4-core one (once public), inside the 120-minute limit. It fails on the
 first broken game and names its seed, so one command reproduces it. The run summary and a
 `soak` artifact keep the numbers.
+
+**D40 · 2026-10-24 · Legal indices are computed directly; per-seat sweeps get a smaller share.**
+`fish_rules.action_index.legal_indices` built every legal action and encoded it, with full
+input checks: 729 objects whenever a call was being assigned, for every seat at every step.
+That was 85% of the cost of building a view. It now computes the indices phase by phase,
+directly. Two tests prove it unchanged: at every step of random games the indices decode to
+exactly the engine's legal actions, and at every state of every golden game, in every phase,
+they equal the encoded legal actions; the frozen action-index, view and observation vectors
+pass untouched. Views are 2.7 times faster to build, B0 games 3 times faster (77 a second
+on the development container) and a legal mask 10 times faster (1.5 µs). The five test files
+that check every seat at every step of whole games now run a fortieth of the profile's
+examples (10 in dev, 25 in CI, 1,250 nightly) rather than a tenth; at a tenth, the nightly
+profile would have asked them for 5,000 whole games each, past the job's 120-minute limit.

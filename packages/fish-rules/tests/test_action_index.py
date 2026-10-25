@@ -29,7 +29,7 @@ from fish_rules.action_index import (
 )
 from fish_rules.cards import SEATS, team_of
 from fish_rules.codec import ACTION_ENCODING, action_from_data
-from fish_rules.engine import acting_seats, apply, legal_actions
+from fish_rules.engine import acting_seats, apply, legal_actions, replay
 from fish_rules.events import (
     Action,
     Ask,
@@ -45,14 +45,16 @@ from fish_rules.events import (
     Vote,
 )
 from fish_rules.playout import random_game
-from fish_rules.state import Phase, new_game
+from fish_rules.state import Phase, State, new_game
 
+GOLDEN = sorted((Path(__file__).parent / "golden").glob("*.json"))
 VECTORS: dict[str, Any] = json.loads(
     (Path(__file__).parent / "vectors" / "action_index_v1.json").read_text(encoding="utf-8")
 )
 U64 = st.integers(min_value=0, max_value=2**64 - 1)
-GAMES: int = max(10, int(settings().max_examples) // 10)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-"""Whole games are slower than single steps: a tenth of the profile's examples."""
+GAMES: int = max(10, int(settings().max_examples) // 40)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+"""Every seat at every step of whole games is costly: a fortieth of the profile's examples
+(10 in dev, 25 in CI, 1,250 nightly)."""
 
 PHASES = (Phase.TURN, Phase.VOTE)
 CONTROL: tuple[Action, ...] = (OpenWindow(), CloseWindow(), AssignTimeout(), ChoiceTimeout())
@@ -198,3 +200,36 @@ def test_assignment_mask_is_every_assignment_to_teammates() -> None:
     assert {decode(2, i, state.phase) for i in legal_indices(state, 2)} == {
         Assign(2, holders) for holders in product((0, 1, 2), repeat=6)
     }
+
+
+def reference_indices(state: State, seat: int) -> tuple[int, ...]:
+    """The definition legal_indices must match: every legal action, encoded, ascending."""
+    return tuple(sorted(encode(action) for action in legal_actions(state, seat)))
+
+
+@pytest.mark.parametrize("path", GOLDEN, ids=lambda p: p.stem)
+def test_legal_indices_match_the_definition_in_every_golden_state(path: Path) -> None:
+    """Every phase occurs in the golden games (turns, windows, assignments, the caller's
+    choice, team votes, run-out, the end): at each of their states, for every seat, the fast
+    legal_indices equals the encoded legal actions."""
+    golden: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    seed = int(golden["seed"])
+    phases: set[Phase] = set()
+    states = [
+        new_game(seed),
+        *(s for s, _ in replay(seed, map(action_from_data, golden["actions"]))),
+    ]
+    for state in states:
+        phases.add(state.phase)
+        for seat in SEATS:
+            assert legal_indices(state, seat) == reference_indices(state, seat)
+    assert Phase.OVER in phases
+
+
+def test_the_golden_games_cover_every_phase() -> None:
+    phases: set[Phase] = set()
+    for path in GOLDEN:
+        golden: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        seed = int(golden["seed"])
+        phases |= {s.phase for s, _ in replay(seed, map(action_from_data, golden["actions"]))}
+    assert phases == set(Phase)

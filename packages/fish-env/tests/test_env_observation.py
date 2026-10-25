@@ -15,8 +15,9 @@ from fish_rules.state import Phase
 from fish_rules.view import project
 
 U64 = st.integers(min_value=0, max_value=2**64 - 1)
-GAMES: int = max(10, int(settings().max_examples) // 10)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-"""Whole games are slower than single steps: a tenth of the profile's examples."""
+GAMES: int = max(10, int(settings().max_examples) // 40)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+"""Every seat at every step of whole games is costly: a fortieth of the profile's examples
+(10 in dev, 25 in CI, 1,250 nightly)."""
 
 KINDS = (AskEvent, CallEvent, ChoiceEvent)
 """The order of the observation's ``event`` block."""

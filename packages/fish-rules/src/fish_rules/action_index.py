@@ -41,10 +41,11 @@ from fish_rules.cards import (
     check_seat,
     check_set,
     opponent_team,
+    set_cards,
+    set_of,
     team_of,
     team_seats,
 )
-from fish_rules.engine import legal_actions
 from fish_rules.events import Action, Ask, Assign, Call, Choose, Declare, Pass, Vote
 from fish_rules.state import Phase, State
 
@@ -139,9 +140,61 @@ def decode(seat: Seat, index: int, phase: Phase) -> SeatAction:
     return Vote(seat, chosen) if phase is Phase.VOTE else Choose(seat, chosen)
 
 
+_ALL_ASSIGNMENTS: Final = tuple(range(ASSIGN_BASE, NOMINATE_BASE))
+"""During an assignment the caller may assign each card to any teammate (R.4.1, R.4.6)."""
+
+
 def legal_indices(state: State, seat: Seat) -> tuple[int, ...]:
-    """The indices of every action ``seat`` may take now, ascending. Empty if it may not act."""
-    return tuple(sorted(encode(action) for action in legal_actions(state, seat)))
+    """The indices of every action ``seat`` may take now, ascending. Empty if it may not act.
+
+    Exactly the indices of ``fish_rules.engine.legal_actions(state, seat)``, computed
+    directly rather than by building and encoding each action: this runs for every seat at
+    every step of every game, and the direct form is several times faster. The tests check
+    the two agree at every step of random games.
+    """
+    seat = check_seat(seat)
+    match state.phase:
+        case Phase.TURN | Phase.RUNOUT if seat == state.current:
+            calls = tuple(CALL_BASE + set_id for set_id in state.sets_in_play())
+            if state.phase is Phase.RUNOUT:
+                return calls
+            hand = state.hands[seat]
+            held = set(hand)
+            wanted = [
+                card
+                for set_id in sorted({set_of(card) for card in hand})
+                for card in set_cards(set_id)
+                if card not in held
+            ]
+            asks = [
+                ASK_BASE + NUM_CARDS * opponent + card
+                for opponent, target in enumerate(opponents(seat))
+                if state.hands[target]
+                for card in wanted
+            ]
+            return (*asks, *calls)
+        case Phase.WINDOW:
+            assert state.window is not None
+            if state.window.responded[seat]:
+                return ()
+            return (*(DECLARE_BASE + set_id for set_id in state.sets_in_play()), PASS_INDEX)
+        case Phase.ASSIGN:
+            assert state.call is not None
+            return _ALL_ASSIGNMENTS if seat == state.call.caller else ()
+        case Phase.CHOOSE | Phase.VOTE:
+            choice = state.choice
+            assert choice is not None
+            if state.phase is Phase.CHOOSE:
+                may_choose = seat == choice.chooser
+            else:
+                members = team_seats(choice.team)
+                may_choose = seat in members and choice.votes[members.index(seat)] is None
+            if not may_choose:
+                return ()
+            mates = teammates(seat)
+            return tuple(sorted(NOMINATE_BASE + mates.index(c) for c in choice.candidates))
+        case _:
+            return ()
 
 
 def legal_mask(state: State, seat: Seat) -> bytes:
