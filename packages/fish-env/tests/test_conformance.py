@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 import pytest
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 from pettingzoo.test import api_test, seed_test
 
@@ -102,10 +102,12 @@ def test_golden_games_are_environment_games(path: Path) -> None:
 
 @settings(max_examples=GAMES, deadline=None)
 @given(U64, U64)
+@example(game_seed=1759, policy_seed=735)  # run-out falls to a caller without cards (R.6.2)
 def test_r9_invariants_hold_at_every_agent_step(game_seed: int, policy_seed: int) -> None:
     """R.9 at every agent step of a game played by uniformly random legal agents: the state is
     consistent, the selected agent is the lowest seat that may act and has a legal action, the
-    turn never falls to a player without cards, and the game ends."""
+    turn never falls to a player without cards, and the game ends. R.6.2 is R.9's exception:
+    the run-out caller acts whether or not they hold cards."""
     game = FishEnv()
     game.reset(seed=game_seed)
     rng = np.random.default_rng(policy_seed)
@@ -122,9 +124,11 @@ def test_r9_invariants_hold_at_every_agent_step(game_seed: int, policy_seed: int
         assert game.observation_space(agent).contains(observation)
         legal = np.flatnonzero(observation["action_mask"])
         assert legal.size > 0, "R.9: the selected agent can always act"
-        if state.phase in (Phase.TURN, Phase.RUNOUT):
+        if state.phase is Phase.TURN:
             assert state.current is not None
             assert state.hands[state.current], "R.9: the turn fell to a player without cards"
+        if state.phase is Phase.RUNOUT:
+            assert seat_of(agent) == state.current, "R.6.2: the run-out caller acts"
         game.step(int(rng.choice(legal)))
     assert game.game.phase is Phase.OVER
     assert game.agents == []
