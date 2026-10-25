@@ -2,6 +2,8 @@
 name = "fish-research"
 version = "0.0.0"
 requires-python = ">=3.14"
+# Not published: PyPI refuses any upload carrying this classifier.
+classifiers = ["Private :: Do Not Upload"]
 dependencies = ["fish-rules", "fish-env", "fish-agents"]
 
 [build-system]

@@ -1,8 +1,30 @@
 [project]
 name = "fish-env"
-version = "0.0.0"
+version = "0.1.0"
+description = "A PettingZoo environment for the six-player card game Fish."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
-dependencies = ["fish-rules", "pettingzoo", "gymnasium", "numpy"]
+keywords = ["fish", "card game", "pettingzoo", "multi-agent", "reinforcement learning", "benchmark"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Games/Entertainment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = ["fish-rules>=0.1,<0.2", "pettingzoo>=1.27", "gymnasium>=1.4", "numpy>=2.5"]
+
+[project.urls]
+Homepage = "https://github.com/thetruthisntsweet/fish"
+Documentation = "https://github.com/thetruthisntsweet/fish/tree/main/docs"
+Changelog = "https://github.com/thetruthisntsweet/fish/blob/main/CHANGELOG.md"
+Issues = "https://github.com/thetruthisntsweet/fish/issues"
 
 [build-system]
 requires = ["uv_build>=0.8,<0.12"]

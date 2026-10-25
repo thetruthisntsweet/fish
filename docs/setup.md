@@ -143,6 +143,7 @@ rights only. Tables that must never change once written get
 | Symptom | Cause and fix |
 |---|---|
 | Pyright: `Import "fish_env" could not be resolved` (or another package) | `uv add` or a plain `uv sync` installed only part of the workspace. Run `uv sync --all-packages`. |
+| `test_import` or `test_packaging` says the version is wrong after pulling a version change | The installed workspace packages still carry the old metadata. Run `uv sync --all-packages`. |
 | Database tests show `SKIPPED … FISH_TEST_DATABASE_URL not set` | `.env` is missing, or you ran pytest without `--env-file .env`. `check.sh` loads `.env` itself. |
 | `connection refused` on port 55432 | The database is not running: start it (section 4). |
 | `/health/db` says `unavailable` locally | The `fish_server` login does not exist or has a different password. Run `uv run --env-file .env python -m fish_server.deploy`. |
