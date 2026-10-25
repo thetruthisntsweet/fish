@@ -336,3 +336,15 @@ vary between runner machines, so a slowdown is read from the trend rather than a
 threshold. The game statistics do not vary between machines, so a change in them is a change
 in behaviour. First numbers, on the development container: 24 games a second, 16 µs per
 mask, 418 actions, 36 asks and 7.6 calls per game.
+
+**D39 · 2026-10-24 · The nightly soak: 100,000 B0 games, every R.9 check, in parallel.**
+`scripts/soak_b0.py` plays B0-vs-B0 environment games across worker processes and checks every
+state of every game: `check_consistency` (cards conserved, phase and pending state agree), the
+R.9 invariants (the turn never falls to a player without cards, the current player can always
+act, at most nine calls, the scoring team chooses and a correct call keeps the initiative),
+event numbering, a proper end, and that the record replays to the same final state. The
+nightly workflow runs 100,000 games on as many processes as the runner has cores. At about 17
+checked games a second per core that is roughly 50 minutes on a 2-core runner (the repository
+is private) and 25 on a 4-core one (once public), inside the 120-minute limit. It fails on the
+first broken game and names its seed, so one command reproduces it. The run summary and a
+`soak` artifact keep the numbers.
