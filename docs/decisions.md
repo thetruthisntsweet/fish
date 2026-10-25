@@ -464,3 +464,47 @@ hosting and a DOI, whether older versions stay available after withdrawals, and 
 data is kept); they are listed there for T7.1. T1.6 is complete: the design
 (`docs/corpus.md`), the record format and cohort draw (D44, D45), the tables (D46), the
 membership and export (D47), and this plan.
+
+**D49 · 2026-10-25 · Three packages are published, together, at one version (T2.6).**
+fish-rules, fish-env and fish-agents go to PyPI, always released together at the same
+version, and each requires its siblings at that minor version (`>=0.1,<0.2`). Alternatives:
+independent versions (every combination would need testing, for no user benefit while the
+three change together); one package (anyone wanting only the rules would install NumPy and
+PettingZoo). Versions follow semantic versioning, so while at 0.x a minor release may change
+the interface. fish-server and fish-research carry the `Private :: Do Not Upload` classifier,
+which PyPI refuses, so they cannot be published by mistake. Each package's `__version__` is
+read from its installed metadata, so there is one place to change it. The packages require
+Python 3.14, as developed (D1); supporting older versions would mean CI on each of them, and
+waits until someone needs it.
+
+**D50 · 2026-10-25 · The packages are tested the way a stranger installs them.**
+`scripts/check_install.py` builds the three packages, runs `twine check --strict`, installs
+the wheels into an empty environment outside the repository with everything else from PyPI,
+checks each imports from there at its declared version, and runs every Python block of the
+READMEs PyPI shows and every example, from an empty folder with `python -I`. It runs in CI on
+every pull request. Alternative: rely on the workspace's tests, which run against the
+repository itself and so cannot notice a file missing from a wheel, a dependency declared
+only in the workspace, or a README example that has stopped working.
+
+**D51 · 2026-10-25 · The release documents itself, and tests hold the documents to the code.**
+Four examples (`examples/`) run after `pip install` and in CI. The README is written for a
+first-time reader. The Canonical Ruleset is copied into `docs/rules.md`, so the public
+repository carries the rules it implements; a test requires it to number exactly the rules
+the citation check traces and to carry `RULESET_VERSION`, and the planning document's copy
+and this one change together. `CHANGELOG.md` and `CITATION.cff` (CFF 1.2.0) name each
+release, and a test requires them to agree with the package version and with each other.
+
+**D52 · 2026-10-25 · Releases are published from a version tag, by trusted publishing.**
+Pushing `vX.Y.Z` runs `.github/workflows/release.yml`: it checks that the tagged commit is on
+main and that the tag, the three versions, the changelog and the citation agree
+(`scripts/check_release.py`); builds the files once, through the install check, and uploads
+exactly the files that check installed and ran; publishes them to PyPI with `uv publish`;
+then makes a GitHub release with the same files and the changelog entry as its text. PyPI
+trusts the workflow through OIDC (trusted publishing), and only version tags may use its
+`pypi` environment, which waits for an approval. Its actions are pinned to commits, since it
+holds the right to publish. Alternatives: an API token in the repository's secrets (a
+long-lived credential that anything able to read the secret could use); uploading by hand
+(not repeatable, and the files would not be the ones CI checked). Uploads skip files already
+on PyPI, so a run that fails halfway can be re-run. Running the workflow by hand rehearses a
+release without publishing. With this, T2.6 is in place; the release itself is tagging v0.1.0
+(`docs/runbooks/release.md`).

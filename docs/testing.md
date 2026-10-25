@@ -113,7 +113,9 @@ with `twine check`, installs the wheels into an empty environment outside the re
 (everything else from PyPI, as for a user), checks each package imports from there at its
 declared version, and runs every Python block of the READMEs (the root one and the three PyPI
 pages) and every script in `examples/`. A README example that stops working fails CI.
-`test_packaging.py` checks the metadata itself: one version, the licence, links and bounds.
+`test_packaging.py` checks the metadata itself: one version, the licence, links and bounds,
+and that the changelog and citation name that version. `scripts/check_release.py` checks a
+release tag against the same files before anything is published (`test_check_release.py`).
 
 **Scale.** `scripts/bench_b0.py` plays 1,000 B0 games in CI and records games per second and
 microseconds per legal mask as an artifact. `scripts/soak_b0.py` plays 100,000 B0 games every
@@ -128,6 +130,7 @@ night and checks every R.9 invariant at every state. Both have tests that run th
 | CI: *Determinism* | RNG vectors in JavaScript; golden replays; fish-rules, fish-env and fish-agents tests under two hash seeds; the replay digest under both, checked and compared |
 | CI: *Install from the built packages* | fish-rules, fish-env and fish-agents built, installed into an empty environment with their dependencies from PyPI, and every README code block and example run there (`scripts/check_install.py`) |
 | CI: *Performance smoke* | 1,000 B0 games, timings kept as an artifact |
+| Release (version tags) | the tag is on main and matches the versions, changelog and citation; the install check; then PyPI and the GitHub release ([runbook](runbooks/release.md)) |
 | Nightly: *Hypothesis* | fish-rules at the `nightly` profile; fish-env and fish-agents in a second job |
 | Nightly: *Soak* | 100,000 B0 games with every R.9 check |
 

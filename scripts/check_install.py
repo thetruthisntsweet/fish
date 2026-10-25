@@ -1,7 +1,9 @@
 """Install the published packages the way a stranger would, and run their documentation (T2.6).
 
 Run: ``uv run --no-project --python 3.14 python scripts/check_install.py`` (it needs only the
-standard library, uv and the network). With ``--list`` it only prints what it would run.
+standard library, uv and the network). With ``--list`` it only prints what it would run. With
+``--dist DIR`` it keeps the built files in ``DIR``, a new folder: these checked files are the
+ones the release uploads (``.github/workflows/release.yml``).
 
 1. Builds fish-rules, fish-env and fish-agents (``uv build``: a source archive, then a wheel
    built from that archive, so both are known to work) into a temporary folder, and checks
@@ -60,8 +62,9 @@ def run(command: list[str], what: str, cwd: Path | None = None) -> str:
     return done.stdout
 
 
-def check(work: Path) -> int:
-    dist, venv, empty = work / "dist", work / "venv", work / "empty"
+def check(work: Path, dist: Path | None = None) -> int:
+    dist = dist or work / "dist"
+    venv, empty = work / "venv", work / "empty"
     empty.mkdir()
     for package in PUBLISHED:
         run(["uv", "build", "--package", package, "--out-dir", str(dist)], f"building {package}",
@@ -101,14 +104,17 @@ def check(work: Path) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Install the built packages and run the docs.")
     parser.add_argument("--list", action="store_true", help="only list the code that would run")
+    parser.add_argument("--dist", type=Path, help="a new folder to keep the built files in")
     args = parser.parse_args(argv)
+    if args.dist is not None and args.dist.exists():
+        parser.error(f"{args.dist} exists; the built files go into a new folder")
     if args.list:
         for where, _ in documented_code():
             print(where)
         return 0
     with tempfile.TemporaryDirectory(prefix="fish-install-") as work:
         try:
-            return check(Path(work))
+            return check(Path(work), args.dist and args.dist.resolve())
         except CheckError as error:
             print(f"FAIL {error}", file=sys.stderr)
             return 1
