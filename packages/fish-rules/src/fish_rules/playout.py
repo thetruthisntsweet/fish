@@ -1,4 +1,5 @@
-"""A reference driver: whole games under the environment's mechanics, with random legal play.
+"""Reference drivers: whole games with random legal play, under the environment's mechanics
+(``random_game``) or the website's (``random_website_game``).
 
 ``random_game`` applies the environment's protocol around the engine: a declaration window at
 the start of the game and after every event, before the current player acts (R.4.2), with
@@ -13,20 +14,29 @@ after-call choice, are common; otherwise declarations are rare (1 in 100 respons
 are preferred to calls (24 in 25). Half of all assignments use the true holders where they are
 on the caller's team. That keeps games short and makes run-out, ties, votes and discarded
 declarations common enough to test. It reads hidden state, which no agent may do.
+
+``random_website_game`` plays under website mechanics instead (R.8.3), as a corpus record
+records them (docs/corpus.md §5.1): presses on any turn, each an ``OpenWindow`` followed by the
+presser's ``Declare`` at the same received time, more presses inside an open window, windows
+closed by the window timer, assignment and choice timeouts, and uniform legal seat actions
+otherwise. It also returns each action's cause and its received and sent times, which
+advance by random gaps. It exists for the corpus tests (T1.6).
 """
 
 from typing import Final
 
-from fish_rules.cards import Seat, SetId, Team, set_cards, team_of, team_seats
+from fish_rules.cards import SEATS, Seat, SetId, Team, set_cards, team_of, team_seats
 from fish_rules.engine import acting_seats, apply, legal_actions
 from fish_rules.events import (
     Action,
     Ask,
     AskEvent,
     Assign,
+    AssignTimeout,
     Call,
     CallEvent,
     ChoiceEvent,
+    ChoiceTimeout,
     Choose,
     CloseWindow,
     Declare,
@@ -130,3 +140,46 @@ def random_game(game_seed: int, policy_seed: int) -> tuple[Action, ...]:
                 (seat,) = acting_seats(state)
                 act(Call(seat, rng.choice(state.sets_in_play())))
     return tuple(actions)
+
+
+WebsiteGame = tuple[tuple[Action, ...], tuple[dict[str, object], ...], tuple[tuple[int, int], ...]]
+"""A website game's actions, each action's cause, and each action's (received, sent) times."""
+
+
+def random_website_game(game_seed: int, policy_seed: int, max_actions: int = 2_000) -> WebsiteGame:
+    """One game under website mechanics, stopped after ``max_actions`` if it has not ended."""
+    rng = SplitMix64(policy_seed)
+    state = new_game(game_seed)
+    actions: list[Action] = []
+    causes: list[dict[str, object]] = []
+    times: list[tuple[int, int]] = []
+    clock = 0
+
+    def act(action: Action, cause: dict[str, object], received: int) -> None:
+        nonlocal state, clock
+        state, _ = apply(state, action)
+        actions.append(action)
+        causes.append(cause)
+        clock = max(clock, received) + rng.below(5_000)
+        times.append((received, clock))
+
+    while state.phase is not Phase.OVER and len(actions) < max_actions:
+        at = clock + rng.below(3_000_000)
+        match state.phase:
+            case Phase.TURN if rng.below(4) == 0:
+                seat = rng.choice(SEATS)
+                act(OpenWindow(), {"seat": seat}, at)
+                act(Declare(seat, rng.choice(state.sets_in_play())), {"seat": seat}, at)
+            case Phase.WINDOW if acting_seats(state) and rng.below(3) == 0:
+                seat = rng.choice(acting_seats(state))
+                act(Declare(seat, rng.choice(state.sets_in_play())), {"seat": seat}, at)
+            case Phase.WINDOW:
+                act(CloseWindow(), {"timer": "window"}, at)
+            case Phase.ASSIGN if rng.below(5) == 0:
+                act(AssignTimeout(), {"timer": "assignment"}, at)
+            case Phase.CHOOSE | Phase.VOTE if rng.below(5) == 0:
+                act(ChoiceTimeout(), {"timer": "choice"}, at)
+            case _:
+                seat = rng.choice(acting_seats(state))
+                act(rng.choice(legal_actions(state, seat)), {"seat": seat}, at)
+    return tuple(actions), tuple(causes), tuple(times)
