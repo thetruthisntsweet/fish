@@ -28,12 +28,10 @@ GAMES: int = max(10, int(settings().max_examples) // 10)  # pyright: ignore[repo
 
 # PettingZoo's api_test gives advice that does not fit a masked card game. It suggests Box or
 # Discrete observation spaces and NumPy observations, but a dict of observation and action
-# mask is its own convention for masked games (as in its classic environments). It warns on
-# an all-zero observation, which is correct for a seat that holds no cards and may not act.
+# mask is its own convention for masked games (as in its classic environments).
 ADVISORY = (
     "ignore:Observation space for each agent probably should be:UserWarning",
     "ignore:Observation is not a NumPy array:UserWarning",
-    "ignore:Observation numpy array is all zeros:UserWarning",
 )
 
 

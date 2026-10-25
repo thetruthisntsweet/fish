@@ -11,11 +11,16 @@ run-out, the caller during the assignment and the after-call choice, and the sea
 answer in a window or a vote, ascending. Seats in a window answer without seeing each other's
 declarations, so the order cannot change the result.
 
-An observation is ``{"observation": the seat's own hand as 54 bits, "action_mask": 913 bits}``.
-The hand is a placeholder: T2.4 replaces it with the per-player projection. The mask is
-``fish_rules.action_index.legal_mask``, so it allows exactly what the engine accepts. An
-action the mask does not allow raises ``IllegalActionError`` and changes nothing; a benchmark
-should fail loudly on a broken agent rather than score it.
+An observation is ``{"observation": 648 bits, "action_mask": 913 bits}``. Both come from the
+seat's view, ``fish_rules.view.project``, the same projection the website sends its players
+(Plan §3): ``observation`` is that view encoded as ``fish-obs-v1``
+(``fish_rules.observation``), and ``action_mask`` marks the view's legal action indices, so it
+allows exactly what the engine accepts. A seat sees its own hand, every hand size, the scored
+sets, the phase, the call being assigned, the choice in progress with only its own vote, its
+own answer in an open window, and only the most recent event (R.2). Remembering earlier
+events is the agent's business; T2.8's memory wrapper keeps them. An action the mask does not
+allow raises ``IllegalActionError`` and changes nothing; a benchmark should fail loudly on a
+broken agent rather than score it.
 
 The reward is the game result, given once at the end (R.7.1): +1 to every seat of the team
 that claimed five sets and -1 to every seat of the other, so the two teams' rewards sum to
@@ -41,20 +46,14 @@ from numpy.typing import NDArray
 from pettingzoo import AECEnv
 from pettingzoo.utils import wrappers
 
-from fish_rules.action_index import NUM_ACTIONS, decode, legal_mask
-from fish_rules.cards import NUM_CARDS, SEATS, Seat, team_of
+from fish_rules.action_index import NUM_ACTIONS, decode
+from fish_rules.cards import SEATS, Seat, team_of
 from fish_rules.engine import acting_seats, apply
-from fish_rules.events import (
-    Action,
-    AskEvent,
-    CallEvent,
-    ChoiceEvent,
-    CloseWindow,
-    OpenWindow,
-    Record,
-)
+from fish_rules.events import Action, CloseWindow, Event, OpenWindow, Record
+from fish_rules.observation import OBS_SIZE, encode
 from fish_rules.record import game_record
 from fish_rules.state import Outcome, Phase, State, new_game, state_hash
+from fish_rules.view import PlayerView, latest_event, project
 
 AGENTS: Final[tuple[str, ...]] = tuple(f"seat_{seat}" for seat in SEATS)
 """Agent names. ``AGENTS[seat]`` plays ``seat``."""
@@ -96,7 +95,7 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
         observation_spaces: dict[str, spaces.Space[Any]] = {
             agent: spaces.Dict(
                 {
-                    "observation": spaces.Box(0, 1, (NUM_CARDS,), np.int8),
+                    "observation": spaces.Box(0, 1, (OBS_SIZE,), np.int8),
                     "action_mask": spaces.Box(0, 1, (NUM_ACTIONS,), np.int8),
                 }
             )
@@ -106,6 +105,7 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
         self.observation_spaces = observation_spaces
         self._game: State | None = None
         self._actions: list[Action] = []
+        self._last_event: Event | None = None
         self._window_due = False
         self.game_seed: int | None = None
 
@@ -131,6 +131,10 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
         assert self.game_seed is not None
         return game_record(self.game_seed, self._actions, state)
 
+    def view(self, agent: str) -> PlayerView:
+        """What ``agent`` may know now (``fish_rules.view``): the source of its observation."""
+        return project(self.game, seat_of(agent), self._last_event)
+
     def state_hash(self) -> str:
         """``fish_rules.state.state_hash`` of the current state: equal hashes, equal games."""
         return state_hash(self.game)
@@ -140,7 +144,9 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
         allowed. An event (R.4.2) makes a window due before the next turn."""
         self._game, records = apply(self.game, action)
         self._actions.append(action)
-        if any(isinstance(record, AskEvent | CallEvent | ChoiceEvent) for record in records):
+        last = latest_event(records, self._last_event)
+        if last is not self._last_event:
+            self._last_event = last
             self._window_due = True
         return records
 
@@ -199,6 +205,7 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
         self.game_seed = seed
         self._game = new_game(seed)
         self._actions = []
+        self._last_event = None
         self._window_due = True  # R.4.2: a window opens before the first turn
         self.agents = list(AGENTS)
         self.rewards = dict.fromkeys(self.agents, 0.0)
@@ -224,11 +231,12 @@ class FishEnv(AECEnv[str, Observation, ActionIndex]):
         self._accumulate_rewards()
 
     def observe(self, agent: str) -> Observation:
-        seat = seat_of(agent)
-        hand = np.zeros(NUM_CARDS, np.int8)
-        hand[list(self.game.hands[seat])] = 1
-        mask = np.frombuffer(legal_mask(self.game, seat), np.int8).copy()
-        return {"observation": hand, "action_mask": mask}
+        """``agent``'s view as ``fish-obs-v1`` bits, and the mask of its legal actions."""
+        view = self.view(agent)
+        observation = np.frombuffer(encode(view), np.int8).copy()
+        mask = np.zeros(NUM_ACTIONS, np.int8)
+        mask[list(view.legal)] = 1
+        return {"observation": observation, "action_mask": mask}
 
     def render(self) -> None:
         """No render modes; returns None."""

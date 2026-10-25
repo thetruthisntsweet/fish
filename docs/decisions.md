@@ -290,3 +290,12 @@ observation and the action. Hand sizes are one-hot rather than counts, so every 
 same way without NumPy. Alternatives: a dict of arrays per field (policies flatten it
 anyway); absolute seats (six copies of every pattern to learn). Frozen
 with vectors as `fish-obs-v1`. The legal mask stays beside it, not inside it.
+
+**D35 · 2026-10-24 · The environment observes through the projection.**
+`FishEnv.observe` builds each agent's observation from `fish_rules.view.project`: the
+`observation` entry is the view encoded as `fish-obs-v1` (648 bits) and the `action_mask`
+marks the view's legal action indices. The environment keeps the most recent event from the
+engine's records and passes it in, so agents see exactly what website players see (Plan §3),
+and the leak tests on the projection cover the environment too. The hand-only placeholder
+from T2.3 is gone, and with it the all-zero observation that PettingZoo's `api_test` warned
+about.
