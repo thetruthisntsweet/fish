@@ -5,6 +5,7 @@ requires-python = ">=3.14"
 dependencies = ["fish-rules"]
 
 [project.optional-dependencies]
+env = ["fish-env"]  # fish_agents.play runs agents in the environment; the server never needs it
 torch = ["torch"]
 
 [build-system]

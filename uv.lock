@@ -286,16 +286,20 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+env = [
+    { name = "fish-env" },
+]
 torch = [
     { name = "torch" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "fish-env", marker = "extra == 'env'", editable = "packages/fish-env" },
     { name = "fish-rules", editable = "packages/fish-rules" },
     { name = "torch", marker = "extra == 'torch'" },
 ]
-provides-extras = ["torch"]
+provides-extras = ["env", "torch"]
 
 [[package]]
 name = "fish-env"

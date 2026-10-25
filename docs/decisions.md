@@ -299,3 +299,16 @@ engine's records and passes it in, so agents see exactly what website players se
 and the leak tests on the projection cover the environment too. The hand-only placeholder
 from T2.3 is gone, and with it the all-zero observation that PettingZoo's `api_test` warned
 about.
+
+**D36 · 2026-10-24 · Agents see a view and a generator, never the seed; fish-env is optional.**
+An agent (`fish_agents.base.Agent`) is given its seat's view (`fish_rules.view`) and a random
+generator, and returns an action index. It is never given the game seed, which would reveal
+the deal. The generator for a decision comes from the game's `bot_policy` stream at index
+event number × 6 + seat (`docs/determinism.md` §2); a seat deciding twice before the next
+event keeps drawing from the same generator. A game played by seeded agents is therefore
+reproduced from its seed alone, and the website's bots (T3.5) draw the same way. Two
+games of the same agents on the same deal always play out the same way; an optional agent
+seed can be added if an evaluation needs several plays of one deal. `fish_agents.play` runs
+six agents in `FishEnv`; fish-env is an optional extra (`env`) of fish-agents, so the server,
+which depends on fish-agents for its bots, never installs PettingZoo, Gymnasium or NumPy.
+fish-agents joins the other packages at 100% branch coverage in CI.
