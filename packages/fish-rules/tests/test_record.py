@@ -6,16 +6,21 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
-from fish_rules.codec import ACTION_ENCODING
-from fish_rules.engine import IllegalActionError, replay
-from fish_rules.events import Pass
+from fish_rules.codec import ACTION_ENCODING, action_from_data
+from fish_rules.engine import IllegalActionError, apply, replay
+from fish_rules.events import Pass, Record
 from fish_rules.playout import random_game
 from fish_rules.record import game_record, replay_record
 from fish_rules.state import Outcome, new_game, state_hash
 from fish_rules.version import RULESET_VERSION
 
 GOLDEN = sorted((Path(__file__).parent / "golden").glob("*.json"))
+U64 = st.integers(min_value=0, max_value=2**64 - 1)
+GAMES: int = max(10, int(settings().max_examples) // 10)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+"""Whole games: a tenth of the profile's examples (10 in dev, 100 in CI, 5,000 nightly)."""
 
 
 def finished(game_seed: int, policy_seed: int) -> dict[str, object]:
@@ -42,6 +47,26 @@ def test_records_replay_exactly(seeds: tuple[int, int]) -> None:
     *_, (state, _) = replay(game_seed, actions)
     record = json.loads(json.dumps(game_record(game_seed, actions, state)))
     assert state_hash(replay_record(record)) == state_hash(state)
+
+
+@settings(max_examples=GAMES)
+@given(U64, U64, st.integers(min_value=0, max_value=2_000))
+def test_r10_2_a_game_replays_exactly_from_its_log(
+    game_seed: int, policy_seed: int, cut: int
+) -> None:
+    """R.10.2, docs/determinism.md §8: a game, finished or stopped after ``cut`` actions, is its
+    log. Its record, written to JSON text and read back, replays to the same records and the
+    same state after every action as playing it did, and ``replay_record`` accepts it."""
+    actions = random_game(game_seed, policy_seed)[:cut]
+    state = new_game(game_seed)
+    played: list[tuple[str, tuple[Record, ...]]] = []
+    for action in actions:
+        state, records = apply(state, action)
+        played.append((state_hash(state), records))
+    data = json.loads(json.dumps(game_record(game_seed, actions, state)))
+    logged = [action_from_data(item) for item in data["actions"]]
+    assert [(state_hash(s), r) for s, r in replay(int(data["seed"]), logged)] == played
+    assert state_hash(replay_record(data)) == state_hash(state)
 
 
 def test_a_game_in_progress_has_no_outcome() -> None:

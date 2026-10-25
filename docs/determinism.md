@@ -297,3 +297,21 @@ A one-hot block with no bit set means "none" or "not applicable".
 `packages/fish-rules/tests/vectors/obs_v1.json` freezes the observations of the 124 views in
 `view_v1.json`, as the indices of the bits set. It was written once by
 `scripts/make_obs_vectors.py`, which refuses to overwrite it.
+
+## 12. Replay digest
+
+`scripts/replay_digest.py` plays 100 games of each of three kinds from seeds 0–99:
+`fish_rules.playout.random_game` under environment mechanics, six B0 agents (b0-v1) in the
+environment, and website mechanics (Call presses on any turn, windows closed whoever has
+answered, assignment and choice timeouts, random legal seat actions). Each game goes through
+its log: its record (§8) is written to JSON text, read back and replayed, and the replay must
+give the same records and states as playing did. A game's digest is the SHA-256 of its
+record's JSON (sorted keys, compact) and the state hash after every action, one per line;
+each kind's digest covers its games' digests in seed order, and the overall digest covers the
+three kinds. The encoding is named `fish-replay-digest-v1`.
+
+`packages/fish-agents/tests/vectors/replay_digest_v1.json` freezes the result. CI's
+determinism job recomputes it under `PYTHONHASHSEED` 0 and 4242, checks both against the
+frozen file and compares the two outputs byte for byte. The script refuses to overwrite a
+file; the frozen digest changes only with the ruleset, the action or state encoding, or B0's
+version, together with the golden replays (§8) and a decision log entry.
