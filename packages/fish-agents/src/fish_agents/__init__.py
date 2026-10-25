@@ -4,8 +4,11 @@
 the server can run agents as bots. ``fish_agents.play`` runs agents in the environment.
 """
 
+from importlib import metadata
+
 from fish_agents.base import Agent, PolicyStreams
 
 __all__ = ["Agent", "PolicyStreams"]
 
-__version__ = "0.0.0"
+__version__ = metadata.version("fish-agents")
+"""The installed package's version, from its metadata (pyproject.toml)."""
