@@ -312,3 +312,17 @@ seed can be added if an evaluation needs several plays of one deal. `fish_agents
 six agents in `FishEnv`; fish-env is an optional extra (`env`) of fish-agents, so the server,
 which depends on fish-agents for its bots, never installs PettingZoo, Gymnasium or NumPy.
 fish-agents joins the other packages at 100% branch coverage in CI.
+
+**D37 · 2026-10-24 · B0 (b0-v1): uniform over legal actions, declaring in a window 1 time in
+100.**
+`fish_agents.b0.B0` chooses uniformly among its legal actions at every decision, except that
+in a declaration window it passes and declares (a uniformly chosen set) only one time in 100.
+Uniform play in windows declares about nine times in ten, so almost every window ends in a
+call: in 200 measured games not one ask was made, which would leave the H1c placebo nothing
+to learn from and the ask paths of the property tests unexercised. At 1 in 100, B0 games
+average 35 asks and 7.6 calls, all finished, at about 23 games a second on one core. B0 looks
+only at its legal actions and whether a window is open, so its choices reveal its hand only
+through which actions are legal; a hand with fewer legal asks makes each of its asks
+likelier, so the H1c placebo gain over B2 should be near zero but not exactly zero (T5.5 and
+T6.4 must allow for this, for example by comparing against B0's exact action likelihood).
+The definition is frozen as `b0-v1` and pinned by five frozen games.
