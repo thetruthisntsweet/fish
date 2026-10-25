@@ -34,12 +34,23 @@ declarations, so the order they answer in cannot change the result.
 
 Each observation is a dict:
 
-- `observation`: the seat's own hand, 54 bits, one per card in card-number order
-  (`docs/determinism.md` §6).
+- `observation`: 648 bits, the seat's view encoded as `fish-obs-v1`
+  (`docs/determinism.md` §11).
 - `action_mask`: 913 bits, 1 for each action the seat may take now.
 
-The hand is a placeholder until T2.4, which replaces it with the per-player projection: the
-public state plus the most recent event. The mask stays. Seats that may not act get an
+Both come from the seat's view, `fish_rules.view.project`, the same projection the website
+sends its players. A seat sees its own hand, every hand size, which sets are scored and by
+whom, the phase and whose turn it is, the call being assigned, the choice in progress with
+only its own vote, its own answer in an open window, the outcome, and only the most recent
+event: an ask and its answer, a call with its assignment and the true holders of its cards,
+or an after-call choice (R.2). It never sees other hands, the seed, other seats'
+declarations or votes, or a window's priority order. `FishEnv.view(agent)` returns the view
+itself.
+
+Seats are written relative to the observer, in the same order as the action layout: slots
+0–2 are the observer's team in ascending order (the `me` block marks which is the observer),
+slots 3–5 the other team. Earlier events are not repeated; an agent that wants them must
+remember them, which the memory wrapper (T2.8) will do. Seats that may not act get an
 all-zero mask.
 
 ## Actions
@@ -94,3 +105,5 @@ Every run of the test suite does the following:
   agent step;
 - checks the rules' invariants (R.9) at every step of random games;
 - requires 100% branch coverage of `fish_env`.
+- checks that every observation is its seat's view, encoded, and that a seat's view never
+  changes when anything hidden from it does (`fish_rules` leak tests);

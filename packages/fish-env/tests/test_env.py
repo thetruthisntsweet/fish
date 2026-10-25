@@ -10,7 +10,9 @@ from fish_rules.action_index import NUM_ACTIONS, PASS_INDEX, legal_mask
 from fish_rules.cards import SEATS
 from fish_rules.engine import IllegalActionError, acting_seats, replay
 from fish_rules.events import CloseWindow, OpenWindow, Pass
+from fish_rules.observation import encode
 from fish_rules.state import Phase, state_hash
+from fish_rules.view import project
 
 
 def play_randomly(game: FishEnv, policy_seed: int) -> int:
@@ -45,14 +47,16 @@ def test_r4_2_a_window_opens_before_the_first_turn() -> None:
     assert game.agent_selection == "seat_0"
 
 
-def test_observation_is_own_hand_and_mask() -> None:
+def test_r2_1_observation_is_the_encoded_view_and_its_mask() -> None:
+    """R.2.1: each agent observes its own view, encoded as fish-obs-v1, with the mask of its
+    legal actions."""
     game = FishEnv()
     game.reset(seed=42)
     for agent in AGENTS:
         observation = game.observe(agent)
         seat = seat_of(agent)
         assert game.observation_space(agent).contains(observation)
-        assert list(np.flatnonzero(observation["observation"])) == list(game.game.hands[seat])
+        assert observation["observation"].tobytes() == encode(project(game.game, seat, None))
         assert observation["action_mask"].tobytes() == legal_mask(game.game, seat)
         assert observation["action_mask"][PASS_INDEX] == 1
         assert game.action_space(agent).n == NUM_ACTIONS  # pyright: ignore[reportAttributeAccessIssue]
