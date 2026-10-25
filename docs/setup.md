@@ -63,6 +63,7 @@ All from the repository root.
 | Start the server (reloads on save) | `uv run --env-file .env uvicorn fish_server.app:app --reload` |
 | Start the client (http://localhost:5173) | `npm --prefix client run dev` |
 | Run the client tests | `npm --prefix client test` |
+| Export the corpus (docs/corpus.md §7) | `uv run --env-file .env python -m fish_server.corpus_export --out corpus.jsonl` (add `--public` for the release) |
 | Regenerate client types after changing `protocol.py` | `scripts/gen_types.sh` |
 | Create a migration after changing `fish_server/db.py` | `uv run --env-file .env alembic revision --autogenerate --rev-id 0003 -m "what changed"` (next free number; read the file it writes) |
 | Apply migrations and refresh the server login | `uv run --env-file .env python -m fish_server.deploy` |

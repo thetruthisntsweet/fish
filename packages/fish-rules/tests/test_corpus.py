@@ -22,18 +22,16 @@ from fish_rules.corpus import (
     read_corpus_record,
     response_times,
 )
-from fish_rules.engine import acting_seats, apply, legal_actions
+from fish_rules.engine import acting_seats, apply, legal_actions, replay
 from fish_rules.events import (
     Action,
     Ask,
-    AssignTimeout,
-    ChoiceTimeout,
     CloseWindow,
     Declare,
     OpenWindow,
 )
+from fish_rules.playout import random_website_game
 from fish_rules.record import replay_record
-from fish_rules.rng import SplitMix64
 from fish_rules.state import Phase, State, new_game, state_hash
 
 U64 = st.integers(min_value=0, max_value=2**64 - 1)
@@ -68,45 +66,10 @@ Played = tuple[int, State, list[Action], list[dict[str, object]], list[tuple[int
 
 
 def website_play(game_seed: int, policy_seed: int, max_actions: int = 2_000) -> Played:
-    """A random game under website mechanics: presses (OpenWindow then the presser's Declare
-    at the same time) on any turn, more presses inside the window, windows closed by the timer,
-    timeouts, and random legal seat actions. Times advance by random gaps."""
-    rng = SplitMix64(policy_seed)
-    state = new_game(game_seed)
-    actions: list[Action] = []
-    causes: list[dict[str, object]] = []
-    times: list[tuple[int, int]] = []
-    clock = 0
-
-    def act(action: Action, cause: dict[str, object], received: int) -> None:
-        nonlocal state, clock
-        state, _ = apply(state, action)
-        actions.append(action)
-        causes.append(cause)
-        clock = max(clock, received) + rng.below(5_000)
-        times.append((received, clock))
-
-    while state.phase is not Phase.OVER and len(actions) < max_actions:
-        at = clock + rng.below(3_000_000)
-        match state.phase:
-            case Phase.TURN if rng.below(4) == 0:
-                seat = rng.choice(SEATS)
-                act(OpenWindow(), {"seat": seat}, at)
-                act(Declare(seat, rng.choice(state.sets_in_play())), {"seat": seat}, at)
-            case Phase.WINDOW if acting_seats(state) and rng.below(3) == 0:
-                seat = rng.choice(acting_seats(state))
-                act(Declare(seat, rng.choice(state.sets_in_play())), {"seat": seat}, at)
-            case Phase.WINDOW:
-                act(CloseWindow(), {"timer": "window"}, at)
-            case Phase.ASSIGN if rng.below(5) == 0:
-                act(AssignTimeout(), {"timer": "assignment"}, at)
-            case Phase.CHOOSE | Phase.VOTE if rng.below(5) == 0:
-                act(ChoiceTimeout(), {"timer": "choice"}, at)
-            case _:
-                seat = rng.choice(acting_seats(state))
-                action = rng.choice(legal_actions(state, seat))
-                act(action, {"seat": seat}, at)
-    return game_seed, state, actions, causes, times
+    """A random game under website mechanics (``fish_rules.playout.random_website_game``)."""
+    actions, causes, times = random_website_game(game_seed, policy_seed, max_actions)
+    *_, (state, _) = replay(game_seed, actions)
+    return game_seed, state, list(actions), list(causes), list(times)
 
 
 def completion(state: State) -> str:

@@ -149,8 +149,8 @@ so there is one definition.
 
 ## 6. Membership and analysis sets
 
-Membership is computed at every export from the latest flags (subtask 4). The analysis-set
-flags that depend only on the game (completed, finished, solo, any bot, note answers,
+Membership is computed at every export from the latest flags (`fish_server.corpus_export`,
+§7). The analysis-set flags that depend only on the game (completed, finished, solo, any bot, note answers,
 cohort) are computed from the record itself by `fish_rules.corpus.analysis_flags`, so every
 reader gets the same sets without trusting a stored copy.
 
@@ -194,6 +194,15 @@ reads it back, so no writer can produce a record that does not read.
 - **Consent** is represented only by membership: every released game passed §6.
 - **Re-export.** A release is regenerated from the log, never edited. After a withdrawal,
   the next export simply leaves the game out.
+
+**Running the export.** `python -m fish_server.corpus_export --out corpus.jsonl` writes the
+research export, one record per line in order of start time, and `--public` the CC BY 4.0
+release, which also needs each person's `public_release` consent. It connects as the server's
+own login, which can only read and insert, refuses to overwrite a file, and prints how many
+games it exported and why each one left out was left out: not ended, abandoned, no person
+played, or a person not eligible. Release game ids are `g-000001`, `g-000002`, … in that
+order. Every record is read back before it is written; a stored game the log cannot reproduce,
+or one played under another ruleset, stops the export with an error instead.
 
 ## 8. Who builds what
 

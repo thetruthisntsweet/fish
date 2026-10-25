@@ -63,7 +63,10 @@ that every game ends, and that `legal_actions` is exactly what the engine accept
 `test_engine_environment.py` checks the rules the engine owes the environment (R.2.4, R.8.6,
 R.8.9).
 
-**Whole games under website mechanics.** `test_website_machine.py` is a Hypothesis state
+**Whole games under website mechanics.** `fish_rules.playout.random_website_game` plays
+random games the way a corpus record records them (presses, timers, received and sent times);
+the corpus tests in fish-rules and fish-server write, read and export its games.
+`test_website_machine.py` is a Hypothesis state
 machine. It interleaves Call presses on any turn, windows closed whoever has answered,
 assignment and choice timeouts, legal seat actions and arbitrary seat actions, in any order
 the rules allow. After every step it checks consistency and R.9, that a seat action is

@@ -441,3 +441,15 @@ single-row rules of `fish-corpus-v1`; rules that need the whole game stay in
 whether a seat was bot-filled follows from its controller. Seeds are `numeric(20,0)`, because
 a 64-bit unsigned seed does not fit `bigint`. Tests that named the head revision now read it
 from the migration scripts.
+
+**D47 · 2026-10-25 · Corpus membership and export (`fish_server.corpus_export`).**
+Membership is one SQL query over the latest consent and age events, run at every export, so a
+withdrawal or a new consent changes the next export with nothing edited. A game is exported
+only if it ended under the rules, a person played in it, and every person in it is eligible
+(and, for `--public`, consented to the release). Each record is built with `corpus_record`,
+which reads it back and replays it, so the export stops on any stored game the log cannot
+reproduce rather than write it. Release game ids follow start time; pseudonyms are 64 random
+bits per person per export, never derived from internal ids, so two releases cannot be linked
+by them. The export connects as the server's read-and-insert login. The website-mechanics
+game driver moved from the fish-rules tests into `fish_rules.playout` as
+`random_website_game`, so both packages' corpus tests use the same games.
