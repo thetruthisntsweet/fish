@@ -46,6 +46,8 @@ See [the environment guide](docs/environment.md) for agents, actions, rewards an
 - [Agents](docs/agents.md): the agent interface, B0, and the checks that run B0 games
 - [Testing](docs/testing.md): what the tests check, where they run, and what to do when one
   fails
+- [Corpus](docs/corpus.md): what every website game records, who is in the corpus, and what
+  is released
 - [Decision log](docs/decisions.md): what was chosen, and why
 - [Determinism](docs/determinism.md): the random-number scheme behind every recorded game,
   and the frozen encodings of actions, records, views and observations
