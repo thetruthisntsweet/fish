@@ -11,8 +11,9 @@ A benchmark for signalling under adversarial observation, built on the card game
 ## Quick start
 
 The environment is a [PettingZoo](https://pettingzoo.farama.org) AEC environment with six
-agents, `seat_0` to `seat_5`. Each observation carries a mask of the legal actions. This plays
-one game with random legal moves, then replays it from its record:
+agents, `seat_0` to `seat_5`. Each agent observes only what its seat may know (its own hand,
+the public state and the most recent event), with a mask of its legal actions. This plays one
+game with random legal moves, then replays it from its record:
 
 ```python
 import numpy as np
@@ -43,5 +44,6 @@ See [the environment guide](docs/environment.md) for agents, actions, rewards an
 - [Setup](docs/setup.md): get a working copy, everyday commands, troubleshooting
 - [Environment](docs/environment.md): the multi-agent interface, its actions, rewards and seeding
 - [Decision log](docs/decisions.md): what was chosen, and why
-- [Determinism](docs/determinism.md): the random-number scheme behind every recorded game
+- [Determinism](docs/determinism.md): the random-number scheme behind every recorded game,
+  and the frozen encodings of actions, records, views and observations
 - [Restore drill](docs/runbooks/restore-drill.md): rehearsing a database restore on staging

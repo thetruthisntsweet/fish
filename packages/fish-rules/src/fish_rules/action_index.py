@@ -24,8 +24,9 @@ FROZEN: trained agents and recorded policies depend on this layout. It is named
 they store actions with ``fish_rules.codec``.
 
 ``legal_indices`` and ``legal_mask`` give the indices of exactly the actions
-``fish_rules.engine.legal_actions`` lists, so the environment and the website build the
-same mask (T2.4) without either knowing the layout.
+``fish_rules.engine.legal_actions`` lists. The projection (``fish_rules.view``) carries
+them, so the environment and the website build the same mask without either knowing the
+layout.
 """
 
 from typing import Final

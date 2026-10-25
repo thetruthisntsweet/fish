@@ -16,8 +16,9 @@ own rows (round-trip times, rejected presses) never shift a number.
 
 Every record is either PUBLIC (all players see it as it happens; R.2.2, R.2.3, R.8.3) or
 LOG_ONLY (kept in the event log but never shown to players: discarded declarations, R.4.3;
-individual votes and seed choices, R.5.2). The projection (T2.4) decides exactly what each
-player is shown; this marking is the rule it starts from.
+individual votes and seed choices, R.5.2). The projection, ``fish_rules.view``, decides
+exactly what each player is shown, and its leak tests check that no LOG_ONLY record ever
+reaches a view.
 """
 
 from dataclasses import dataclass
