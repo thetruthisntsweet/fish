@@ -100,7 +100,7 @@ The test suite creates and drops its own throwaway databases and its own login
 | `FISH_APP_DB_PASSWORD` | the server, `fish_server.deploy` | password of the `fish_server` login (16+ characters: letters, digits, `+/=_-.`) |
 | `FISH_TEST_DATABASE_URL` | tests | a database on the same server the tests may use to create throwaway databases; unset = database tests skip |
 | `FISH_APP_DB_USER` | tests only | overrides the login name; leave unset |
-| `HYPOTHESIS_PROFILE` | tests | `dev` (default, 100 examples), `ci` (1,000), `nightly` (50,000) |
+| `HYPOTHESIS_PROFILE` | tests | `dev` (default, 100 examples), `ci` (1,000), `nightly` (50,000); see [testing.md](testing.md) |
 | `PORT` | the server image | port to listen on; Render sets it |
 
 The server's own URL is never written anywhere: it is the admin URL with the user and

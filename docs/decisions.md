@@ -388,3 +388,15 @@ it under `PYTHONHASHSEED` 0 and 4242 and compares the outputs, so a change in ho
 plays out, or a dependence on hash order anywhere from the deal to B0's choices, fails the
 build. It takes about 10 seconds per run. Reversing the order of the seed tie-break changed
 all three kinds' digests.
+
+**D43 · 2026-10-24 · Every hash-seed and nightly run covers all three game packages.**
+T2.1 asks for the suite to be run under two `PYTHONHASHSEED` values. CI ran only the
+fish-rules tests that way, and the nightly profile only on fish-rules. The determinism job
+now runs the fish-rules, fish-env and fish-agents tests under both seeds (about 10 more
+seconds each), and a second nightly job runs fish-env and fish-agents at the nightly profile,
+apart from the fish-rules job so neither nears its time limit. The server's tests are left
+out of both: they hold no game logic yet. The first nightly-profile run of fish-env found a
+wrong check in `test_conformance.py`: it required the run-out caller to hold cards, which
+R.6.2 does not (R.9 makes run-out its exception). The engine was right; the check now
+applies to turns only, and the failing game (seed 1759, policy seed 735) is kept as an
+`@example`. `docs/testing.md` describes the whole suite.

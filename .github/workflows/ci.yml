@@ -104,13 +104,13 @@ jobs:
       # Complete games stored as seed + actions, with the state hash after every action (§6, §9).
       - name: Golden replays
         run: uv run pytest packages/fish-rules/tests/test_golden.py -p no:cacheprovider -v
-      # The rules must not depend on Python's per-run string hashing (set/dict order).
-      - name: fish-rules tests with PYTHONHASHSEED=0
-        run: uv run pytest packages/fish-rules -p no:cacheprovider
+      # The game packages must not depend on Python's per-run string hashing (set/dict order).
+      - name: Game package tests with PYTHONHASHSEED=0
+        run: uv run pytest packages/fish-rules packages/fish-env packages/fish-agents -p no:cacheprovider
         env:
           PYTHONHASHSEED: "0"
-      - name: fish-rules tests with PYTHONHASHSEED=4242
-        run: uv run pytest packages/fish-rules -p no:cacheprovider
+      - name: Game package tests with PYTHONHASHSEED=4242
+        run: uv run pytest packages/fish-rules packages/fish-env packages/fish-agents -p no:cacheprovider
         env:
           PYTHONHASHSEED: "4242"
       # 300 games (playout, B0, website mechanics), each replayed from its record as JSON and
