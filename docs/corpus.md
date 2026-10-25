@@ -119,7 +119,7 @@ number of actions applied so far and a server time (`at_us`), in an append-only 
 
 | Row | Fields |
 |---|---|
-| `rtt` | seat, the round trip in microseconds; every connected person is pinged every 10 seconds and after each reconnection |
+| `rtt` | seat, the round trip in microseconds; every connected person is measured every 5 seconds (R.8.7) and after each reconnection |
 | `rejected` | seat, the input as received, and why: illegal, a stale Call press, or malformed |
 | `bot_delay` | seat, the delay drawn before a bot's action or Call press, and whether the decision was dropped because a window, assignment or choice had begun (R.8.8) |
 | `connection` | seat, `connected`, `disconnected` or `reconnected` |

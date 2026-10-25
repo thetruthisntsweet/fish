@@ -76,3 +76,14 @@ def test_dependencies_are_bounded(name: str) -> None:
 @pytest.mark.parametrize("name", PRIVATE)
 def test_the_other_packages_can_never_be_uploaded(name: str) -> None:
     assert "Private :: Do Not Upload" in project(name)["classifiers"]
+
+
+def test_the_changelog_and_citation_name_this_version() -> None:
+    """A release names its version in CHANGELOG.md and CITATION.cff, with the same date."""
+    version = project("fish-rules")["version"]
+    changelog = (ROOT / "CHANGELOG.md").read_text("utf-8")
+    entry = re.search(rf"^## {re.escape(version)} \((\d{{4}}-\d{{2}}-\d{{2}})\)$", changelog, re.M)
+    assert entry is not None, f"CHANGELOG.md has no entry for {version}"
+    citation = (ROOT / "CITATION.cff").read_text("utf-8")
+    assert re.search(rf"^version: {re.escape(version)}$", citation, re.M)
+    assert re.search(rf'^date-released: "{entry[1]}"$', citation, re.M)
