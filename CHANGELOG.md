@@ -6,7 +6,7 @@ version is 0.x, a minor release may change the interface. The rules have their o
 and changelog ([docs/rules.md](docs/rules.md), R.10), and every frozen encoding has its own
 name: a change to one is never silent, and is always listed here.
 
-## 0.1.0 (2026-11-01)
+## 0.1.0 (2026-10-25)
 
 The first public release.
 
