@@ -170,6 +170,18 @@ jobs:
       - name: Container logs
         if: always()
         run: docker logs fish
+  # ---------------------------------------------------------------- install (T2.6)
+  # Builds fish-rules, fish-env and fish-agents, installs the wheels into an empty environment
+  # outside the repository (everything else from PyPI, as for a user), and runs every Python
+  # block of the READMEs and every example there.
+  install:
+    name: Install from the built packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0 # setup-uv publishes no short major tag (v10)
+      - run: uv run --no-project --python 3.14 python scripts/check_install.py
   # ---------------------------------------------------------------- performance smoke (§9)
   # 1,000 B0-vs-B0 games (T5.1). Games per second and microseconds per legal mask are kept
   # as an artifact and shown in the run summary, so slowdowns show up over time. Timings
