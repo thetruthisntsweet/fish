@@ -56,3 +56,26 @@ jobs:
         with:
           name: soak
           path: soak.json
+
+  # Layer 1 (T2.7) at every event of 3,000 B0 games, for every seat and the public view: the
+  # truth is always named, and at one point in 20 a deal putting a card elsewhere is replayed
+  # through the engine and must look the same to the observer. A failure names the first
+  # failing seed; rerun it with --first-seed SEED --games 1.
+  soak-deduce:
+    name: Soak, Layer 1 on 3,000 B0 games
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0 # setup-uv publishes no short major tag (v10)
+      - run: uv sync --locked --all-packages
+      - name: Deduce and check at every event of 3,000 B0 games
+        shell: bash # with pipefail, so a failing check fails the step despite tee
+        run: >-
+          uv run python scripts/soak_deduce.py --games 3000 --workers "$(nproc)" --json soak-deduce.json
+          | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: soak-deduce
+          path: soak-deduce.json
