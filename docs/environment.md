@@ -113,4 +113,5 @@ Every run of the test suite does the following:
 
 `docs/agents.md` describes the agent interface (`fish_agents`): an agent gets its seat's view
 and a generator and returns an action index, and `fish_agents.play.play_game` runs six of them
-in this environment. B0, the random legal agent, is the first.
+in this environment. B0, the random legal agent, is the first. An agent that wants to know
+where cards can be passes its views to a Layer 1 tracker (`docs/deduction.md`).

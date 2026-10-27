@@ -510,3 +510,46 @@ long-lived credential that anything able to read the secret could use); uploadin
 on PyPI, so a run that fails halfway can be re-run. Running the workflow by hand rehearses a
 release without publishing. With this, T2.6 is in place; the release itself is tagging v0.1.0
 (`docs/runbooks/release.md`).
+
+**D53 · 2026-10-26 · Layer 1 is exact, and works from one unknown: the deal before what is
+remembered.**
+Layer 1 (`fish_rules.deduce`, T2.7) names a seat for a card if and only if some deal fits
+everything the seat has seen and remembers with the card there. Cards move only in public, so
+every remembered fact becomes a constraint on the deal just before the first remembered event,
+and full, last-k and no memory are the same computation on shorter runs. It takes a seat's
+view and its remembered events, not the game state, so it can only use what the seat was
+shown; the public view (no hand) is the same with the hand left out. Alternative: constraint
+propagation alone (each fact applied to each card, repeated until nothing changes). That is
+what the task's title suggested, but it misses deductions that need counting (three seats,
+three cards, two of which can only be with two of them), and B1, RQ1's floor and RQ2's
+certain-miss asks all need the exact answer.
+
+**D54 · 2026-10-26 · The solver is one flow with lower bounds and one pass over its residual
+graph's components.**
+A deal that fits is a flow: each card dealt once, each seat its hand size, each "held one of
+these" constraint at least one card. One maximum flow (after the standard reduction of lower
+bounds) finds a deal; every other deal differs by residual cycles, so a card can be with a
+seat if and only if the flow puts it there or the edge's ends share a strongly connected
+component. About 1 ms per deduction, in the standard library. Alternatives: enumerating deals
+(far too many); asking a flow, SAT or integer-programming solver about each card and seat
+(270 questions where one suffices, and fish-rules takes no dependencies, D2).
+
+**D55 · 2026-10-26 · Exactness is checked by replaying other deals through the engine.**
+Besides checking that the truth is always named, the tests take deals that put a card with
+another named seat and play the game's own actions from them in the engine, requiring every
+public record and the seat's every view to be unchanged. That checks Layer 1 against the
+rules themselves rather than against its own list of facts, so a fact the list missed fails
+it. The tests were run against four deliberately broken versions first, and caught each. They
+take a smaller share of Hypothesis examples than other whole-game tests (a hundred-and-
+sixtieth, 312 games nightly) to keep the nightly fish-rules job inside its limit, and a
+separate nightly job checks the same on 3,000 B0 games (`scripts/soak_deduce.py`).
+
+**D56 · 2026-10-26 · Layer 1 is used through a tracker, and over records (T2.7 close-out).**
+Agents pass their views to `Tracker`, which remembers each event once, keeps the last k when
+asked (ready for T2.8's memory wrapper), and starts a new run after a gap, since only an
+unbroken run says where cards are. Analysis uses `knowledge` (a seat's deduction at the deal
+and after every event, where beliefs are scored) and `certain_misses` (RQ2), both for any
+memory length; when a call and its after-call choice come from one action, they are one
+decision point. Layer 1 is listed under Unreleased in the changelog and ships in 0.2.0, with
+the memory wrapper (T2.8), rather than in a release of its own. T2.7 is complete:
+`docs/deduction.md` describes it.

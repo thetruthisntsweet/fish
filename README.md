@@ -58,7 +58,7 @@ baseline, inspecting a recorded game, and the shape of a training loop.
 
 | Package | What it is |
 |---|---|
-| [fish-rules](https://pypi.org/project/fish-rules/) | The rules engine: [Canonical Ruleset v1.1](docs/rules.md), immutable states, seeded and exactly replayable games, and the projection that decides what each seat sees. Standard library only. |
+| [fish-rules](https://pypi.org/project/fish-rules/) | The rules engine: [Canonical Ruleset v1.1](docs/rules.md), immutable states, seeded and exactly replayable games, the projection that decides what each seat sees, and [Layer 1](docs/deduction.md), which works out exactly where each card can be from what a seat has seen. Standard library only. |
 | [fish-env](https://pypi.org/project/fish-env/) | The PettingZoo environment: 648-bit observations, masks over 913 actions, declaration windows after every event. Passes PettingZoo's API and seed tests. |
 | [fish-agents](https://pypi.org/project/fish-agents/) | The agent interface (`act(view, rng) -> int`), B0 (random legal play), and `play_game` for six agents. |
 
@@ -79,17 +79,19 @@ in [docs/rules.md](docs/rules.md).
 
 ## What's next
 
-Planned, in order: Layer 1 deduction of where each card can be, an agent memory wrapper
-(full, last-k or no memory), stronger baselines B1 to B3, and a website where people play,
-whose anonymised games will be released as a corpus under CC BY 4.0 with a datasheet
-([corpus](docs/corpus.md), [datasheet plan](docs/datasheet-plan.md)). Changes are listed in
-the [changelog](CHANGELOG.md).
+Planned, in order: an agent memory wrapper (full, last-k or no memory), stronger baselines
+B1 to B3, and a website where people play, whose anonymised games will be released as a
+corpus under CC BY 4.0 with a datasheet ([corpus](docs/corpus.md),
+[datasheet plan](docs/datasheet-plan.md)). Changes are listed in the
+[changelog](CHANGELOG.md).
 
 ## Documentation
 
 - [Rules](docs/rules.md): Canonical Ruleset v1.1, the rules the engine implements
 - [Environment](docs/environment.md): the multi-agent interface, its actions, rewards and seeding
 - [Agents](docs/agents.md): the agent interface, B0, and the checks that run B0 games
+- [Deduction](docs/deduction.md): Layer 1, where each card can be, how it works and why it
+  is exact
 - [Examples](examples/README.md): four short scripts that run after `pip install`
 - [Determinism](docs/determinism.md): the random-number scheme behind every recorded game,
   and the frozen encodings of actions, records, views and observations

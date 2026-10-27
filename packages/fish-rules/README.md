@@ -20,6 +20,29 @@ action = legal_actions(state, state.current)[0]
 state, records = apply(state, action)
 ```
 
+**Layer 1** (`fish_rules.deduce`) works out, exactly, which seats could hold each card given
+everything one seat has seen and remembers. This plays part of a random game and prints the
+cards seat 3 can place for certain:
+
+```python
+from fish_rules.cards import card_name
+from fish_rules.deduce.tracker import Tracker
+from fish_rules.engine import replay
+from fish_rules.playout import random_game
+from fish_rules.view import latest_event, project
+
+tracker = Tracker(3)  # what seat 3 can work out, remembering everything it is shown
+last = None
+for state, records in replay(42, random_game(42, 7)[:150]):
+    last = latest_event(records, last)
+    deduction = tracker.observe(project(state, 3, last))
+
+for card in range(54):
+    seat = deduction.known(card)
+    if seat is not None and seat != 3:
+        print(card_name(card), "is with seat", seat)
+```
+
 Install with `pip install fish-rules` (Python 3.14 or later). For a multi-agent environment
 built on it, see [fish-env](https://pypi.org/project/fish-env/); for baseline agents,
 [fish-agents](https://pypi.org/project/fish-agents/). Documentation, including the
