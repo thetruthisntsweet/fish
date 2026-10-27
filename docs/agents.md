@@ -63,10 +63,14 @@ needs a new name (D37).
 ## Checks that use B0
 
 - **Performance smoke (every CI run).** `scripts/bench_b0.py` plays 1,000 B0 games and
-  reports games per second, microseconds per legal-mask computation, and the games' mean
-  actions, asks and calls. The numbers are kept as the `performance` artifact. Run it locally
-  with `uv run python scripts/bench_b0.py --games 1000`.
+  reports games per second, microseconds per legal-mask computation and per Layer 1
+  deduction, and the games' mean actions, asks and calls. The numbers are kept as the
+  `performance` artifact. Run it locally with `uv run python scripts/bench_b0.py --games 1000`.
 - **Nightly soak.** `scripts/soak_b0.py` plays 100,000 B0 games across the runner's cores and
   checks every state of every game: the rules' consistency checks, every R.9 invariant, event
   numbering, a proper end, and that the record replays. A failure names its seed. Rerun one
   game with `uv run python scripts/soak_b0.py --first-seed SEED --games 1`.
+- **Nightly Layer 1 soak.** `scripts/soak_deduce.py` deduces at every event of 3,000 B0
+  games, for every seat and the public view, and checks the answer against the truth and,
+  at one point in 20, by replaying another deal through the engine (`docs/deduction.md`).
+  Rerun one game with `uv run python scripts/soak_deduce.py --first-seed SEED --games 1`.

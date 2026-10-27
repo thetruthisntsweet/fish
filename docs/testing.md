@@ -108,6 +108,14 @@ uniformly, passes in a window except 1 time in 100, and replays its frozen games
 - *Hash seeds.* The game packages' tests and the replay digest run under `PYTHONHASHSEED` 0
   and 4242, and the two digests must be identical, so nothing depends on set or dict order.
 
+**Layer 1.** `test_deduce_history.py` checks each kind of public fact and each refused history,
+and that the true deal satisfies every constraint. `test_deduce_solve.py` checks exactness:
+the truth is always named, forcing a card to each seat agrees with the solver, and deals
+putting a card with another named seat replay through the engine with every record and the
+seat's every view unchanged. `test_deduce_uses.py` checks the tracker, `knowledge` and
+`certain_misses` against deducing directly. All run for every seat, the public view and
+random memories (`docs/deduction.md`).
+
 **Installing.** `scripts/check_install.py` builds the three published packages, checks them
 with `twine check`, installs the wheels into an empty environment outside the repository
 (everything else from PyPI, as for a user), checks each package imports from there at its
@@ -118,8 +126,10 @@ and that the changelog and citation name that version. `scripts/check_release.py
 release tag against the same files before anything is published (`test_check_release.py`).
 
 **Scale.** `scripts/bench_b0.py` plays 1,000 B0 games in CI and records games per second and
-microseconds per legal mask as an artifact. `scripts/soak_b0.py` plays 100,000 B0 games every
-night and checks every R.9 invariant at every state. Both have tests that run them small.
+microseconds per legal mask and per Layer 1 deduction as an artifact. `scripts/soak_b0.py`
+plays 100,000 B0 games every night and checks every R.9 invariant at every state, and
+`scripts/soak_deduce.py` checks Layer 1 at every event of 3,000. All have tests that run them
+small.
 
 ## 4. Where tests run
 
@@ -133,6 +143,7 @@ night and checks every R.9 invariant at every state. Both have tests that run th
 | Release (version tags) | the tag is on main and matches the versions, changelog and citation; the install check; then PyPI and the GitHub release ([runbook](runbooks/release.md)) |
 | Nightly: *Hypothesis* | fish-rules at the `nightly` profile; fish-env and fish-agents in a second job |
 | Nightly: *Soak* | 100,000 B0 games with every R.9 check |
+| Nightly: *Soak, Layer 1* | Layer 1 at every event of 3,000 B0 games, checked against the truth and by replaying other deals |
 
 ## 5. When a test fails
 
@@ -142,6 +153,10 @@ night and checks every R.9 invariant at every state. Both have tests that run th
 - **A nightly property test.** Nightly examples are random; copy the
   `@reproduce_failure(...)` line from the log. Once fixed, add the example with `@example`
   so CI keeps checking it.
+- **The Layer 1 soak.** It prints the first failing seed; rerun that game with
+  `uv run python scripts/soak_deduce.py --first-seed SEED --games 1`. A holder missing means
+  a fact was read too strongly; "another deal changes" means one was missed or read too
+  weakly.
 - **The soak.** It prints the first failing seed; rerun that game with
   `uv run python scripts/soak_b0.py --first-seed SEED --games 1`.
 - **A frozen vector, golden replay or the replay digest.** The code now behaves differently

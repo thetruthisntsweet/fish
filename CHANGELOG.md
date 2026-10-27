@@ -6,6 +6,16 @@ version is 0.x, a minor release may change the interface. The rules have their o
 and changelog ([docs/rules.md](docs/rules.md), R.10), and every frozen encoding has its own
 name: a change to one is never silent, and is always listed here.
 
+## Unreleased
+
+### fish-rules
+
+- Layer 1 (`fish_rules.deduce`): exactly which seats may hold each card, for any seat (or the
+  public view) from its view and the events it remembers, with full, last-k or no memory.
+  `deduce`, `solve` and `example_deal` (`fish_rules.deduce.solve`); the constraints behind
+  them (`fish_rules.deduce.history`); `Tracker` for agents (`fish_rules.deduce.tracker`); and
+  `knowledge` and `certain_misses` over recorded games (`fish_rules.deduce.games`).
+
 ## 0.1.0 (2026-10-25)
 
 The first public release.

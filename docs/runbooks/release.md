@@ -51,9 +51,10 @@ or token is stored anywhere: PyPI accepts uploads of each package from this repo
    - Set the version in `packages/fish-rules/pyproject.toml`, `packages/fish-env/pyproject.toml`
      and `packages/fish-agents/pyproject.toml`. For a new minor version (0.1 to 0.2), also
      move the sibling bounds (`fish-rules>=0.2,<0.3`). Then `uv lock`.
-   - Add the `## X.Y.Z (YYYY-MM-DD)` entry at the top of `CHANGELOG.md`, dated the day you will
-     tag, and set `version` and `date-released` in `CITATION.cff` to match. The entry
-     becomes the GitHub release's text.
+   - Rename the `## Unreleased` heading at the top of `CHANGELOG.md`, where changes are listed
+     as they merge, to `## X.Y.Z (YYYY-MM-DD)`, dated the day you will tag, and set `version`
+     and `date-released` in `CITATION.cff` to match. The entry becomes the GitHub release's
+     text.
    - `scripts/check.sh`, then the pull request as usual. `test_packaging.py` fails if the
      versions, changelog and citation disagree.
 2. **Rehearse.** After merging, *Actions > Release > Run workflow* on `main`. It builds and
