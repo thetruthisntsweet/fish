@@ -98,27 +98,42 @@ class Vote:
     chosen: Seat
 
 
-@dataclass(frozen=True, slots=True)
+# The four control actions below have no fields. They declare ``__slots__ = ()`` themselves
+# rather than through ``dataclass(slots=True)``: before Python 3.14.7, a frozen dataclass with
+# slots and no fields raised TypeError instead of FrozenInstanceError when an attribute was
+# set, because slots=True rebuilds the class. The result is the same: no instance dict, and
+# every attribute assignment refused.
+
+
+@dataclass(frozen=True)
 class OpenWindow:
     """R.4.2: open a declaration window. The environment opens one at the start of the game
     and after every event; the website only when a player presses Call (R.8.3)."""
 
+    __slots__ = ()  # not slots=True: see the note above OpenWindow
 
-@dataclass(frozen=True, slots=True)
+
+@dataclass(frozen=True)
 class CloseWindow:
     """R.4.3: close the open window; the declared call with the highest priority proceeds."""
 
+    __slots__ = ()  # not slots=True: see the note above OpenWindow
 
-@dataclass(frozen=True, slots=True)
+
+@dataclass(frozen=True)
 class AssignTimeout:
     """R.4.3: the caller did not finish assigning in 30 seconds, which is an incorrect call.
     Website only (R.8.6)."""
 
+    __slots__ = ()  # not slots=True: see the note above OpenWindow
 
-@dataclass(frozen=True, slots=True)
+
+@dataclass(frozen=True)
 class ChoiceTimeout:
     """R.5.2: the 15 seconds for the after-call choice ran out. If the caller did not choose,
     the game seed chooses; votes not cast are ignored. Website only (R.8.6)."""
+
+    __slots__ = ()  # not slots=True: see the note above OpenWindow
 
 
 type Action = (
