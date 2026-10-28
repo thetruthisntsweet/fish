@@ -1,0 +1,28 @@
+{
+  "additionalProperties": false,
+  "description": "An input from this player was not applied (R.8.3, R.8.7): ``illegal`` (not allowed\nnow; ``discarded`` is true when it was a seat action sent during a window), ``stale`` (a\npress on a set that an event it had not seen changed), or ``malformed``. The next update\nshows the current state.",
+  "properties": {
+    "discarded": {
+      "type": "boolean"
+    },
+    "reason": {
+      "enum": [
+        "illegal",
+        "stale",
+        "malformed"
+      ],
+      "type": "string"
+    },
+    "type": {
+      "const": "rejected",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "reason",
+    "discarded"
+  ],
+  "title": "Rejected",
+  "type": "object"
+}

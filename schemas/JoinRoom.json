@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "description": "Join the room with this code.",
+  "properties": {
+    "code": {
+      "description": "Six letters and digits.",
+      "pattern": "^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$",
+      "type": "string"
+    },
+    "type": {
+      "const": "join_room",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "code"
+  ],
+  "title": "JoinRoom",
+  "type": "object"
+}

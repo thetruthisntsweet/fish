@@ -1,0 +1,25 @@
+{
+  "$defs": {
+    "Count": {
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The answer to ``ping``, sent at once with the same nonce.",
+  "properties": {
+    "nonce": {
+      "$ref": "#/$defs/Count"
+    },
+    "type": {
+      "const": "pong",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "nonce"
+  ],
+  "title": "Pong",
+  "type": "object"
+}

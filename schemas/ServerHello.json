@@ -12,7 +12,7 @@
       "type": "string"
     },
     "ruleset_version": {
-      "description": "Canonical Ruleset version, e.g. '1.0'.",
+      "description": "Canonical Ruleset version, e.g. '1.1'.",
       "type": "string"
     },
     "type": {

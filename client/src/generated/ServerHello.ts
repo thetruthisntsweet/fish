@@ -13,7 +13,7 @@ export interface ServerHello {
    */
   rng_algorithm: string;
   /**
-   * Canonical Ruleset version, e.g. '1.0'.
+   * Canonical Ruleset version, e.g. '1.1'.
    */
   ruleset_version: string;
   type: "server_hello";

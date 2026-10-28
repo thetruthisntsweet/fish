@@ -1,0 +1,15 @@
+{
+  "additionalProperties": false,
+  "description": "Wait for a table through solo matchmaking.",
+  "properties": {
+    "type": {
+      "const": "join_queue",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "JoinQueue",
+  "type": "object"
+}

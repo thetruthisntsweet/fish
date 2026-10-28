@@ -1,0 +1,25 @@
+{
+  "$defs": {
+    "Count": {
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Answer at once with ``pong`` and the same nonce; the server times the round trip.",
+  "properties": {
+    "nonce": {
+      "$ref": "#/$defs/Count"
+    },
+    "type": {
+      "const": "ping",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "nonce"
+  ],
+  "title": "Ping",
+  "type": "object"
+}

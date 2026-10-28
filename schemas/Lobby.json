@@ -1,0 +1,52 @@
+{
+  "$defs": {
+    "Count": {
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Whether this player is waiting for a table: ``waiting`` is null when not, ``solo`` in\nthe matchmaking queue, ``group`` in room ``code``. ``people`` counts those waiting with\nthem, themselves included (0 when not waiting).",
+  "properties": {
+    "code": {
+      "anyOf": [
+        {
+          "pattern": "^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "people": {
+      "$ref": "#/$defs/Count"
+    },
+    "type": {
+      "const": "lobby",
+      "type": "string"
+    },
+    "waiting": {
+      "anyOf": [
+        {
+          "enum": [
+            "solo",
+            "group"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "type",
+    "waiting",
+    "code",
+    "people"
+  ],
+  "title": "Lobby",
+  "type": "object"
+}

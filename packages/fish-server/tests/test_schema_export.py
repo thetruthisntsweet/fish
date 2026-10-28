@@ -11,7 +11,22 @@ REPO_SCHEMAS = Path(__file__).resolve().parents[3] / "schemas"
 
 
 def test_one_schema_per_message() -> None:
-    assert list(schemas()) == ["ClientHello.json", "ServerHello.json"]
+    assert list(schemas()) == [
+        "Act.json",
+        "ClientHello.json",
+        "CreateRoom.json",
+        "JoinQueue.json",
+        "JoinRoom.json",
+        "Leave.json",
+        "Lobby.json",
+        "Ping.json",
+        "Pong.json",
+        "Press.json",
+        "Rejected.json",
+        "ServerError.json",
+        "ServerHello.json",
+        "Update.json",
+    ]
 
 
 def test_schemas_forbid_unknown_fields_and_require_every_field() -> None:

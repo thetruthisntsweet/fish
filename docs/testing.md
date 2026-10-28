@@ -53,8 +53,8 @@ call conserves cards, priority alternates teams, and so on).
 `test_r8_3_…`). `scripts/check_rule_citations.py` fails unless every rule of the current
 ruleset is cited by a test or listed in its `OWED` table with the task that will test it.
 Three rules are owed today: R.2.5 and R.2.6 (the client, T3.4) and R.8.8 (website bots,
-T3.5). A citation of a range such as "R.8.3-R.8.7"
-cites every rule in it, so name only the rules a test checks. It runs as a pre-commit hook.
+T3.5). A citation of a range such as "R.8.3-R.8.7" cites every rule in it, so name only the
+rules a test checks. It runs as a pre-commit hook.
 
 **Whole games under environment mechanics.** `fish_rules.playout.random_game` plays whole
 games with a window after every event and every seat answering it. `test_whole_games.py`
