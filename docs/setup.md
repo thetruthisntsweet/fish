@@ -65,7 +65,7 @@ All from the repository root.
 | Run the client tests | `npm --prefix client test` |
 | Build the published packages, install them as a user would, and run the README examples | `uv run --no-project --python 3.14 python scripts/check_install.py` |
 | Make a release | [runbooks/release.md](runbooks/release.md) |
-| Export the corpus (docs/corpus.md §7) | `uv run --env-file .env python -m fish_server.corpus_export --out corpus.jsonl` (add `--public` for the release) |
+| Export the corpus (docs/corpus.md §7) | `uv run --env-file .env python -m fish_server.corpus_export --out corpus.jsonl` |
 | Regenerate client types after changing `protocol.py` | `scripts/gen_types.sh` |
 | Create a migration after changing `fish_server/db.py` | `uv run --env-file .env alembic revision --autogenerate --rev-id 0003 -m "what changed"` (next free number; read the file it writes) |
 | Apply migrations and refresh the server login | `uv run --env-file .env python -m fish_server.deploy` |

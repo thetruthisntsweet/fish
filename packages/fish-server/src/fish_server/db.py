@@ -85,27 +85,47 @@ player_contacts = Table(
     _timestamp("added_at"),
 )
 
-consent_events = Table(
-    "consent_events",
-    metadata,
-    Column("event_id", BigInteger, primary_key=True, autoincrement=True),
-    Column("player_id", ForeignKey("players.player_id"), nullable=False, index=True),
-    _timestamp("at"),
-    Column("consent_version", Text, nullable=False),
-    Column("research_use", Boolean, nullable=False),
-    Column("public_release", Boolean, nullable=False),
-    Column("no_outside_communication", Boolean, nullable=False),
-    Column("no_notes", Boolean, nullable=False),
-)
+_CONFIRMED: Final = "us_resident_adult AND agrees AND no_outside_communication"
+"""The consent screen's three confirmations, all ticked (Consent Screen §3)."""
 
-age_events = Table(
-    "age_events",
+
+def _confirmations() -> list[Column[bool]]:
+    return [
+        Column("us_resident_adult", Boolean, nullable=False),
+        Column("agrees", Boolean, nullable=False),
+        Column("no_outside_communication", Boolean, nullable=False),
+    ]
+
+
+consents = Table(
+    "consents",
     metadata,
-    Column("event_id", BigInteger, primary_key=True, autoincrement=True),
+    Column("consent_id", BigInteger, primary_key=True, autoincrement=True),
     Column("player_id", ForeignKey("players.player_id"), nullable=False, index=True),
     _timestamp("at"),
-    Column("confirmed_18_plus", Boolean, nullable=False),
+    Column("version", Text, nullable=False),
+    *_confirmations(),
+    UniqueConstraint("consent_id", "player_id", "version"),
+    CheckConstraint(_CONFIRMED, name="confirmed"),
+    CheckConstraint("version ~ '^v[0-9]+[.][0-9]+(-pilot)?$'", name="version"),
 )
+"""One row per acceptance of the consent screen (Consent Screen §3): which text was shown
+(``v1.0``, or ``v1.0-pilot`` on the staging site) and the three confirmations. A row is
+written only when all three are ticked, so they are always true; storing them keeps every
+row readable on its own."""
+
+withdrawals = Table(
+    "withdrawals",
+    metadata,
+    Column("withdrawal_id", BigInteger, primary_key=True, autoincrement=True),
+    Column("player_id", ForeignKey("players.player_id"), nullable=False, index=True),
+    _timestamp("at"),
+    Column("channel", Text, nullable=False),
+    CheckConstraint("channel IN ('website', 'email')", name="channel"),
+)
+"""A withdrawal from the study, a record of its own and never a change to an acceptance:
+every game of a player with one is left out of the corpus (Consent Screen §3)."""
+
 
 # ---------------------------------------------------------------- sign-in (T3.1)
 #
@@ -207,6 +227,7 @@ seats = Table(
     Column("memory", Text, nullable=False),
     Column("k", Integer, nullable=True),
     UniqueConstraint("game_id", "player_id"),
+    UniqueConstraint("game_id", "seat", "player_id"),
     CheckConstraint("seat BETWEEN 0 AND 5", name="seat"),
     CheckConstraint(
         "(player_id IS NOT NULL AND agent IS NULL AND memory = 'human' AND k IS NULL)"
@@ -216,6 +237,29 @@ seats = Table(
         name="controller",
     ),
 )
+
+seat_consents = Table(
+    "seat_consents",
+    metadata,
+    Column("game_id", UUID(as_uuid=True), primary_key=True),
+    Column("seat", SmallInteger, primary_key=True),
+    Column("player_id", UUID(as_uuid=True), nullable=False),
+    Column("consent_id", BigInteger, nullable=False),
+    Column("version", Text, nullable=False),
+    *_confirmations(),
+    ForeignKeyConstraint(
+        ["game_id", "seat", "player_id"], ["seats.game_id", "seats.seat", "seats.player_id"]
+    ),
+    ForeignKeyConstraint(
+        ["consent_id", "player_id", "version"],
+        ["consents.consent_id", "consents.player_id", "consents.version"],
+    ),
+    CheckConstraint(_CONFIRMED, name="confirmed"),
+)
+"""The consent flags of a person's seat, copied from their latest acceptance when the game
+starts (Consent Screen §3, Research Plan §6). The keys make the acceptance the seat's own
+player's, with the version it names. A person's seat without a row cannot enter the
+corpus."""
 
 note_answers = Table(
     "note_answers",
@@ -271,11 +315,12 @@ server_log = Table(
 
 APPEND_ONLY: Final[tuple[str, ...]] = (
     "players",
-    "consent_events",
-    "age_events",
+    "consents",
+    "withdrawals",
     "games",
     "game_endings",
     "seats",
+    "seat_consents",
     "note_answers",
     "actions",
     "server_log",

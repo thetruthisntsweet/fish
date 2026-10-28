@@ -2,8 +2,8 @@
 
 Real website games (``fish_rules.playout.random_website_game``) are written to the tables
 the way the server will write them, then exported. Every exported record must read and
-replay to the same game; membership must follow the latest consent and age events; and
-nothing internal may leave. Skipped without FISH_TEST_DATABASE_URL.
+replay to the same game; membership must follow the seats' consent flags and withdrawals;
+and nothing internal may leave. Skipped without FISH_TEST_DATABASE_URL.
 """
 
 import json
@@ -22,7 +22,8 @@ from fish_rules.playout import random_website_game
 from fish_rules.state import State, new_game, state_hash
 from fish_rules.version import RULESET_VERSION
 from fish_server import db
-from fish_server.corpus_export import ExportError, eligible_people, export, main
+from fish_server.corpus_export import ExportError, export, main
+from fish_server.games import latest_consent
 from fish_server.settings import database_url
 
 START = datetime(2026, 12, 1, 20, 0, tzinfo=UTC)
@@ -36,37 +37,31 @@ def app(server_env: str) -> Iterator[Engine]:
     engine.dispose()
 
 
-def add_person(
-    conn: Connection,
-    *,
-    cohort: bool = False,
-    research: bool | None = True,
-    public: bool = True,
-    adult: bool | None = True,
-) -> uuid.UUID:
-    """A player with a consent event and an age event (``None`` leaves one out)."""
+def add_person(conn: Connection, *, cohort: bool = False, consented: bool = True) -> uuid.UUID:
+    """A player, with an acceptance of the consent screen unless ``consented`` is False."""
     person = uuid.uuid4()
     number = conn.execute(select(db.signup_numbers.next_value())).scalar_one()
     conn.execute(insert(db.players).values(player_id=person, signup_number=number, cohort=cohort))
     conn.execute(insert(db.player_contacts).values(player_id=person, email=f"{person}@x.org"))
-    if research is not None:
-        consent(conn, person, research=research, public=public)
-    if adult is not None:
-        conn.execute(insert(db.age_events).values(player_id=person, confirmed_18_plus=adult))
+    if consented:
+        consent(conn, person)
     return person
 
 
-def consent(conn: Connection, person: uuid.UUID, *, research: bool, public: bool = True) -> None:
+def consent(conn: Connection, person: uuid.UUID, version: str = "v1.0") -> None:
     conn.execute(
-        insert(db.consent_events).values(
+        insert(db.consents).values(
             player_id=person,
-            consent_version="v1",
-            research_use=research,
-            public_release=public,
+            version=version,
+            us_resident_adult=True,
+            agrees=True,
             no_outside_communication=True,
-            no_notes=True,
         )
     )
+
+
+def withdraw(conn: Connection, person: uuid.UUID, channel: str = "website") -> None:
+    conn.execute(insert(db.withdrawals).values(player_id=person, channel=channel))
 
 
 def add_game(
@@ -109,6 +104,13 @@ def add_game(
             else {"agent": "b1-v1", "memory": "last-k", "k": 8}
         )
         conn.execute(insert(db.seats).values(game_id=game_id, seat=seat, **controller))
+        accepted = None if person is None else latest_consent(conn, person)
+        if accepted is not None:  # copied at the start, as fish_server.games does
+            conn.execute(
+                insert(db.seat_consents).values(
+                    game_id=game_id, seat=seat, player_id=person, **accepted
+                )
+            )
     for seq, (action, cause, (received, sent)) in enumerate(
         zip(actions, causes, times, strict=True)
     ):
@@ -173,7 +175,7 @@ def test_every_corpus_game_becomes_a_record_that_replays(app: Engine) -> None:
             add_game(conn, 20, [*regulars[:3], *people(conn, 3)], minutes=10)[1],
         ]
     with app.connect() as conn:
-        records, summary = export(conn, public=False)
+        records, summary = export(conn)
     assert (summary.games, summary.exported) == (3, 3)
     assert [r["game"]["id"] for r in records] == ["g-000001", "g-000002", "g-000003"]  # type: ignore[index]
     by_seed = {s.seed: s for s in played}
@@ -194,7 +196,7 @@ def test_nothing_internal_leaves(app: Engine) -> None:
         seated = table(conn)
         game_id, _ = add_game(conn, 5, seated)
     with app.connect() as conn:
-        records, _ = export(conn, public=True)
+        records, _ = export(conn)
     text = json.dumps(records)
     assert str(game_id) not in text
     assert not any(str(person) in text for person in seated)
@@ -207,8 +209,8 @@ def test_two_exports_use_different_pseudonyms(app: Engine) -> None:
     with app.begin() as conn:
         add_game(conn, 5, table(conn))
     with app.connect() as conn:
-        first, _ = export(conn, public=False)
-        second, _ = export(conn, public=False)
+        first, _ = export(conn)
+        second, _ = export(conn)
     assert first[0]["seats"] != second[0]["seats"]
     assert {k: v for k, v in first[0].items() if k != "seats"} == {
         k: v for k, v in second[0].items() if k != "seats"
@@ -228,7 +230,7 @@ def test_bots_notes_and_log_rows_carry_over(app: Engine) -> None:
     with app.begin() as conn:
         add_game(conn, 5, table(conn, 5), log=log, notes={0: "yes", 1: "declined"})
     with app.connect() as conn:
-        (record,), _ = export(conn, public=False)
+        (record,), _ = export(conn)
     game = read_corpus_record(record)
     assert [s.note for s in game.seats] == ["yes", "declined", "unanswered", "unanswered",
                                             "unanswered", None]  # fmt: skip
@@ -244,52 +246,55 @@ def test_bots_notes_and_log_rows_carry_over(app: Engine) -> None:
 # ---------------------------------------------------------------- membership (§6)
 
 
-def test_a_withdrawal_removes_the_game_and_consent_again_returns_it(app: Engine) -> None:
-    """§6: membership follows the latest consent event, at every export."""
+def test_a_withdrawal_removes_every_game_of_that_person_for_good(app: Engine) -> None:
+    """Research Plan §6, Consent Screen §3: a withdrawal is a record of its own; every game the
+    person played leaves the corpus whole, and accepting again does not bring them back."""
     with app.begin() as conn:
         seated = table(conn)
         add_game(conn, 5, seated)
+        add_game(conn, 6, [seated[2], *people(conn, 5)], minutes=1)
+        add_game(conn, 7, table(conn), minutes=2)
     with app.connect() as conn:
-        assert export(conn, public=False)[1].exported == 1
+        assert export(conn)[1].exported == 3
     with app.begin() as conn:
-        consent(conn, seated[2], research=False)  # pyright: ignore[reportArgumentType]
+        withdraw(conn, seated[2], "email")  # pyright: ignore[reportArgumentType]
     with app.connect() as conn:
-        records, summary = export(conn, public=False)
-    assert (records, summary.ineligible) == ([], 1)
+        records, summary = export(conn)
+    assert (summary.exported, summary.withdrawn) == (1, 2)
+    assert read_corpus_record(records[0]).seed == 7
     with app.begin() as conn:
-        consent(conn, seated[2], research=True)  # pyright: ignore[reportArgumentType]
+        consent(conn, seated[2])  # pyright: ignore[reportArgumentType]
     with app.connect() as conn:
-        assert export(conn, public=False)[1].exported == 1
+        assert export(conn)[1].withdrawn == 2
 
 
-@pytest.mark.parametrize(
-    "person",
-    [{"research": None}, {"research": False}, {"adult": None}, {"adult": False}],
-    ids=["no consent", "consent refused", "no age check", "under 18"],
-)
-def test_one_ineligible_person_removes_the_whole_game(
-    app: Engine, person: dict[str, bool | None]
-) -> None:
+def test_a_seat_without_consent_flags_removes_the_whole_game(app: Engine) -> None:
+    """Research Plan §6: membership comes from the seats' flags, copied when the game started,
+    so consenting afterwards does not bring the game in."""
     with app.begin() as conn:
-        seats = [*people(conn, 5), add_person(conn, **person)]  # pyright: ignore[reportArgumentType]
-        add_game(conn, 5, seats)
+        late = add_person(conn, consented=False)
+        add_game(conn, 5, [*people(conn, 5), late])
         add_game(conn, 6, table(conn), minutes=1)
+        consent(conn, late)
     with app.connect() as conn:
-        records, summary = export(conn, public=False)
-    assert (summary.exported, summary.ineligible) == (1, 1)
+        records, summary = export(conn)
+    assert (summary.exported, summary.unconsented) == (1, 1)
     assert read_corpus_record(records[0]).seed == 6
+    assert summary.lines()[5] == "left out, a person's seat without consent: 1"
 
 
-def test_the_public_release_also_needs_release_consent(app: Engine) -> None:
+def test_seats_copy_the_latest_acceptance(app: Engine) -> None:
     with app.begin() as conn:
-        add_game(conn, 5, [*people(conn, 5), add_person(conn, public=False)])
-        eligible_research = eligible_people(conn, public=False)
-        eligible_public = eligible_people(conn, public=True)
-    assert len(eligible_research) == 6
-    assert len(eligible_public) == 5
-    with app.connect() as conn:
-        assert export(conn, public=False)[1].exported == 1
-        assert export(conn, public=True)[1].ineligible == 1
+        person = add_person(conn)
+        consent(conn, person, "v1.1")
+        game_id, _ = add_game(conn, 5, [person, *people(conn, 5)])
+        flags = (
+            conn.execute(select(db.seat_consents).where(db.seat_consents.c.game_id == game_id))
+            .mappings()
+            .all()
+        )
+    assert len(flags) == 6
+    assert [f["version"] for f in flags if f["player_id"] == person] == ["v1.1"]
 
 
 def test_only_completed_games_with_a_person_enter(app: Engine) -> None:
@@ -300,7 +305,7 @@ def test_only_completed_games_with_a_person_enter(app: Engine) -> None:
         add_game(conn, 3, [None] * 6, minutes=2)
         add_game(conn, 4, table(conn), minutes=3)
     with app.connect() as conn:
-        records, summary = export(conn, public=False)
+        records, summary = export(conn)
     assert (summary.games, summary.not_ended, summary.abandoned, summary.no_person) == (4, 1, 1, 1)
     assert [read_corpus_record(r).seed for r in records] == [4]
     assert summary.lines()[1] == "exported: 1"
@@ -313,7 +318,7 @@ def test_a_game_under_another_ruleset_stops_the_export(app: Engine) -> None:
     with app.begin() as conn:
         add_game(conn, 5, table(conn), ruleset="1.0")
     with pytest.raises(ExportError, match=r"ruleset '1\.0'"), app.connect() as conn:
-        export(conn, public=False)
+        export(conn)
 
 
 def test_a_record_that_does_not_read_stops_the_export(app: Engine) -> None:
@@ -322,7 +327,7 @@ def test_a_record_that_does_not_read_stops_the_export(app: Engine) -> None:
     with app.begin() as conn:
         add_game(conn, 5, table(conn), max_actions=10, ending="finished")
     with pytest.raises(ExportError, match="is not a valid record"), app.connect() as conn:
-        export(conn, public=False)
+        export(conn)
 
 
 def test_an_illegal_stored_action_stops_the_export(app: Engine) -> None:
@@ -335,7 +340,7 @@ def test_an_illegal_stored_action_stops_the_export(app: Engine) -> None:
             )
         )  # fmt: skip
     with pytest.raises(ExportError, match="does not replay"), app.connect() as conn:
-        export(conn, public=False)
+        export(conn)
 
 
 # ---------------------------------------------------------------- the command
@@ -366,7 +371,8 @@ def test_the_command_refuses_to_overwrite_and_reports_failures(
     assert stopped.value.code == 2
     with app.begin() as conn:
         add_game(conn, 5, table(conn), ruleset="1.0")
-    out = tmp_path / "public.jsonl"
-    assert main(["--out", str(out), "--public"]) == 1
+    out = tmp_path / "corpus.jsonl"
+    out.unlink()
+    assert main(["--out", str(out)]) == 1
     assert "FAIL game" in capsys.readouterr().err
     assert not out.exists()

@@ -677,3 +677,18 @@ record that replays to the same end, with response times and round trips. It tak
 seconds, mostly declaration windows. R.8.4 and R.8.5 are now cited by tests; R.2.5, R.2.6
 (T3.4) and R.8.8 (T3.5) remain owed. `scripts/try_server.py` checks a deployed server the way
 a player reaches it. T3.1 is complete: `docs/server.md` describes it.
+
+**D68 · 2026-10-28 · Consent as the approved documents set it: per seat, with withdrawals.**
+T1.6's consent design (D44 to D47) did not follow the approved Consent Screen (§3) and
+Research Plan (§6): it kept each player's latest consent and age events, with fields the
+screen does not ask for (`research_use`, `public_release`, `no_notes`) and none for US
+residence, made a withdrawal a consent row that a later acceptance would undo, and decided
+membership at export from each player's latest events, so a game could not say which text
+its players had accepted. Migration 0005 replaces it before any study data exists:
+`consents` holds each acceptance with the screen's version and its three confirmations;
+`withdrawals` is a record of its own, with its channel; and `seat_consents` copies each
+person's latest acceptance onto their seat when the game starts. A corpus game is one whose
+every person's seat has flags and none of whose people has withdrawn. Everyone who plays has
+agreed to the CC BY 4.0 release, so the export has no separate public mode. Alternative:
+keeping T1.6's tables and rewording the approved documents to match (they were approved as
+written, and the seat flags are what lets a game show the consent it was played under).
