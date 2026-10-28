@@ -262,6 +262,15 @@ class Table:
         self._row("connection", seat, now, state=state)
         return True
 
+    def round_trip(self, seat: Seat, rtt_us: int, now: int) -> bool:
+        """Record that a ping to ``seat`` came back after ``rtt_us`` microseconds, at ``now``
+        (R.8.7). False (and nothing recorded) unless a connected person holds the seat."""
+        self.advance(now)
+        if seat not in self._connected or _not_int(rtt_us) or rtt_us < 0:
+            return False
+        self._row("rtt", seat, now, rtt_us=rtt_us)
+        return True
+
     def disconnect(self, seat: Seat, now: int) -> bool:
         """The person holding ``seat`` lost their connection at ``now``; they have 30 seconds
         to reconnect. False (and nothing recorded) if they were not connected."""

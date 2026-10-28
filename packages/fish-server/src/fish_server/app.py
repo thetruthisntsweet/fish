@@ -3,11 +3,13 @@
 ``GET /health`` for the hosting platform's health checks, ``GET /health/db`` to confirm the
 database is reachable and migrated, and ``/ws/echo`` to show that long-lived WebSocket
 connections survive the platform's proxy (T2.1 §10, §17). Signing in by emailed link is in
-``fish_server.auth``.
+``fish_server.auth``; ``/ws`` is the game itself (``fish_server.hub``).
 
 Run locally:  uv run uvicorn fish_server.app:app --reload
 """
 
+import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Literal
@@ -20,13 +22,21 @@ from fish_rules.rng import RNG_ALGORITHM
 from fish_rules.version import RULESET_VERSION
 from fish_server import __version__, auth
 from fish_server.database import dispose_engine, get_engine, schema_revision
-from fish_server.protocol import PROTOCOL_VERSION, server_hello
+from fish_server.games import load_player
+from fish_server.hub import Connection, Hub, error
+from fish_server.lobby import Player
+from fish_server.protocol import PROTOCOL_VERSION, ClientHello, parse_client_message, server_hello
+from fish_server.settings import server_commit
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Runs around the server's whole life: on shutdown, close database connections."""
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Runs around the server's whole life: the hub of games while it runs; on shutdown, stop
+    the games and close database connections."""
+    hub = Hub(get_engine, server_commit())
+    app.state.hub = hub
     yield
+    await hub.close()
     dispose_engine()
 
 
@@ -95,3 +105,50 @@ async def ws_echo(websocket: WebSocket) -> None:
             await websocket.send_text(await websocket.receive_text())
     except WebSocketDisconnect:
         return
+
+
+def _player(token: str | None) -> Player | None:
+    """The player a session cookie signs in, with their cohort flag; None if none."""
+    player = auth.signed_in(token)
+    if player is None:
+        return None
+    with get_engine().connect() as conn:
+        return load_player(conn, player)
+
+
+@app.websocket("/ws")
+async def ws_game(websocket: WebSocket) -> None:
+    """The game: sign in by cookie, then ``client_hello``, then any client message
+    (``fish_server.protocol``). Closes with 1008 if not signed in or on the wrong version."""
+    await websocket.accept()
+    player = await asyncio.to_thread(_player, websocket.cookies.get(auth.COOKIE))
+    if player is None:
+        await websocket.send_text(error("not_signed_in", "Sign in first.").model_dump_json())
+        await websocket.close(1008)
+        return
+    try:
+        hello = parse_client_message(await websocket.receive_text())
+    except WebSocketDisconnect:
+        return
+    except ValueError:
+        hello = None
+    if not isinstance(hello, ClientHello) or hello.protocol_version != PROTOCOL_VERSION:
+        reload = error("protocol_version", f"This server speaks protocol {PROTOCOL_VERSION}.")
+        await websocket.send_text(reload.model_dump_json())
+        await websocket.close(1008)
+        return
+    hub: Hub = websocket.app.state.hub
+    connection = Connection(player, websocket.send_text, websocket.close)
+    connection.send(server_hello())
+    sender = asyncio.create_task(connection.run())
+    hub.connect(connection)
+    try:
+        while True:
+            await hub.receive(connection, await websocket.receive_text())
+    except WebSocketDisconnect, RuntimeError:  # the client left, or a newer connection did
+        pass
+    finally:
+        hub.disconnect(connection)
+        connection.close()
+        with contextlib.suppress(Exception):
+            await sender
