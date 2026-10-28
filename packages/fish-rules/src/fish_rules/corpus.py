@@ -1,15 +1,18 @@
-"""The corpus record, ``fish-corpus-v1`` (docs/corpus.md §4 to §7).
+"""The corpus record, ``fish-corpus-v2`` (docs/corpus.md §2.2, §4 to §7).
 
 One website game as plain data, ready for JSON: the game record of ``fish_rules.record``
 (ruleset, action encoding, seed, outcome, winner, actions), so ``replay_record`` replays it,
 plus:
 
-- ``corpus``: ``"fish-corpus-v1"``;
+- ``corpus``: ``"fish-corpus-v2"``;
 - ``game``: ``id``, ``month`` (``YYYY-MM``), ``completion``, ``matchmaking``,
   ``cohort_table``, ``server_commit``, ``protocol_version`` (§3);
 - ``seats``: six entries, seat 0 first, each ``person``, ``cohort``, ``agent``, ``memory``,
-  ``k`` and ``note`` (§4): a person has a pseudonym, a cohort flag, memory ``human`` and a
-  note answer; a bot has an agent version and a memory setting (``k`` for ``last-k``);
+  ``k``, ``note`` and ``consent`` (§2.2, §4): a person has a pseudonym, a cohort flag, memory
+  ``human``, a note answer and the consent flags their seat copied when the game started
+  (``version``, ``us_resident_adult``, ``agrees``, ``no_outside_communication``, every one
+  true); a bot has an agent version and a memory setting (``k`` for ``last-k``) and no
+  consent;
 - ``times``: per action ``[received_us, sent_us]``, microseconds since the game started
   (§5.1);
 - ``causes``: per action ``{"seat": s}`` or ``{"timer": t}`` (§5.1);
@@ -50,8 +53,9 @@ from fish_rules.events import (
 from fish_rules.record import game_record, replay_record
 from fish_rules.state import Outcome, State, new_game
 
-CORPUS_ENCODING: Final = "fish-corpus-v1"
-"""Names this record format. A change of shape or meaning needs a new name."""
+CORPUS_ENCODING: Final = "fish-corpus-v2"
+"""Names this record format. A change of shape or meaning needs a new name. v2 adds each
+person's seat consent flags (T3.2); v1 was retired before any game was recorded in it."""
 
 COMPLETIONS: Final = ("finished", "unfinished", "abandoned")
 MATCHMAKING: Final = ("solo", "group")
@@ -66,7 +70,11 @@ _GAME_KEYS: Final = frozenset(
     {"id", "month", "completion", "matchmaking", "cohort_table", "server_commit",
      "protocol_version"}
 )  # fmt: skip
-_SEAT_KEYS: Final = frozenset({"person", "cohort", "agent", "memory", "k", "note"})
+_SEAT_KEYS: Final = frozenset({"person", "cohort", "agent", "memory", "k", "note", "consent"})
+CONFIRMATIONS: Final = ("us_resident_adult", "agrees", "no_outside_communication")
+"""The consent screen's three confirmations (Consent Screen §3)."""
+_CONSENT_KEYS: Final = frozenset({"version", *CONFIRMATIONS})
+_CONSENT_VERSION: Final = re.compile(r"v[0-9]+\.[0-9]+(-pilot)?")
 _LOG_KEYS: Final[dict[str, frozenset[str]]] = {
     "rtt": frozenset({"seat", "rtt_us"}),
     "rejected": frozenset({"seat", "input", "reason"}),
@@ -99,8 +107,21 @@ class GameInfo:
 
 
 @dataclass(frozen=True)
+class SeatConsent:
+    """A person's seat consent flags, copied from their acceptance when the game started
+    (§2.2). The three confirmations are always true: a seat without them is not in the corpus.
+    """
+
+    version: str
+    us_resident_adult: bool
+    agrees: bool
+    no_outside_communication: bool
+
+
+@dataclass(frozen=True)
 class SeatInfo:
-    """Who held a seat at the start (§4). Exactly one of ``person`` and ``agent`` is set."""
+    """Who held a seat at the start (§4). Exactly one of ``person`` and ``agent`` is set, and
+    ``consent`` exactly when ``person`` is."""
 
     person: str | None
     cohort: bool | None
@@ -108,6 +129,7 @@ class SeatInfo:
     memory: str
     k: int | None
     note: str | None
+    consent: SeatConsent | None = None
 
 
 @dataclass(frozen=True)
@@ -273,9 +295,10 @@ def _seat_info(value: object, seat: Seat) -> SeatInfo:
             memory="human",
             k=None,
             note=_choice(data["note"], f"{what} note", NOTE_ANSWERS),
+            consent=_consent(data["consent"], f"{what} consent"),
         )
-    if data["cohort"] is not None or data["note"] is not None:
-        raise CorpusError(f"{what} is a bot: no cohort, no note")
+    if data["cohort"] is not None or data["note"] is not None or data["consent"] is not None:
+        raise CorpusError(f"{what} is a bot: no cohort, no note, no consent")
     memory, k = _bot_memory(data["memory"], data["k"], what)
     return SeatInfo(
         person=None,
@@ -285,6 +308,18 @@ def _seat_info(value: object, seat: Seat) -> SeatInfo:
         k=k,
         note=None,
     )
+
+
+def _consent(value: object, what: str) -> SeatConsent:
+    """A person's seat flags: the text's version and the three confirmations, all true."""
+    data = _mapping(value, what, _CONSENT_KEYS)
+    version = data["version"]
+    if not isinstance(version, str) or _CONSENT_VERSION.fullmatch(version) is None:
+        raise CorpusError(f"{what} version is like v1.0 or v1.0-pilot, got {version!r}")
+    for key in CONFIRMATIONS:
+        if data[key] is not True:
+            raise CorpusError(f"{what}: {key} is confirmed (true), got {data[key]!r}")
+    return SeatConsent(version, True, True, True)
 
 
 def _seats(value: object, cohort_table: bool) -> tuple[SeatInfo, ...]:

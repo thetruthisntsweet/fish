@@ -10,13 +10,13 @@ seat in it has withdrawn. One withdrawal removes every game that person played, 
 the other seats' moves. Everyone who plays has agreed to the CC BY 4.0 release, so the one
 export is both the research corpus and the release.
 
-Each game is written as one ``fish-corpus-v1`` record (``fish_rules.corpus``), one per line,
-in order of start time. Release game ids are ``g-000001``, ``g-000002``, ... in that order,
-and every person appears under a pseudonym drawn at random for this export, the same in all
-its games and unrelated to any internal id. Records are built with ``corpus_record``, which
-reads each one back, so a game the log cannot reproduce stops the export instead of being
-written. Contact data, internal ids and wall-clock times never appear; a game's date is kept
-to the month.
+Each game is written as one ``fish-corpus-v2`` record (``fish_rules.corpus``), one per line,
+in order of start time, with each person's seat consent flags. Release game ids are
+``g-000001``, ``g-000002``, ... in that order, and every person appears under a pseudonym
+drawn at random for this export, the same in all its games and unrelated to any internal id.
+Records are built with ``corpus_record``, which reads each one back, so a game the log
+cannot reproduce stops the export instead of being written. Contact data, internal ids and
+wall-clock times never appear; a game's date is kept to the month.
 
 The export only reads, so it connects as the server's own login (``FISH_DATABASE_URL``).
 """
@@ -130,6 +130,16 @@ def _record(
             )
         ).all()
     )
+    c = db.seat_consents.c
+    flags: dict[int, dict[str, object]] = {
+        row["seat"]: {
+            "version": row["version"],
+            "us_resident_adult": row["us_resident_adult"],
+            "agrees": row["agrees"],
+            "no_outside_communication": row["no_outside_communication"],
+        }
+        for row in conn.execute(select(db.seat_consents).where(c.game_id == game_id)).mappings()
+    }
     seats: list[dict[str, object]] = []
     for seat in conn.execute(
         select(db.seats, db.players.c.cohort)
@@ -146,12 +156,13 @@ def _record(
                     "memory": "human",
                     "k": None,
                     "note": notes.get(seat["seat"], "unanswered"),
+                    "consent": flags[seat["seat"]],
                 }
             )
         else:
             seats.append(
                 {"person": None, "cohort": None, "agent": seat["agent"], "memory": seat["memory"],
-                 "k": seat["k"], "note": None}
+                 "k": seat["k"], "note": None, "consent": None}
             )  # fmt: skip
     log = [
         {"type": row["type"], "after": row["after_seq"], "at_us": row["at_us"], "seat": row["seat"]}

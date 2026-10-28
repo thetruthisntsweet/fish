@@ -1,6 +1,7 @@
-"""Tests for fish_rules.corpus: the fish-corpus-v1 record (docs/corpus.md §4 to §7). Records of
-random website-mechanics games read back after JSON exactly; response times follow §5.3; the
-analysis-set flags follow §6; and every malformed record is rejected."""
+"""Tests for fish_rules.corpus: the fish-corpus-v2 record (docs/corpus.md §2.2, §4 to §7).
+Records of random website-mechanics games read back after JSON exactly; response times follow
+§5.3; the analysis-set flags follow §6; and every malformed record is rejected, a person's
+seat without its consent flags included."""
 
 import json
 from collections.abc import Callable
@@ -17,6 +18,7 @@ from fish_rules.corpus import (
     CORPUS_ENCODING,
     CorpusError,
     CorpusGame,
+    SeatConsent,
     analysis_flags,
     corpus_record,
     read_corpus_record,
@@ -49,14 +51,22 @@ GAME: dict[str, object] = {
 }
 
 
+CONSENT: dict[str, object] = {
+    "version": "v1.0",
+    "us_resident_adult": True,
+    "agrees": True,
+    "no_outside_communication": True,
+}
+
+
 def person(n: int, *, cohort: bool = False, note: str = "no") -> dict[str, object]:
     return {"person": f"p{n}", "cohort": cohort, "agent": None, "memory": "human", "k": None,
-            "note": note}  # fmt: skip
+            "note": note, "consent": dict(CONSENT)}  # fmt: skip
 
 
 def bot(memory: str = "last-k", k: int | None = 8) -> dict[str, object]:
     return {"person": None, "cohort": None, "agent": "b1-v1", "memory": memory, "k": k,
-            "note": None}  # fmt: skip
+            "note": None, "consent": None}  # fmt: skip
 
 
 PEOPLE: list[dict[str, object]] = [person(n) for n in SEATS]
@@ -260,6 +270,17 @@ def test_the_base_record_reads() -> None:
     assert base()["corpus"] == CORPUS_ENCODING
 
 
+def test_each_person_s_seat_carries_its_consent_flags() -> None:
+    """§2.2: a person's seat has the flags copied when the game started; a bot's has none."""
+    record = base()
+    record["seats"][1]["consent"]["version"] = "v1.0-pilot"  # pyright: ignore[reportIndexIssue]
+    game = read_corpus_record(record)
+    assert game.seats[0].consent == SeatConsent("v1.0", True, True, True)
+    assert game.seats[1].consent == SeatConsent("v1.0-pilot", True, True, True)
+    assert all(s.consent is None for s in game.seats if s.person is None)
+    assert CORPUS_ENCODING == "fish-corpus-v2"
+
+
 def first(record: dict[str, Any], kind: type) -> int:
     return next(i for i, a in enumerate(record["actions"]) if a["type"] == kind.__name__)
 
@@ -347,6 +368,18 @@ BAD: list[tuple[str, Callable[[dict[str, Any]], None], str]] = [
     ("person cohort", _set("seats.0.cohort", None), "true or false"),
     ("person note", _set("seats.0.note", "maybe"), "note is one of"),
     ("bot cohort", _set("seats.5", bot() | {"cohort": False}), "seat 5 is a bot"),
+    ("bot consent", _set("seats.5", bot() | {"consent": CONSENT}), "no consent"),
+    ("no consent", _set("seats.0.consent", None), "seat 0 consent is"),
+    ("consent keys", _call(lambda r: r["seats"][0]["consent"].pop("agrees")), "consent has keys"),
+    ("consent version", _set("seats.0.consent.version", "1.0"), "like v1.0"),
+    ("consent version type", _set("seats.0.consent.version", 1), "like v1.0"),
+    ("not an adult", _set("seats.0.consent.us_resident_adult", False), "us_resident_adult is"),
+    ("not agreed", _set("seats.0.consent.agrees", 1), "agrees is confirmed"),
+    (
+        "outside talk",
+        _set("seats.0.consent.no_outside_communication", None),
+        "no_outside_communication is",
+    ),
     ("bot memory", _set("seats.5", bot("human", None)), "memory is one of"),
     ("bot k", _set("seats.5", bot("last-k", None)), "k is an integer"),
     ("bot k zero", _set("seats.5", bot("last-k", 0)), "k is an integer"),

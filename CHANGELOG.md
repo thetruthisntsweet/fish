@@ -6,6 +6,16 @@ version is 0.x, a minor release may change the interface. The rules have their o
 and changelog ([docs/rules.md](docs/rules.md), R.10), and every frozen encoding has its own
 name: a change to one is never silent, and is always listed here.
 
+## Unreleased
+
+### fish-rules
+
+- The corpus record is now `fish-corpus-v2` (`fish_rules.corpus`): each person's seat carries
+  `consent`, the flags it copied from that person's acceptance of the consent screen when the
+  game started (the text's `version`, and `us_resident_adult`, `agrees` and
+  `no_outside_communication`, all true), and a bot's seat has none; `SeatInfo.consent` reads
+  it as a `SeatConsent`. `fish-corpus-v1` is retired: no game was ever recorded in it.
+
 ## 0.2.0 (2026-10-27)
 
 Exact deduction of where every card can be, and agent memory. No frozen encoding changed:

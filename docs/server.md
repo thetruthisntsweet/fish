@@ -95,7 +95,7 @@ action (with its cause and its received and sent times, microseconds since the g
 on the server's monotonic clock) and every server log row (connections, round trips,
 rejections, handovers), in order, from a writer thread so the database never holds up a
 game. When the rules end the game: its `game_endings` row, after the last action. The export
-(`python -m fish_server.corpus_export`) reads all of it back as `fish-corpus-v1` records.
+(`python -m fish_server.corpus_export`) reads all of it back as `fish-corpus-v2` records.
 
 Games are held in the one server process's memory. A deploy or restart ends any game in
 progress; its rows stay, with no ending, and T3.2 marks such games abandoned.

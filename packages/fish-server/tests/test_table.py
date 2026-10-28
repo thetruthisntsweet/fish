@@ -60,14 +60,22 @@ STAND_IN: Final = Controller("b0-v1", NONE)
 """The bot that takes over a seat in these tests (T3.5 supplies B1 for the website)."""
 
 
+CONSENT: Final = {
+    "version": "v1.0",
+    "us_resident_adult": True,
+    "agrees": True,
+    "no_outside_communication": True,
+}
+
+
 def person(seat: int) -> dict[str, object]:
     return {"person": f"p{seat}", "cohort": False, "agent": None, "memory": "human", "k": None,
-            "note": "no"}  # fmt: skip
+            "note": "no", "consent": CONSENT}  # fmt: skip
 
 
 def bot(seat: int) -> dict[str, object]:
     return {"person": None, "cohort": None, "agent": "b0-v1", "memory": "none", "k": None,
-            "note": None}  # fmt: skip
+            "note": None, "consent": None}  # fmt: skip
 
 
 def new_table(seed: int, people: tuple[int, ...] = SEATS) -> Table:

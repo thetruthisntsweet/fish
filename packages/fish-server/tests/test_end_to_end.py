@@ -1,7 +1,7 @@
 """A whole game end to end (T3.1): the real server on a real port, six scripted players
 connecting over real WebSockets with their session cookies, matched by the solo queue, and
 playing until the rules end the game, answering every ping. Then the corpus export reads the
-game back from the database as a ``fish-corpus-v1`` record that replays to the same end. Takes
+game back from the database as a ``fish-corpus-v2`` record that replays to the same end. Takes
 about ten seconds of real time, mostly declaration windows. Skipped without
 FISH_TEST_DATABASE_URL."""
 

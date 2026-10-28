@@ -692,3 +692,13 @@ every person's seat has flags and none of whose people has withdrawn. Everyone w
 agreed to the CC BY 4.0 release, so the export has no separate public mode. Alternative:
 keeping T1.6's tables and rewording the approved documents to match (they were approved as
 written, and the seat flags are what lets a game show the consent it was played under).
+
+**D69 · 2026-10-28 · The corpus record carries the seat flags: `fish-corpus-v2`.**
+The Research Plan (§6) lists each seat's consent, age-eligibility, residence and
+outside-communication flags among what is released, so each person's seat in the record has
+`consent`: the version of the text and the three confirmations, all true, as copied when the
+game started (D68); a bot's seat has `null`. The reader refuses a person's seat without them.
+Adding a field changes the record's shape, so the format takes a new name (D45), and
+`fish-corpus-v1` is retired: no game was recorded in it, so nothing has to read it. It ships
+in fish-rules' next release. Alternative: leaving the flags out and representing consent only
+by membership (a released game could not show what its players had accepted).
