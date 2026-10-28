@@ -33,7 +33,7 @@ writes a script that prints them all; the datasheet quotes its output.
 
 | Question | Answer | When |
 |---|---|---|
-| What does an instance represent? | One complete game of Fish played by adults on the project's website, as one `fish-corpus-v1` record ([corpus.md](corpus.md) §7). | now |
+| What does an instance represent? | One complete game of Fish played by adults on the project's website, as one `fish-corpus-v2` record ([corpus.md](corpus.md) §7). | now |
 | How many instances? | Games exported, and games left out by reason (not ended, abandoned, no person, a person not eligible). Target: 1,000 or more adult games. | freeze |
 | All possible instances, or a sample? | Every game played on the site during collection that ended under the rules and in which every person was eligible (corpus.md §6). Not a random sample of Fish players: people chose to take part (§3). | now; counts at freeze |
 | What data does each instance consist of? | The seed (which determines every hand), every action in order with its cause and its received and sent times on the server clock, the six seats (a pseudonymous person with a cohort flag and note answer, or a bot with its version and memory setting), handovers, round-trip times, rejected inputs, connections, bot delays, matchmaking, completion, the month played, and the ruleset, encodings and server commit. | now |

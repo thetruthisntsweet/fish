@@ -165,7 +165,7 @@ def table(conn: Connection, persons: int = 6) -> list[uuid.UUID | None]:
 
 
 def test_every_corpus_game_becomes_a_record_that_replays(app: Engine) -> None:
-    """§7: each corpus game is a fish-corpus-v1 record that reads and replays to the game that
+    """§7: each corpus game is a fish-corpus-v2 record that reads and replays to the game that
     was played, in order of start time, with release ids and per-export pseudonyms."""
     with app.begin() as conn:
         regulars = table(conn)

@@ -40,7 +40,7 @@ starts out waiting to connect, with the same 30 seconds. ``connection`` rows rec
 
 **Times.** Every action is stamped with when it was received; ``sent`` stamps the actions not
 yet sent with when the updates they produced were handed to the transport (docs/corpus.md
-§5.1). ``record`` writes the game as a ``fish-corpus-v1`` record, read back before it is
+§5.1). ``record`` writes the game as a ``fish-corpus-v2`` record, read back before it is
 returned.
 """
 
@@ -344,7 +344,7 @@ class Table:
     def record(
         self, *, game: Mapping[str, object], seats: Sequence[Mapping[str, object]]
     ) -> dict[str, object]:
-        """The game so far as a ``fish-corpus-v1`` record, with ``game`` and ``seats`` as the
+        """The game so far as a ``fish-corpus-v2`` record, with ``game`` and ``seats`` as the
         record writes them. Every action must have been sent."""
         if any(entry.sent_us is None for entry in self.entries):
             raise ValueError("every action must be sent before the game is recorded")

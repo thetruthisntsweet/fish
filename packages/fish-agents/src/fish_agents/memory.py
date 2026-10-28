@@ -12,7 +12,7 @@ presses Call (R.8.9). Counting events gives last-k the same meaning on both, and
 corpus (D57).
 
 ``MemorySetting`` is the setting, written in the corpus as ``memory`` and ``k``
-(``fish-corpus-v1``, docs/corpus.md §4). ``Memory`` is one seat's memory: shown every view,
+(``fish-corpus-v2``, docs/corpus.md §4). ``Memory`` is one seat's memory: shown every view,
 it keeps each event once, with the view that first showed it, and from them gives Layer 1's
 deduction (``fish_rules.deduce``). Like Layer 1 it keeps an unbroken run of events: if a
 view's event is not the one after the last remembered (the seat missed a view), it starts a

@@ -176,26 +176,28 @@ reader gets the same sets without trusting a stored copy.
   and test 15% by a frozen draw on the release game number, with the seed recorded at the
   freeze (T4.5).
 - **Synthetic set:** bot-only games are played under environment mechanics, not website
-  mechanics, so they are not `fish-corpus-v1` records; T5.4 defines their format, which
+  mechanics, so they are not `fish-corpus-v2` records; T5.4 defines their format, which
   shares the game record of determinism.md §8.
 
 ## 7. What is released
 
-The export is one `fish-corpus-v1` record per game (`fish_rules.corpus`): the game record of
+The export is one `fish-corpus-v2` record per game (`fish_rules.corpus`): the game record of
 determinism.md §8, so `replay_record` still replays it, plus `corpus`, `game` (§3), `seats`
-(§4), `times` and `causes` (§5.1, one per action) and `log` (§5.2).
+(§4; each person's with its `consent` flags, §2.2), `times` and `causes` (§5.1, one per
+action) and `log` (§5.2). `fish-corpus-v1`, without the seat flags, was retired before any
+game was recorded in it (D69).
 `read_corpus_record` checks every field and replays the game; `corpus_record` writes one and
 reads it back, so no writer can produce a record that does not read.
 
 | Released | Coarsened | Never leaves the server |
 |---|---|---|
-| seed, actions, causes, versions; seat controllers, memory settings, handovers; matchmaking, cohort table, completion; each person's cohort flag and note answer; action times and server log rows as microseconds since game start | the game date, to the month | email and contact data; internal player and game ids; wall-clock times; IP addresses, user agents; consent texts and attestation times |
+| seed, actions, causes, versions; seat controllers, memory settings, handovers; matchmaking, cohort table, completion; each person's cohort flag, note answer and seat consent flags (the text's version and the three confirmations); action times and server log rows as microseconds since game start | the game date, to the month | email and contact data; internal player and game ids; wall-clock times; IP addresses, user agents; consent texts and attestation times |
 
 - **Players** appear under a pseudonym drawn at random for each release, the same for every
   game of that release and unrelated to any internal identifier, so per-player analyses
   (T1.1 §5.1, the most-frequent-players check) still work.
-- **Consent** is represented by membership: every released game passed §6. (T3.2 adds each
-  person's seat flags to the record itself.)
+- **Consent** is in the record: each person's seat carries the flags it copied when the game
+  started (Research Plan §6), and every released game passed §6.
 - **Re-export.** A release is regenerated from the log, never edited. After a withdrawal,
   the next export simply leaves the game out.
 
