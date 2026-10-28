@@ -6,9 +6,10 @@ Cookies). Then:
 
     uv run python scripts/try_server.py https://<your-staging-host> --session <cookie value>
 
-It checks ``/health`` reports protocol 2, ``/auth/me`` says signed in, and over ``/ws`` that
-the server says hello, shows the lobby, makes a room and leaves it. Exits 0 and prints PASS,
-or 1 with what failed. It never joins the solo queue, so it cannot start a game.
+It checks ``/health`` reports protocol 2, ``/auth/me`` says signed in and allowed to play
+(the study information accepted, not withdrawn), and over ``/ws`` that the server says
+hello, shows the lobby, makes a room and leaves it. Exits 0 and prints PASS, or 1 with what
+failed. It never joins the solo queue, so it cannot start a game.
 """
 
 import argparse
@@ -17,6 +18,7 @@ import json
 import sys
 import urllib.error
 import urllib.request
+from typing import cast
 
 import websockets
 
@@ -78,8 +80,11 @@ def main() -> int:
             raise RuntimeError(f"/health should report protocol {PROTOCOL_VERSION}")
         status, me = get(f"{base}/auth/me", args.session)
         print("me:    ", status, me)
-        if me != {"signed_in": True}:
+        if me.get("signed_in") is not True:
             raise RuntimeError("that session does not sign in: sign in again, copy the cookie")
+        study = cast(dict[str, object], me["study"])
+        if not study["may_play"]:
+            raise RuntimeError(f"this player may not play yet: {study}")
         asyncio.run(socket(base, args.session))
     except Exception as problem:  # one line, whatever went wrong
         print(f"FAIL: {problem}")

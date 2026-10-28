@@ -146,10 +146,18 @@ sign_in_links = Table(
     Column("email", Text, nullable=False),
     _timestamp("created_at"),
     Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("consent_version", Text, nullable=True),
     Index(None, "email", "created_at"),
     Index(None, "created_at"),
     CheckConstraint("length(token_hash) = 64", name="token_hash"),
+    CheckConstraint(
+        "consent_version IS NULL OR consent_version ~ '^v[0-9]+[.][0-9]+(-pilot)?$'",
+        name="consent_version",
+    ),
 )
+"""``consent_version``: the consent text accepted, with all three confirmations, on the
+screen before the link was asked for (Consent Screen §2.5); it becomes an acceptance when the
+link is used. Nothing is stored before the person presses Continue."""
 
 sign_in_uses = Table(
     "sign_in_uses",

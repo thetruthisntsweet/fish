@@ -281,7 +281,7 @@ def test_signing_in_from_start_to_finish(client: tuple[TestClient, MemoryMailer]
     assert "HttpOnly" in cookie
     assert "SameSite=lax" in cookie
     assert "Secure" not in cookie  # not https locally
-    assert http.get("/auth/me").json() == {"signed_in": True}
+    assert http.get("/auth/me").json()["signed_in"] is True
     again = http.post("/auth/verify", data={"token": token}, follow_redirects=False)
     assert again.status_code == 400  # used
     assert http.post("/auth/sign-out").status_code == 204

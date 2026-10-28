@@ -11,6 +11,9 @@ replaces the old, which is closed. What a connection is sent goes into its own q
 task sends it, so a slow client never holds up anyone else; a message counts as sent (an
 action's ``sent_us``) once it is in every connected seat's queue.
 
+**The lobby.** Only a player who has accepted the study information this site shows, and
+has not withdrawn, may wait for a game (Consent Screen §2); anyone else is told why.
+
 **Games.** Each game has one task. It takes the game's inputs in the order they arrive and
 stamps each with the server clock as it takes it, so the table applies them in that order
 (R.8.7, R.8.5), and it sleeps until the next timer, bot action or ping is due. After every
@@ -31,6 +34,7 @@ from datetime import UTC, datetime
 from sqlalchemy import Engine, insert
 
 from fish_server import db
+from fish_server.consent import standing
 from fish_server.game import (
     Acted,
     Connected,
@@ -163,9 +167,12 @@ class Running:
 class Hub:
     """The lobby, the connections and the games in progress."""
 
-    def __init__(self, engine: Callable[[], Engine], server_commit: str) -> None:
+    def __init__(
+        self, engine: Callable[[], Engine], server_commit: str, consent_version: str = "v1.0"
+    ) -> None:
         self.engine = engine
         self.server_commit = server_commit
+        self.consent_version = consent_version
         self.lobby = Lobby()
         self.connections: dict[uuid.UUID, Connection] = {}
         self.games: dict[uuid.UUID, Running] = {}  # player -> the game they are in
@@ -235,6 +242,11 @@ class Hub:
 
     async def _lobby(self, connection: Connection, message: Message) -> None:
         player = connection.player
+        if not isinstance(message, Leave):
+            refused = await asyncio.to_thread(self.refusal, player)
+            if refused is not None:
+                connection.send(error("not_now", refused))
+                return
         try:
             match message:
                 case JoinQueue():
@@ -294,6 +306,12 @@ class Hub:
                 connection.send(lobby_message(self.lobby, player))
 
     # ------------------------------------------------------------ writing (in a thread)
+
+    def refusal(self, player: Player) -> str | None:
+        """Why ``player`` may not wait for a game now: they have not accepted the current
+        study information, or they have withdrawn (``fish_server.consent``)."""
+        with self.engine().connect() as conn:
+            return standing(conn, player.id, self.consent_version).refusal()
 
     def _write_start(self, formed: Formed, seed: int, started: datetime) -> uuid.UUID:
         with self.engine().begin() as conn:

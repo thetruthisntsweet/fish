@@ -19,6 +19,7 @@ from starlette.testclient import WebSocketTestSession
 from fish_server import db
 from fish_server.app import app as server
 from fish_server.auth import COOKIE
+from fish_server.consent import accept, withdraw
 from fish_server.protocol import PROTOCOL_VERSION
 from fish_server.settings import database_url
 from fish_server.signin import player_for, start_session
@@ -47,9 +48,15 @@ def http(app: Engine) -> Iterator[TestClient]:
         OPEN.pop()
 
 
-def session(app: Engine, email: str, *, cohort_seed: int = 7) -> tuple[uuid.UUID, str]:
+def session(
+    app: Engine, email: str, *, cohort_seed: int = 7, consented: bool = True
+) -> tuple[uuid.UUID, str]:
+    """A signed-in player, who has accepted the study information unless ``consented`` is
+    False."""
     with app.begin() as conn:
         player = player_for(conn, email, cohort_seed=cohort_seed)
+        if consented:
+            accept(conn, player, "v1.0")
         return player, start_session(conn, player)
 
 
@@ -145,6 +152,24 @@ def test_the_lobby_and_what_does_not_fit_it(http: TestClient, app: Engine) -> No
     socket.send_json({"type": "join_queue"})
     assert until(socket, "lobby")["waiting"] == "solo"
     socket.close()
+
+
+def test_only_those_who_may_play_wait_for_a_game(http: TestClient, app: Engine) -> None:
+    """Consent Screen §2: the study information accepted first; never after withdrawing."""
+    _, fresh = session(app, "g@example.org", consented=False)
+    socket = connect(http, fresh)
+    until(socket, "lobby")
+    socket.send_json({"type": "join_queue"})
+    assert until(socket, "error")["message"] == "Accept the study information first."
+    gone, token = session(app, "h@example.org")
+    with app.begin() as conn:
+        withdraw(conn, gone, "website")
+    other = connect(http, token)
+    until(other, "lobby")
+    other.send_json({"type": "create_room"})
+    assert "withdrawn" in until(other, "error")["message"]
+    other.send_json({"type": "leave"})  # leaving is always allowed
+    assert until(other, "lobby")["waiting"] is None
 
 
 def test_a_newer_connection_replaces_the_older(http: TestClient, app: Engine) -> None:

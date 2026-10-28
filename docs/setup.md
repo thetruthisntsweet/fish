@@ -110,6 +110,7 @@ The test suite creates and drops its own throwaway databases and its own login
 | `FISH_EMAIL_FROM` | the server | sender of sign-in emails; defaults to `Fish <signin@mail.thedefinitivesanjeevexperience.com>` |
 | `FISH_COHORT_SEED` | the server | 64-bit seed of the held-out cohort draw (corpus.md §2.1); never changed once anyone has signed up |
 | `FISH_PUBLIC_URL` | the server | where sign-in links point; defaults to `RENDER_EXTERNAL_URL` (Render sets it), else `http://127.0.0.1:8000` |
+| `FISH_CONSENT_VERSION` | the server | the study information shown and accepted: `v1.0` (default) or `v1.0-pilot` (staging) |
 | `FISH_SIGNIN_DAILY_LIMIT` | the server | most sign-in emails sent in 24 hours; default 90, under Resend's free 100 a day |
 
 The server's own URL is never written anywhere: it is the admin URL with the user and

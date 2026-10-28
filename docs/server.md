@@ -22,21 +22,39 @@ Everything that decides something (the table, the game, the lobby) does no input
 so the tests drive it on a fake clock and check every rule exactly; the hub and the app only
 move messages and rows.
 
-## 2. Signing in
+## 2. Consent and signing in
 
-1. `POST /auth/link` with `{"email": …}` emails a link (Resend on Render; printed in the
-   server's output locally). It answers 202 whether or not the address has played before.
+The consent screen comes first (Consent Screen §2; the client builds it, T3.3). `GET /study`
+gives the version this site shows (`FISH_CONSENT_VERSION`: `v1.0`, or `v1.0-pilot` on
+staging).
+
+1. `POST /auth/link` with `{"email": …, "consent": {"version": …, "us_resident_adult": true,
+   "agrees": true, "no_outside_communication": true}}` emails a link (Resend on Render; printed in the
+   server's output locally). It answers 202 whether or not the address has played before,
+   and 422, storing nothing, for an acceptance of another version or with a box unticked.
+   Someone signing in again sends `"consent": null`.
 2. The link opens `/sign-in`, a page with one button. Opening it uses nothing: mail scanners
    open links in emails by themselves.
 3. Pressing the button posts to `/auth/verify`, which uses the link (once, within 15 minutes)
    and starts a 30-day session in the `HttpOnly` cookie `fish_session`.
 4. The first sign-in from an address makes a player: the next sign-up number, and the
-   held-out cohort drawn from it at once ([corpus.md](corpus.md) §2.1).
+   held-out cohort drawn from it at once ([corpus.md](corpus.md) §2.1). Using a link records
+   the acceptance it carries (`fish_server.consent`).
 
 Only SHA-256 hashes of links and sessions are stored. Limits: 3 links per address in 15
 minutes, 10 requests per network address an hour, and 90 emails a day from the whole server
 (`FISH_SIGNIN_DAILY_LIMIT`), under Resend's free 100. `GET /auth/me` says whether a cookie
-signs in; `POST /auth/sign-out` ends the session.
+signs in and where the player stands with the study (the version last accepted, whether
+withdrawn, whether they may play); `POST /auth/sign-out` ends the session.
+
+- **A new version** of the text (Consent Screen §2.8): set `FISH_CONSENT_VERSION`, and each
+  player accepts it with `POST /consent` before their next game.
+- **Withdrawing** on the website: `POST /withdraw` with `{"confirm": true}`. By email: in
+  the `fish-staging` (or production) **Shell**, `python -m fish_server.withdraw <address>`.
+  Either way it is a record of its own, made once and never undone; every game the person
+  played leaves the corpus at the next export, and they cannot play again.
+- **Who may play:** only a player who has accepted the current text and not withdrawn may
+  join the queue or a room; anyone else is told why.
 
 ## 3. Matchmaking
 
