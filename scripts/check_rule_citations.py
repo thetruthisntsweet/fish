@@ -43,7 +43,6 @@ OWED: Final[dict[str, str]] = {
     "R.2.5": "T3.4: the client never redisplays past events (notes are T1.5's attestation)",
     "R.2.6": "T3.4: events shown the moment they arrive, and a visible turn timer",
     "R.8.4": "T3.1: the 60-second turn timer, reconnection and bot handover",
-    "R.8.5": "T3.1: every timer runs on the server clock",
     "R.8.8": "T3.5: website bot delays and when bots press Call",
 }
 """Rules about the website or the client, which no engine test can check, and the task that
