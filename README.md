@@ -98,6 +98,8 @@ the [changelog](CHANGELOG.md).
   and the frozen encodings of actions, records, views and observations
 - [Testing](docs/testing.md): what the tests check, where they run, and what to do when one
   fails
+- [Server](docs/server.md): the website's game server: signing in, matchmaking, the
+  website's rules, the messages, and what is written as a game is played
 - [Corpus](docs/corpus.md): what every website game records, who is in the corpus, and what
   is released
 - [Datasheet plan](docs/datasheet-plan.md): how each question of the corpus datasheet will
