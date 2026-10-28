@@ -592,3 +592,88 @@ packages require each other at 0.2. No frozen encoding changed, so 0.1.0's games
 identically. The code supports every Python 3.14 release: CI's 3.14.0 refuses the slotted,
 frozen dataclass form for classes with no fields, so the four field-less control actions
 declare empty `__slots__` themselves. T2.8 is complete: `docs/memory.md` describes it.
+
+**D61 · 2026-10-28 · The table: the website's mechanics around the engine, on a passed-in clock.**
+`fish_server.table` turns presses, seat actions, connections and the passing of time into
+engine actions and log rows; it reads no clock and does no input or output, so every website
+rule is tested at exact times (T3.1). A press names its set, so it is one input: `OpenWindow`
+and the presser's `Declare` together. A timer's outcome is recorded at its deadline, not when
+it was noticed, and every input first fires the timers due by its arrival, so the log holds
+things in the order they happened on the server clock (R.8.5). On a turn the current player
+may only ask: R.4.3 makes the website's calls start with a press. The turn timer stops for a
+window, an assignment or a choice instead of pausing, because on the website each of them
+ends in a new turn, which starts a fresh 60 seconds (R.8.4). Alternatives: timers as asyncio
+tasks that apply their action when they wake (the recorded time would be when the loop got to
+it, and tests would need real time); letting the current player send `Call` on a turn (the
+engine allows it, but the website's rules route every call through a window).
+
+**D62 · 2026-10-28 · People start out waiting to connect; handovers release their person.**
+A person has the same 30 seconds to connect at the deal as to reconnect later, so a seat
+whose player never arrives is handed over rather than stalling the table; when the turn timer
+and the reconnection run out together, the turn timeout is the reason recorded. The table is
+given the bot that replaces people (`Controller`); until T3.5 brings B1 and its delays
+(R.8.8) it is a stand-in, `b0-v1`, that waits 2 seconds and chooses among the actions the
+website allows. A person whose seat is handed over is told once and released to the lobby,
+since R.8.4 says they do not reclaim it. Alternatives: waiting for every player before the
+deal (one missing player would hold five); keeping the person attached as a spectator (they
+could not play again until the game ended).
+
+**D63 · 2026-10-28 · Protocol 2: action indices, the website's own lists, strict parsing.**
+Seat actions travel as `fish-action-index-v1` indices from the player's own seat, so the
+client needs no rules and the encoding is the frozen one agents use. Each `update` carries
+the view exactly as `fish-view-v1` (D33; the `View` model is checked against all 124 vectors
+and every view of random games) plus `actions` and `pressable`, the website's lists, because
+the view's `legal` is the environment's mask, with direct calls and passes. Timers travel as
+milliseconds left, since the client's clock is not the server's. Client messages are parsed
+strictly: no strings for numbers, no booleans, no unknown fields. A table's start is its
+first `update`, not a message of its own. Alternatives: actions as `fish-actions-v1` objects
+(more to validate, and a second encoding for the client to build); changing `fish-view-v1`
+to carry the website's lists (it is frozen, and the environment shares it).
+
+**D64 · 2026-10-28 · Sign-in by emailed link, sent through Resend.**
+No passwords: a link, valid once for 15 minutes, starts a 30-day session in an `HttpOnly`
+cookie. The link opens a page with one button, because mail scanners open links by
+themselves and would use them up. Only SHA-256 hashes of links and sessions are stored, and
+since the server's login may only insert (D15), using a link and ending a session are rows of
+their own, made at most once by a primary key. The first sign-in makes the player and draws
+the cohort at once (corpus.md §2.1); a transaction lock on the address keeps two first
+sign-ins from making two players. Sign-in tables, like contact addresses, are `PRIVATE`:
+never exported, and removable. Email goes through Resend (a sending subdomain,
+`mail.thedefinitivesanjeevexperience.com`; free for 3,000 a month and 100 a day), called with
+the standard library, with limits of 3 links per address in 15 minutes, 10 requests per
+network address an hour and 90 emails a day. Alternatives: Amazon SES (cheaper at volume, but
+an AWS account and a sandbox to leave); Postmark ($15 a month); passwords (resets need email
+anyway, and a password store is a liability); a link that signs in on opening (scanners).
+
+**D65 · 2026-10-28 · Matchmaking: two solo queues, rooms by code, seats drawn at random.**
+The solo queue is two queues, the held-out cohort's and everyone else's, so cohort players
+meet only each other and a table from the cohort queue is a cohort table (corpus.md §2.1).
+Groups use six-character room codes without look-alike characters; a group table is never a
+cohort table, so mixed games stay out of the cohort test set (§6). A table forms as soon as
+six wait together, from those who waited longest. Seats and seeds come from the operating
+system's randomness, so nobody can choose a partner or predict a deal. Alternatives: one
+queue with cohort players skipped over (the same result, harder to reason about); seating in
+join order (friends who join together would be partners).
+
+**D66 · 2026-10-28 · One process, games in memory, each game one task.**
+The server runs as one process with one event loop (D10's single $7 instance). Each game is
+one task that takes its inputs from a queue in the order they arrive and stamps each with the
+server clock as it takes it, so R.8.7's "in the order it receives them" holds by construction,
+and sleeps until the next timer, bot action or ping. Each connection sends from its own queue,
+so a slow client delays nobody; an action counts as sent once its update is in every
+connected seat's queue (corpus.md §5.1). Rows are written in order by one writer per game,
+from a thread, so the database never blocks the loop. A restart ends games in progress; their
+rows stay without an ending, for T3.2 to mark abandoned. This settles T2.1's open question of
+how game state and queues are held. Alternatives: game state in the database or Redis, to
+survive restarts and allow several processes (much more machinery for a pilot of a few
+tables, and every action would wait on a round trip); a lock around a shared state instead of
+a task per game (ordering by lock acquisition is not arrival order).
+
+**D67 · 2026-10-28 · T3.1 close-out: a whole game, end to end, as the test of the server.**
+`test_end_to_end.py` starts the real server on a real port; six scripted players sign in by
+cookie, are matched by the solo queue, play a whole game over real WebSockets, answering
+pings; and the corpus export reads the game back from the database as a `fish-corpus-v1`
+record that replays to the same end, with response times and round trips. It takes about ten
+seconds, mostly declaration windows. R.8.4 and R.8.5 are now cited by tests; R.2.5, R.2.6
+(T3.4) and R.8.8 (T3.5) remain owed. `scripts/try_server.py` checks a deployed server the way
+a player reaches it. T3.1 is complete: `docs/server.md` describes it.

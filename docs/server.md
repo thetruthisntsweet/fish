@@ -1,0 +1,124 @@
+# The game server
+
+How the website's server plays a game (T3.1): signing in, matchmaking, the website's rules
+around the engine, the messages, and what is written to the database as a game is played.
+The rules are the Canonical Ruleset v1.1 ([rules.md](rules.md)); what is recorded is
+[corpus.md](corpus.md). The server is the `fish-server` package, which is not published.
+
+## 1. The pieces
+
+| Module | Does | Touches |
+|---|---|---|
+| `table` | one game under website mechanics: presses, windows, the timers, people and bots | nothing: times are passed in |
+| `game` | one game in progress: who is sent what, pings, the stand-in bot, rows to write | nothing: times are passed in |
+| `lobby` | the solo queue and group rooms | nothing |
+| `protocol` | every message, as Pydantic models (the client's types are generated from them) | nothing |
+| `signin`, `auth`, `mailer` | signing in with an emailed link | the database, Resend |
+| `games` | writing a new table's game and seats | the database |
+| `hub` | connections, the lobby and the games in progress, on one event loop | sockets, the database |
+| `app` | the HTTP endpoints and `/ws` | |
+
+Everything that decides something (the table, the game, the lobby) does no input or output,
+so the tests drive it on a fake clock and check every rule exactly; the hub and the app only
+move messages and rows.
+
+## 2. Signing in
+
+1. `POST /auth/link` with `{"email": …}` emails a link (Resend on Render; printed in the
+   server's output locally). It answers 202 whether or not the address has played before.
+2. The link opens `/sign-in`, a page with one button. Opening it uses nothing: mail scanners
+   open links in emails by themselves.
+3. Pressing the button posts to `/auth/verify`, which uses the link (once, within 15 minutes)
+   and starts a 30-day session in the `HttpOnly` cookie `fish_session`.
+4. The first sign-in from an address makes a player: the next sign-up number, and the
+   held-out cohort drawn from it at once ([corpus.md](corpus.md) §2.1).
+
+Only SHA-256 hashes of links and sessions are stored. Limits: 3 links per address in 15
+minutes, 10 requests per network address an hour, and 90 emails a day from the whole server
+(`FISH_SIGNIN_DAILY_LIMIT`), under Resend's free 100. `GET /auth/me` says whether a cookie
+signs in; `POST /auth/sign-out` ends the session.
+
+## 3. Matchmaking
+
+- **Solo:** `join_queue`. There are two queues, the held-out cohort's and everyone else's, so
+  cohort players meet only each other. The six who have waited longest form a table; one
+  from the cohort queue is a *cohort table*.
+- **Group:** `create_room` returns a six-character code (no I, O, 0 or 1); five more join
+  with `join_room`. A group table is never a cohort table.
+- `leave` stops waiting. A player waits in one place at a time, and not while seated.
+- Seats are drawn with the operating system's randomness, and so is each game's seed.
+
+Until T3.5 a table needs six people; bots then fill empty seats.
+
+## 4. The website's rules
+
+The engine has no clock (R.8.6). `Table` adds the website's mechanics and decides no rule
+outcome itself (D23):
+
+- **Presses** (R.8.3). Call is always live: a press names a set and opens a 1-second window
+  with the presser's declaration; presses inside the window declare too. An action sent
+  during a window is discarded and the sender told. Presses during an assignment, a choice
+  or run-out are rejected (R.6.2).
+- **Stale presses** (R.8.7). A press carries the last event its player saw; it is rejected
+  only if a newer event scored its set or moved one of its cards.
+- **Timers** (R.8.5): window 1 s, assignment 30 s (R.4.3), choice or vote 15 s (R.5.2), turn
+  60 s (R.8.4). Each timer's outcome is recorded at its deadline, and an input first lets
+  every timer due by its arrival fire. The turn timer stops for a window, an assignment or a
+  choice, and every new turn starts a fresh one.
+- **People and bots** (R.8.4). A person away for 30 seconds, or who lets the turn timer run
+  out, is replaced by a bot for the rest of the game and released to the lobby. Until T3.5
+  brings B1 (R.8.8), the bot is a stand-in (`b0-v1`) that waits 2 seconds and chooses among
+  the actions the website allows.
+- On a turn the current player may only ask: a call starts with a press, like anyone's (R.4.3).
+
+## 5. Messages
+
+Over `/ws`, which needs the session cookie. JSON, every message with a `type`, unknown fields
+refused ([`protocol.py`](../packages/fish-server/src/fish_server/protocol.py), protocol 2).
+
+| Client | | Server | |
+|---|---|---|---|
+| `client_hello` | first, with `protocol_version` | `server_hello` | the versions it runs |
+| `join_queue`, `create_room`, `join_room`, `leave` | the lobby | `lobby` | waiting for what, with how many |
+| `press` | `set_id` and `seen` | `update` | the seat's `fish-view-v1` view, `actions`, `pressable`, `timers`, `bots` |
+| `act` | an action index (`fish-action-index-v1`, from the player's seat) | `rejected` | `illegal`, `stale` or `malformed`; `discarded` in a window |
+| `pong` | the `ping`'s nonce | `ping` | every 5 s (R.8.7) |
+| | | `error` | `protocol_version`, `bad_message`, `not_signed_in`, `not_now` |
+
+The view's own `legal` list is the environment's mask; a website client offers exactly
+`update.actions` and `update.pressable`.
+
+## 6. What is written, and when
+
+When a table forms: its `games` row and six `seats` rows. Then, as the game is played, every
+action (with its cause and its received and sent times, microseconds since the game started
+on the server's monotonic clock) and every server log row (connections, round trips,
+rejections, handovers), in order, from a writer thread so the database never holds up a
+game. When the rules end the game: its `game_endings` row, after the last action. The export
+(`python -m fish_server.corpus_export`) reads all of it back as `fish-corpus-v1` records.
+
+Games are held in the one server process's memory. A deploy or restart ends any game in
+progress; its rows stay, with no ending, and T3.2 marks such games abandoned.
+
+## 7. Trying it
+
+Locally: start the database and the server ([setup.md](setup.md)), ask for a link with
+`curl -X POST localhost:8000/auth/link -H 'content-type: application/json' -d
+'{"email":"you@example.org"}'`, open the link the server prints, and press the button.
+
+On staging, sign in in a browser with a real address, copy the `fish_session` cookie's value
+from the developer tools, and run:
+
+    uv run python scripts/try_server.py https://<your-staging-host> --session <value>
+
+It checks `/health`, `/auth/me` and the socket (hello, lobby, a room made and left) and prints
+PASS.
+
+## 8. How it is checked
+
+`test_table.py` (every website rule, on a fake clock, and random games that must be corpus
+records), `test_protocol.py` (the view mirrors `fish-view-v1` exactly; strict parsing),
+`test_signin.py`, `test_lobby.py`, `test_game.py`, `test_hub.py`, `test_ws.py` (real
+WebSockets, a real database) and `test_end_to_end.py`: the real server on a real port, six
+scripted players signed in by cookie, matched by the solo queue, playing a whole game to its
+end, and the export reading it back as a corpus record that replays to the same end.

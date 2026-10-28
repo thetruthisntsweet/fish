@@ -156,7 +156,7 @@ class Running:
         while (job := await self.writes.get()) is not None:
             try:
                 await asyncio.to_thread(job)
-            except Exception as problem:
+            except Exception as problem:  # keep the game going; T3.2 recovers
                 print(f"game {self.game.game_id}: a write failed: {problem!r}", flush=True)
 
 
@@ -269,7 +269,7 @@ class Hub:
         start_ns = time.monotonic_ns()
         try:
             game_id = await asyncio.to_thread(self._write_start, formed, seed, started)
-        except Exception as problem:
+        except Exception as problem:  # tell the players; they can try again
             print(f"a game could not start: {problem!r}", flush=True)
             self.lobby.left_table(formed.seats)
             for player in formed.seats:
