@@ -31,6 +31,8 @@ services:
         value: Fish <signin@mail.thedefinitivesanjeevexperience.com>
       - key: FISH_RESEND_API_KEY # Resend key with sending access to that domain only
         sync: false
+      - key: FISH_CONSENT_VERSION # the staging site shows the pilot text (Consent Screen §4)
+        value: v1.0-pilot
       - key: FISH_COHORT_SEED # 64-bit; never changed once anyone has signed up (corpus.md §2.1)
         sync: false
 

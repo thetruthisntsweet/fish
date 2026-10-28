@@ -167,3 +167,20 @@ def server_commit() -> str:
         if value:
             return value
     return "dev"
+
+
+# ---------------------------------------------------------------- consent (T3.2)
+
+CONSENT_VERSION_VAR = "FISH_CONSENT_VERSION"
+DEFAULT_CONSENT_VERSION = "v1.0"
+_CONSENT_VERSION = re.compile(r"v[0-9]+\.[0-9]+(-pilot)?")
+
+
+def consent_version() -> str:
+    """The consent text this site shows and asks people to accept (Consent Screen §1, §4):
+    ``v1.0`` for the study, ``v1.0-pilot`` on the staging site. Everyone accepts the current
+    one before their next game."""
+    version = os.environ.get(CONSENT_VERSION_VAR, "").strip() or DEFAULT_CONSENT_VERSION
+    if not _CONSENT_VERSION.fullmatch(version):
+        raise ValueError(f"{CONSENT_VERSION_VAR} is like v1.0 or v1.0-pilot, not {version!r}")
+    return version

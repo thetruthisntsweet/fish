@@ -13,6 +13,10 @@ from ``signup_numbers``, and the held-out cohort drawn from it at once, before a
 server. Two first sign-ins from one address at the same moment make one player, not two: a
 transaction lock on the address puts them one after the other.
 
+The consent screen comes first (Consent Screen §2): a link asked for after pressing Continue
+carries the version of the text accepted, and using it records the acceptance
+(``fish_server.consent``), for a new player or one returning on a new device alike.
+
 The server's login may only read and insert (D15), so using a link and ending a session are
 rows of their own, and a primary key on each makes it happen at most once.
 
@@ -35,6 +39,7 @@ from sqlalchemy.dialects.postgresql import insert as upsert
 
 from fish_rules.cohort import in_cohort
 from fish_server import db
+from fish_server.consent import accept
 
 LINK_LIFETIME: Final = timedelta(minutes=15)
 SESSION_LIFETIME: Final = timedelta(days=30)
@@ -82,9 +87,15 @@ def new_token() -> str:
 
 
 def request_link(
-    conn: Connection, email: str, *, daily_limit: int, lifetime: timedelta = LINK_LIFETIME
+    conn: Connection,
+    email: str,
+    *,
+    daily_limit: int,
+    consent_version: str | None = None,
+    lifetime: timedelta = LINK_LIFETIME,
 ) -> str:
-    """A new link token for ``email`` (already normalized). Raises TooManyLinksError if the
+    """A new link token for ``email`` (already normalized), carrying the acceptance of text
+    ``consent_version`` made on the screen before it, if any. Raises TooManyLinksError if the
     address or the server has had its share of links."""
     now = func.now()
     recent = conn.execute(
@@ -105,7 +116,10 @@ def request_link(
     token = new_token()
     conn.execute(
         insert(db.sign_in_links).values(
-            token_hash=token_hash(token), email=email, expires_at=now + lifetime
+            token_hash=token_hash(token),
+            email=email,
+            expires_at=now + lifetime,
+            consent_version=consent_version,
         )
     )
     return token
@@ -113,14 +127,15 @@ def request_link(
 
 def use_link(conn: Connection, token: str, *, cohort_seed: int) -> uuid.UUID | None:
     """Use the link ``token``: the player it signs in, made a player now if the address is
-    new. None if there is no such link, it has expired, or it was used before."""
+    new, with the acceptance it carries recorded. None if there is no such link, it has
+    expired, or it was used before."""
     hashed = token_hash(token)
-    email = conn.execute(
-        select(db.sign_in_links.c.email)
+    link = conn.execute(
+        select(db.sign_in_links.c.email, db.sign_in_links.c.consent_version)
         .where(db.sign_in_links.c.token_hash == hashed)
         .where(db.sign_in_links.c.expires_at > func.now())
-    ).scalar_one_or_none()
-    if email is None:
+    ).one_or_none()
+    if link is None:
         return None
     used = conn.execute(
         upsert(db.sign_in_uses)
@@ -130,7 +145,10 @@ def use_link(conn: Connection, token: str, *, cohort_seed: int) -> uuid.UUID | N
     ).scalar_one_or_none()
     if used is None:
         return None
-    return player_for(conn, email, cohort_seed=cohort_seed)
+    player = player_for(conn, link.email, cohort_seed=cohort_seed)
+    if link.consent_version is not None:
+        accept(conn, player, link.consent_version)
+    return player
 
 
 def player_for(conn: Connection, email: str, *, cohort_seed: int) -> uuid.UUID:

@@ -702,3 +702,18 @@ Adding a field changes the record's shape, so the format takes a new name (D45),
 `fish-corpus-v1` is retired: no game was recorded in it, so nothing has to read it. It ships
 in fish-rules' next release. Alternative: leaving the flags out and representing consent only
 by membership (a released game could not show what its players had accepted).
+
+**D70 · 2026-10-28 · The acceptance travels with the sign-in link; only those who may play wait.**
+The consent screen comes before the email field (Consent Screen §2), so a new person accepts
+before they are a player. The version they accepted travels with their sign-in link and
+becomes a row of `consents` when the link is used: nothing about them is stored before they
+press Continue, and nothing at all if they never use the link. A signed-in player accepts a
+new version with `POST /consent`; the site shows one version, set by `FISH_CONSENT_VERSION`
+(`v1.0`, or `v1.0-pilot` on staging), and the server refuses an acceptance of any other or
+with a box unticked. Withdrawing is `POST /withdraw` with a JSON confirmation, or
+`python -m fish_server.withdraw` for a request by email; it is recorded once. The lobby lets in
+only a player who has accepted the current version and not withdrawn: a withdrawn player's
+new games would leave the corpus and take five other people's games with them. JSON bodies
+also keep other sites from submitting these forms for a signed-in player. Alternatives:
+recording the acceptance on Continue before the email (it would belong to nobody, or need a
+cookie before consent); letting a withdrawn player play on (the cost falls on others).

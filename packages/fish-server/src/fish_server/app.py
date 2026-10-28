@@ -26,14 +26,14 @@ from fish_server.games import load_player
 from fish_server.hub import Connection, Hub, error
 from fish_server.lobby import Player
 from fish_server.protocol import PROTOCOL_VERSION, ClientHello, parse_client_message, server_hello
-from fish_server.settings import server_commit
+from fish_server.settings import consent_version, server_commit
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Runs around the server's whole life: the hub of games while it runs; on shutdown, stop
     the games and close database connections."""
-    hub = Hub(get_engine, server_commit())
+    hub = Hub(get_engine, server_commit(), consent_version())
     app.state.hub = hub
     yield
     await hub.close()

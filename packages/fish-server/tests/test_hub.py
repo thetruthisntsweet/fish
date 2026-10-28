@@ -48,6 +48,9 @@ class Writes(Hub):
             raise RuntimeError("database down")
         self.done.append(("rows", len(actions) + len(log)))
 
+    def refusal(self, player: Player) -> str | None:
+        return None
+
     def write_ending(self, game: object, completion: str) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         self.done.append(("ending", completion))
 
