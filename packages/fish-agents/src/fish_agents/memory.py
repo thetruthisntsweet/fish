@@ -18,16 +18,22 @@ deduction (``fish_rules.deduce``). Like Layer 1 it keeps an unbroken run of even
 view's event is not the one after the last remembered (the seat missed a view), it starts a
 new run there.
 
+An agent with memory is a ``MemoryAgent``: it is given its seat's memory as well as its view,
+``act(view, memory, rng)``. ``Remembering(agent, setting)`` makes it an ordinary ``Agent``
+that keeps one ``Memory`` per seat it plays, and an ``Observer``, so whoever runs it can show
+it every view (``fish_agents.play.play_game`` does; the server's bots will, T3.5).
+
 This module needs only fish-rules, so the server can give its bots memory (T3.5).
 """
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Protocol
 
 from fish_rules.cards import Seat
 from fish_rules.corpus import BOT_MEMORY
 from fish_rules.deduce.solve import Deduction, deduce
 from fish_rules.events import Event
+from fish_rules.rng import SplitMix64
 from fish_rules.view import PlayerView
 
 
@@ -133,3 +139,38 @@ class Memory:
         if self._latest is None or self._latest[0] != key:
             self._latest = (key, deduce(view, self.events))
         return self._latest[1]
+
+
+class MemoryAgent(Protocol):
+    """A player that is given what it remembers as well as what it sees. ``act`` must return
+    one of ``view.legal``."""
+
+    def act(self, view: PlayerView, memory: Memory, rng: SplitMix64) -> int:
+        """The index of the action to take, given this seat's view, its memory (which has
+        already been shown ``view``) and a generator for any random choice."""
+        ...
+
+
+class Remembering:
+    """``agent`` with memory ``setting``: an ``Agent``, and an ``Observer`` to be shown every
+    view. One instance may play several seats; each seat has its own memory."""
+
+    def __init__(self, agent: MemoryAgent, setting: MemorySetting) -> None:
+        self.agent = agent
+        self.setting = setting
+        self.memories: dict[Seat, Memory] = {}
+
+    def memory(self, seat: Seat) -> Memory:
+        """``seat``'s memory, empty until the seat is shown a view."""
+        if seat not in self.memories:
+            self.memories[seat] = Memory(seat, self.setting)
+        return self.memories[seat]
+
+    def observe(self, view: PlayerView) -> None:
+        """Show ``view`` to its seat's memory."""
+        self.memory(view.seat).observe(view)
+
+    def act(self, view: PlayerView, rng: SplitMix64) -> int:
+        """Remember ``view``, then let the agent choose with its seat's memory."""
+        self.observe(view)
+        return self.agent.act(view, self.memory(view.seat), rng)
