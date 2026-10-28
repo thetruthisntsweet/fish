@@ -151,3 +151,19 @@ def daily_link_limit() -> int:
     if not raw.isdecimal():
         raise ValueError(f"{DAILY_LINKS_VAR} is a whole number")
     return int(raw)
+
+
+# ---------------------------------------------------------------- games (T3.1)
+
+COMMIT_VAR = "FISH_SERVER_COMMIT"
+RENDER_COMMIT_VAR = "RENDER_GIT_COMMIT"
+
+
+def server_commit() -> str:
+    """The commit the server runs, recorded with every game (docs/corpus.md §3):
+    FISH_SERVER_COMMIT, else the commit Render deployed (RENDER_GIT_COMMIT), else ``dev``."""
+    for var in (COMMIT_VAR, RENDER_COMMIT_VAR):
+        value = os.environ.get(var, "").strip()
+        if value:
+            return value
+    return "dev"
