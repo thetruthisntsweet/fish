@@ -6,7 +6,7 @@ Cookies). Then:
 
     uv run python scripts/try_server.py https://<your-staging-host> --session <cookie value>
 
-It checks ``/health`` reports protocol 2, ``/auth/me`` says signed in and allowed to play
+It checks ``/health`` reports protocol 3, ``/auth/me`` says signed in and allowed to play
 (the study information accepted, not withdrawn), and over ``/ws`` that the server says
 hello, shows the lobby, makes a room and leaves it. Exits 0 and prints PASS, or 1 with what
 failed. It never joins the solo queue, so it cannot start a game.
@@ -22,7 +22,7 @@ from typing import cast
 
 import websockets
 
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
 
 
 def get(url: str, session: str | None = None) -> tuple[int, dict[str, object]]:

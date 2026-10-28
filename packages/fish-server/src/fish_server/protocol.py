@@ -13,13 +13,15 @@ number, not a string or a boolean.
 matchmaking) or ``create_room`` and ``join_room`` (a group), and ``leave``. At a table,
 ``press`` (a Call press naming a set, with the number of the last event seen, R.8.3, R.8.7)
 and ``act`` (a seat action as its ``fish-action-index-v1`` index, read from the player's own
-seat). ``pong`` answers every ``ping``.
+seat). ``pong`` answers every ``ping``. After a game, ``note_answer`` answers the
+note-taking question.
 
 **Server to client.** ``server_hello``. ``lobby``: whether this player is waiting, and for
 what. ``update``: after every change at the table, the seat's view (``fish-view-v1``, D33)
 with what the website lets the seat do now and the running timers. ``rejected``: an input
-from this player was not applied, and why. ``ping``, for round-trip times (R.8.7). ``error``:
-a message the server cannot act on.
+from this player was not applied, and why. ``ping``, for round-trip times (R.8.7).
+``note_question``: once the rules end a game, the one question asked of each person still in
+it (Research Plan §4; docs/corpus.md §4.2). ``error``: a message the server cannot act on.
 
 The view's ``legal`` list is the engine's, the environment's mask (D33). On the website a call
 starts with a press and nobody passes, so a client offers exactly ``update.actions`` and
@@ -37,7 +39,7 @@ from fish_rules.version import RULESET_VERSION
 from fish_rules.view import view_to_data
 from fish_server.table import Table
 
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
 """Version of the message format. Bumped whenever a message changes shape."""
 
 ROOM_CODE_ALPHABET: Final = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -116,6 +118,13 @@ class Act(Message):
 
     type: Literal["act"]
     index: ActionIndex
+
+
+class NoteAnswer(Message):
+    """The answer to ``note_question``: ``declined`` for preferring not to say."""
+
+    type: Literal["note_answer"]
+    answer: Literal["yes", "no", "declined"]
 
 
 class Pong(Message):
@@ -273,11 +282,27 @@ class Ping(Message):
     nonce: Count
 
 
+NOTE_QUESTION_VERSION: Final = "v1"
+NOTE_QUESTION: Final = "Did you take notes during this game?"
+"""The question asked after every game (Research Plan §4, Consent Screen §1), word for word.
+A change to the words needs a new version, which every answer records."""
+
+
+class NoteQuestion(Message):
+    """Asked of each person still in a game once the rules end it: answer with
+    ``note_answer``. Unanswered if the person leaves first, or plays on without answering."""
+
+    type: Literal["note_question"]
+    version: str
+    text: str
+
+
 class ServerError(Message):
     """A message the server cannot act on. ``protocol_version``: the client was built for
     another version and must reload. ``bad_message``: not a message this protocol has.
     ``not_signed_in``: the connection has no session. ``not_now``: a real message that does
-    not fit this moment (joining a queue while seated, pressing with no table)."""
+    not fit this moment (joining a queue while seated, pressing with no table, answering no
+    question)."""
 
     type: Literal["error"]
     code: Literal["protocol_version", "bad_message", "not_signed_in", "not_now"]
@@ -293,6 +318,7 @@ CLIENT_MESSAGES: tuple[type[Message], ...] = (
     Press,
     Act,
     Pong,
+    NoteAnswer,
 )
 """Messages a client sends to the server."""
 
@@ -302,12 +328,13 @@ SERVER_MESSAGES: tuple[type[Message], ...] = (
     Update,
     Rejected,
     Ping,
+    NoteQuestion,
     ServerError,
 )
 """Messages the server sends to a client."""
 
 type ClientMessage = Annotated[
-    ClientHello | JoinQueue | CreateRoom | JoinRoom | Leave | Press | Act | Pong,
+    ClientHello | JoinQueue | CreateRoom | JoinRoom | Leave | Press | Act | Pong | NoteAnswer,
     Field(discriminator="type"),
 ]
 
@@ -318,6 +345,11 @@ def parse_client_message(raw: str | bytes) -> ClientMessage:
     """The client message ``raw`` holds. Raises ``pydantic.ValidationError`` (a ValueError)
     if it is not exactly one."""
     return _CLIENT.validate_json(raw)
+
+
+def note_question() -> NoteQuestion:
+    """The question asked after every game."""
+    return NoteQuestion(type="note_question", version=NOTE_QUESTION_VERSION, text=NOTE_QUESTION)
 
 
 def server_hello() -> ServerHello:

@@ -92,7 +92,7 @@ outcome itself (D23):
 ## 5. Messages
 
 Over `/ws`, which needs the session cookie. JSON, every message with a `type`, unknown fields
-refused ([`protocol.py`](../packages/fish-server/src/fish_server/protocol.py), protocol 2).
+refused ([`protocol.py`](../packages/fish-server/src/fish_server/protocol.py), protocol 3).
 
 | Client | | Server | |
 |---|---|---|---|
@@ -101,6 +101,7 @@ refused ([`protocol.py`](../packages/fish-server/src/fish_server/protocol.py), p
 | `press` | `set_id` and `seen` | `update` | the seat's `fish-view-v1` view, `actions`, `pressable`, `timers`, `bots` |
 | `act` | an action index (`fish-action-index-v1`, from the player's seat) | `rejected` | `illegal`, `stale` or `malformed`; `discarded` in a window |
 | `pong` | the `ping`'s nonce | `ping` | every 5 s (R.8.7) |
+| `note_answer` | `yes`, `no` or `declined` | `note_question` | after a game the rules ended, to each person still in it: "Did you take notes during this game?" (`v1`) |
 | | | `error` | `protocol_version`, `bad_message`, `not_signed_in`, `not_now` |
 
 The view's own `legal` list is the environment's mask; a website client offers exactly

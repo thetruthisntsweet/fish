@@ -5,16 +5,18 @@ import { expect, test } from "vitest";
 import type { Act } from "./generated/Act.ts";
 import type { ClientHello } from "./generated/ClientHello.ts";
 import type { Lobby } from "./generated/Lobby.ts";
+import type { NoteAnswer } from "./generated/NoteAnswer.ts";
+import type { NoteQuestion } from "./generated/NoteQuestion.ts";
 import type { Press } from "./generated/Press.ts";
 import type { Rejected } from "./generated/Rejected.ts";
 import type { ServerHello } from "./generated/ServerHello.ts";
 import type { Update } from "./generated/Update.ts";
 
 test("generated message types match the server's messages", () => {
-  const hello: ClientHello = { type: "client_hello", protocol_version: 2 };
+  const hello: ClientHello = { type: "client_hello", protocol_version: 3 };
   const reply: ServerHello = {
     type: "server_hello",
-    protocol_version: 2,
+    protocol_version: 3,
     ruleset_version: "1.1",
     rng_algorithm: "splitmix64-sha256-v1",
   };
@@ -28,7 +30,14 @@ test("generated message types match the server's messages", () => {
     "press",
     "act",
   ]);
+  const question: NoteQuestion = {
+    type: "note_question",
+    version: "v1",
+    text: "Did you take notes during this game?",
+  };
+  const answer: NoteAnswer = { type: "note_answer", answer: "no" };
   expect([lobby.type, rejected.type]).toEqual(["lobby", "rejected"]);
+  expect([question.type, answer.type]).toEqual(["note_question", "note_answer"]);
 });
 
 test("an update carries the seat's fish-view-v1 view", () => {

@@ -21,6 +21,11 @@ the new rows to the game's writer, which writes them in order from a thread so t
 never blocks the event loop. When the rules end the game, its ending is written, after a
 check that its stored log has no gap, and its players return to the lobby.
 
+**After a game** the rules ended, each person still in it and connected is asked the
+note-taking question (``note_question``); their ``note_answer`` is written for their seat. A
+person who leaves, or starts another game, without answering is ``unanswered``
+(docs/corpus.md §4.2). Abandoned games ask nothing: they never enter the corpus.
+
 **When a game cannot go on** (T3.2; docs/corpus.md §3), it ends ``abandoned``, and its
 players are told why:
 
@@ -45,6 +50,7 @@ from datetime import UTC, datetime
 from typing import Final
 
 from sqlalchemy import Engine, insert
+from sqlalchemy.dialects.postgresql import insert as upsert
 
 from fish_server import db
 from fish_server.consent import standing
@@ -64,15 +70,18 @@ from fish_server.game import (
 from fish_server.games import abandon_quiet, new_seed, start_game, write_ending
 from fish_server.lobby import Formed, Lobby, NotNowError, Player
 from fish_server.protocol import (
+    NOTE_QUESTION_VERSION,
     Act,
     CreateRoom,
     JoinQueue,
     JoinRoom,
     Leave,
     Message,
+    NoteAnswer,
     Pong,
     Press,
     ServerError,
+    note_question,
     parse_client_message,
 )
 from fish_server.protocol import Lobby as LobbyMessage
@@ -203,11 +212,17 @@ class Running:
             self.writes.put_nowait(lambda: hub.write_rows(actions, log))
 
     def _end(self, completion: str) -> None:
-        """Queue the ending, after every row, and send the players back to the lobby."""
+        """Queue the ending, after every row; once the rules ended the game, ask each person
+        still in it the note-taking question; and send the players back to the lobby."""
         game, hub = self.game, self.hub
         played = len(game.table.entries)
         if not self.lost:  # with rows lost the game stays without one, for the sweep
             self.writes.put_nowait(lambda: hub.write_ending(game, completion, played))
+        if completion != "abandoned" and not self.lost:
+            for player in self.players:
+                seat = game.seat_of(player.id)
+                if seat is not None and player.id in hub.connections:
+                    hub.ask(player, game.game_id, seat)
         for player in self.players:
             hub.release(self, player)
 
@@ -259,6 +274,7 @@ class Hub:
         self.connections: dict[uuid.UUID, Connection] = {}
         self.games: dict[uuid.UUID, Running] = {}  # player -> the game they are in
         self.running: set[Running] = set()  # every game in progress here, bots' too
+        self.notes: dict[uuid.UUID, tuple[uuid.UUID, int]] = {}  # player -> game, seat asked
         self.tasks: set[asyncio.Task[None]] = set()  # the games' tasks
         self.sweep_s = sweep_s
         self.sweeper: asyncio.Task[None] | None = None
@@ -290,6 +306,7 @@ class Hub:
         if self.connections.get(player.id) is not connection:
             return
         del self.connections[player.id]
+        self.notes.pop(player.id, None)  # left without answering: unanswered
         self._tell(self.lobby.leave(player))
         running = self.games.get(player.id)
         if running is not None and (seat := running.game.seat_of(player.id)) is not None:
@@ -321,6 +338,8 @@ class Hub:
                     running.inputs.put_nowait(Ponged(seat, message.nonce))
         elif isinstance(message, JoinQueue | CreateRoom | JoinRoom | Leave):
             await self._lobby(connection, message)
+        elif isinstance(message, NoteAnswer):
+            await self._answer(connection, message.answer)
         else:  # a second hello
             connection.send(error("not_now", "Hello again: nothing to do."))
 
@@ -354,6 +373,25 @@ class Hub:
         else:
             await self._start(formed)
 
+    # ------------------------------------------------------------ the note-taking question
+
+    def ask(self, player: Player, game: uuid.UUID, seat: int) -> None:
+        """Ask ``player``, who held ``seat`` to the end of ``game``, the note-taking question
+        (docs/corpus.md §4.2)."""
+        self.notes[player.id] = (game, seat)
+        if (connection := self.connections.get(player.id)) is not None:
+            connection.send(note_question())
+
+    async def _answer(self, connection: Connection, answer: str) -> None:
+        asked = self.notes.pop(connection.player.id, None)
+        if asked is None:
+            connection.send(error("not_now", "There is no question to answer."))
+            return
+        try:
+            await asyncio.to_thread(self.write_note, *asked, answer)
+        except Exception as problem:  # the answer is lost: it counts as unanswered
+            print(f"game {asked[0]}: a note answer could not be written: {problem!r}", flush=True)
+
     def _tell(self, players: tuple[Player, ...]) -> None:
         for player in players:
             connection = self.connections.get(player.id)
@@ -375,6 +413,8 @@ class Hub:
                     connection.send(error("not_now", "The game could not start. Try again."))
                     connection.send(lobby_message(self.lobby, player))
             return
+        for player in formed.seats:  # playing on without answering: unanswered
+            self.notes.pop(player.id, None)
         game = Game(game_id, seed, [p.id for p in formed.seats])
         running = Running(self, game, formed.seats, start_ns)
         for player in formed.seats:
@@ -426,6 +466,13 @@ class Hub:
             written = write_ending(conn, game.game_id, completion, played)
         if written != completion:
             print(f"game {game.game_id}: its log has a gap, so it is abandoned", flush=True)
+
+    def write_note(self, game: uuid.UUID, seat: int, answer: str) -> None:
+        """Write one seat's note answer, with the question's version; once only."""
+        row = {"game_id": game, "seat": seat, "answer": answer,
+               "question_version": NOTE_QUESTION_VERSION}  # fmt: skip
+        with self.engine().begin() as conn:
+            conn.execute(upsert(db.note_answers).values(**row).on_conflict_do_nothing())
 
     def sweep(self) -> list[uuid.UUID]:
         """Mark abandoned the games a crash or a restart stopped (``games.abandon_quiet``)."""

@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "A message the server cannot act on. ``protocol_version``: the client was built for\nanother version and must reload. ``bad_message``: not a message this protocol has.\n``not_signed_in``: the connection has no session. ``not_now``: a real message that does\nnot fit this moment (joining a queue while seated, pressing with no table).",
+  "description": "A message the server cannot act on. ``protocol_version``: the client was built for\nanother version and must reload. ``bad_message``: not a message this protocol has.\n``not_signed_in``: the connection has no session. ``not_now``: a real message that does\nnot fit this moment (joining a queue while seated, pressing with no table, answering no\nquestion).",
   "properties": {
     "code": {
       "enum": [

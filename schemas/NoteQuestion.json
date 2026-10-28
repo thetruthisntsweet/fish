@@ -1,0 +1,23 @@
+{
+  "additionalProperties": false,
+  "description": "Asked of each person still in a game once the rules end it: answer with\n``note_answer``. Unanswered if the person leaves first, or plays on without answering.",
+  "properties": {
+    "text": {
+      "type": "string"
+    },
+    "type": {
+      "const": "note_question",
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "version",
+    "text"
+  ],
+  "title": "NoteQuestion",
+  "type": "object"
+}

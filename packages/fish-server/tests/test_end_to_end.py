@@ -1,9 +1,9 @@
 """A whole game end to end (T3.1): the real server on a real port, six scripted players
 connecting over real WebSockets with their session cookies, matched by the solo queue, and
-playing until the rules end the game, answering every ping. Then the corpus export reads the
-game back from the database as a ``fish-corpus-v2`` record that replays to the same end. Takes
-about ten seconds of real time, mostly declaration windows. Skipped without
-FISH_TEST_DATABASE_URL."""
+playing until the rules end the game, answering every ping and then the note-taking
+question. Then the corpus export reads the game back from the database as a ``fish-
+corpus-v2`` record that replays to the same end. Takes about ten seconds of real time,
+mostly declaration windows. Skipped without FISH_TEST_DATABASE_URL."""
 
 import asyncio
 import json
@@ -88,7 +88,9 @@ def signed_in(app: Engine, count: int) -> list[tuple[uuid.UUID, str]]:
 
 
 async def player(port: int, token: str, rng: random.Random) -> dict[str, Any]:
-    """Play until the game is over; returns the last view."""
+    """Play until the game is over, answer the note-taking question; returns the last view,
+    with the answer given as ``note``."""
+    over: dict[str, Any] | None = None
     url = f"ws://127.0.0.1:{port}/ws"
     async with websockets.connect(url, additional_headers={"Cookie": f"{COOKIE}={token}"}) as ws:
         await ws.send(json.dumps({"type": "client_hello", "protocol_version": PROTOCOL_VERSION}))
@@ -98,10 +100,15 @@ async def player(port: int, token: str, rng: random.Random) -> dict[str, Any]:
             match message["type"]:
                 case "ping":
                     await ws.send(json.dumps({"type": "pong", "nonce": message["nonce"]}))
+                case "note_question":  # after the game (docs/corpus.md §4.2)
+                    answer = rng.choice(["no", "declined"])
+                    await ws.send(json.dumps({"type": "note_answer", "answer": answer}))
+                    assert over is not None
+                    return over | {"note": answer}
                 case "update":
                     view = message["view"]
                     if view["phase"] == "over":
-                        return view
+                        over = view
                     seen = None if view["last_event"] is None else view["last_event"]["number"]
                     mine = view["phase"] == "turn" and view["current"] == view["seat"]
                     if message["pressable"] and (
@@ -139,6 +146,13 @@ def test_a_whole_game_from_sign_in_to_the_corpus(app: Engine, port: int) -> None
         assert time.monotonic() < deadline, "the ending was not written"
         time.sleep(0.1)
 
+    while True:  # the answers are written as they come
+        with app.connect() as conn:
+            if conn.execute(select(func.count()).select_from(db.note_answers)).scalar() == 6:
+                break
+        assert time.monotonic() < deadline, "the note answers were not written"
+        time.sleep(0.1)
+
     with app.connect() as conn:
         records, summary = export(conn)
         actions = conn.execute(select(func.count()).select_from(db.actions)).scalar_one()
@@ -152,6 +166,9 @@ def test_a_whole_game_from_sign_in_to_the_corpus(app: Engine, port: int) -> None
     assert flags.solo
     assert not flags.bot_seat  # everyone acted in time
     assert {row.type for row in game.log} >= {"connection", "rtt"}
+    notes = {v["seat"]: v["note"] for v in views}
+    assert [s.note for s in game.seats] == [notes[seat] for seat in range(6)]
+    assert flags.note_missing == ("declined" in notes.values())
     times = [t for t in response_times(game) if t is not None]
     assert times
     assert all(t > -1_000_000 for t in times)  # a person's response times, from the log
