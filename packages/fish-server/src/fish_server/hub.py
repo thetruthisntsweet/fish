@@ -2,8 +2,7 @@
 
 Everything runs on the server's one event loop, in one process: the lobby (who waits where),
 every game's table, and every connection. Game state lives in memory and is written to the
-database as it happens; a restart abandons games in progress (their logs stay, without an
-ending; T3.2 marks them abandoned).
+database as it happens.
 
 **Connections.** ``/ws`` accepts a connection only with a valid session cookie, then expects
 ``client_hello`` with this server's protocol version. A player has one connection: a new one
@@ -19,17 +18,31 @@ stamps each with the server clock as it takes it, so the table applies them in t
 (R.8.7, R.8.5), and it sleeps until the next timer, bot action or ping is due. After every
 step it sends what ``fish_server.game.Game`` says to send, stamps the actions sent, and gives
 the new rows to the game's writer, which writes them in order from a thread so the database
-never blocks the event loop. When the rules end the game, its ending is written and its
-players return to the lobby.
+never blocks the event loop. When the rules end the game, its ending is written, after a
+check that its stored log has no gap, and its players return to the lobby.
+
+**When a game cannot go on** (T3.2; docs/corpus.md §3), it ends ``abandoned``, and its
+players are told why:
+
+- *The server shuts down* (a deploy, a restart): every game is stopped, its rows written,
+  and its ending written as ``abandoned``.
+- *A write keeps failing*: it is retried for about a minute (``RETRY_S``), then the game is
+  stopped and nothing more of it is written, since a log with a gap cannot replay it.
+- *The server crashed*, or the database was down when it stopped: the game has no ending.
+  Every minute, and at start, the server marks ``abandoned`` each game without an ending that
+  is not running here and has written nothing for five minutes (``games.abandon_quiet``). A
+  live game writes every few seconds, so during a deploy the old server's games, still being
+  played, are never caught.
 """
 
 import asyncio
 import contextlib
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Final
 
 from sqlalchemy import Engine, insert
 
@@ -48,7 +61,7 @@ from fish_server.game import (
     Release,
     Send,
 )
-from fish_server.games import new_seed, start_game
+from fish_server.games import abandon_quiet, new_seed, start_game, write_ending
 from fish_server.lobby import Formed, Lobby, NotNowError, Player
 from fish_server.protocol import (
     Act,
@@ -101,22 +114,48 @@ def lobby_message(lobby: Lobby, player: Player) -> LobbyMessage:
     return LobbyMessage(type="lobby", **data)  # pyright: ignore[reportArgumentType]
 
 
+SWEEP_S: Final = 60.0
+"""How often the server looks for games a crash or a restart left without an ending."""
+
+RETRY_S: Final = (0.5, 1, 2, 4, 8, 16, 30)
+"""The waits between attempts at a write that fails: about a minute in all, enough for the
+database to come back from a restart or a failover, before the game is stopped."""
+
+
 class Running:
     """A game in progress: its ``Game``, its input queue, its task and its writer."""
 
-    def __init__(self, hub: Hub, game: Game, players: tuple[Player, ...], start_ns: int) -> None:
+    def __init__(
+        self,
+        hub: Hub,
+        game: Game,
+        players: tuple[Player, ...],
+        start_ns: int,
+        retry_s: tuple[float, ...] = RETRY_S,
+    ) -> None:
         self.hub = hub
         self.game = game
         self.players = players
         self.start_ns = start_ns
-        self.inputs: asyncio.Queue[Event] = asyncio.Queue()
+        self.retry_s = retry_s
+        self.inputs: asyncio.Queue[Event | None] = asyncio.Queue()
         self.writes: asyncio.Queue[Callable[[], None] | None] = asyncio.Queue()
+        self.stopped: str | None = None
+        """Why the game was stopped before the rules ended it, once it has been."""
+        self.lost = False
+        """A write failed for good: the database holds only part of the game."""
         for seat, player in enumerate(players):  # first, before anything they send
             if player.id in hub.connections:
                 self.inputs.put_nowait(Connected(seat))
 
     def now(self) -> int:
         return (time.monotonic_ns() - self.start_ns) // 1000
+
+    def stop(self, why: str) -> None:
+        """Stop the game before the rules end it, telling its players ``why``."""
+        if self.stopped is None:
+            self.stopped = why
+            self.inputs.put_nowait(None)
 
     async def run(self) -> None:
         writer = asyncio.create_task(self._write())
@@ -128,14 +167,18 @@ class Running:
                     event = await asyncio.wait_for(self.inputs.get(), timeout)
                 except TimeoutError:
                     self._do(self.game.wake(self.now()))
-                else:
-                    self._do(self.game.handle(event, self.now()))
+                    continue
+                if event is None:
+                    break
+                self._do(self.game.handle(event, self.now()))
         finally:
+            if not self.game.ended:
+                self._abandon()
             self.writes.put_nowait(None)
             await writer
 
     def _do(self, outs: list[Send | Release | End]) -> None:
-        game, hub = self.game, self.hub
+        hub = self.hub
         ending = None
         for out in outs:
             match out:
@@ -147,28 +190,67 @@ class Running:
                     hub.release(self, self.players[seat])
                 case _:  # End
                     ending = out.completion
+        self._save()
+        if ending is not None:
+            self._end(ending)
+
+    def _save(self) -> None:
+        """Stamp what was just sent, and queue the rows not yet written."""
+        game, hub = self.game, self.hub
         game.table.sent(self.now())  # every update is in its queue: the actions are sent
         actions, log = game.rows()
-        if actions or log:
+        if (actions or log) and not self.lost:
             self.writes.put_nowait(lambda: hub.write_rows(actions, log))
-        if ending is not None:
-            self.writes.put_nowait(lambda: hub.write_ending(game, ending))
-            for player in self.players:
-                hub.release(self, player)
+
+    def _end(self, completion: str) -> None:
+        """Queue the ending, after every row, and send the players back to the lobby."""
+        game, hub = self.game, self.hub
+        played = len(game.table.entries)
+        if not self.lost:  # with rows lost the game stays without one, for the sweep
+            self.writes.put_nowait(lambda: hub.write_ending(game, completion, played))
+        for player in self.players:
+            hub.release(self, player)
+
+    def _abandon(self) -> None:
+        """The game stops before the rules end it (docs/corpus.md §3): write what it has,
+        end it ``abandoned``, and tell everyone still at the table why."""
+        why = self.stopped or "The game had to stop."
+        for player in self.players:
+            if self.hub.games.get(player.id) is self:
+                connection = self.hub.connections.get(player.id)
+                if connection is not None:
+                    connection.send(error("not_now", why))
+        self._save()
+        self._end("abandoned")
 
     async def _write(self) -> None:
+        """Write each job in order; retry a failing one, and if it never succeeds, stop the
+        game and write nothing more, since a log with a gap could not replay it."""
         while (job := await self.writes.get()) is not None:
-            try:
-                await asyncio.to_thread(job)
-            except Exception as problem:  # keep the game going; T3.2 recovers
-                print(f"game {self.game.game_id}: a write failed: {problem!r}", flush=True)
+            if self.lost:
+                continue
+            for wait in (*self.retry_s, None):
+                try:
+                    await asyncio.to_thread(job)
+                    break
+                except Exception as problem:  # the database is down, or refused a row
+                    print(f"game {self.game.game_id}: a write failed: {problem!r}", flush=True)
+                    if wait is None:
+                        self.lost = True
+                        self.stop("The game had to stop: its moves could not be saved.")
+                    else:
+                        await asyncio.sleep(wait)
 
 
 class Hub:
     """The lobby, the connections and the games in progress."""
 
     def __init__(
-        self, engine: Callable[[], Engine], server_commit: str, consent_version: str = "v1.0"
+        self,
+        engine: Callable[[], Engine],
+        server_commit: str,
+        consent_version: str = "v1.0",
+        sweep_s: float = SWEEP_S,
     ) -> None:
         self.engine = engine
         self.server_commit = server_commit
@@ -176,7 +258,11 @@ class Hub:
         self.lobby = Lobby()
         self.connections: dict[uuid.UUID, Connection] = {}
         self.games: dict[uuid.UUID, Running] = {}  # player -> the game they are in
-        self.tasks: set[asyncio.Task[None]] = set()
+        self.running: set[Running] = set()  # every game in progress here, bots' too
+        self.tasks: set[asyncio.Task[None]] = set()  # the games' tasks
+        self.sweep_s = sweep_s
+        self.sweeper: asyncio.Task[None] | None = None
+        self.closing = asyncio.Event()
 
     # ------------------------------------------------------------ connections
 
@@ -293,9 +379,18 @@ class Hub:
         running = Running(self, game, formed.seats, start_ns)
         for player in formed.seats:
             self.games[player.id] = running
-        task = asyncio.create_task(running.run())
+        self.running.add(running)
+        self._spawn(running.run(), lambda: self.running.discard(running))
+
+    def _spawn(self, work: Coroutine[None, None, None], done: Callable[[], None]) -> None:
+        task = asyncio.create_task(work)
         self.tasks.add(task)
-        task.add_done_callback(self.tasks.discard)
+
+        def finished(task: asyncio.Task[None]) -> None:
+            self.tasks.discard(task)
+            done()
+
+        task.add_done_callback(finished)
 
     def release(self, running: Running, player: Player) -> None:
         """``player`` is no longer at ``running``'s table: free them for the lobby."""
@@ -326,15 +421,44 @@ class Hub:
             if log:
                 conn.execute(insert(db.server_log), log)
 
-    def write_ending(self, game: Game, completion: str) -> None:
+    def write_ending(self, game: Game, completion: str, played: int) -> None:
         with self.engine().begin() as conn:
-            ending = {"game_id": game.game_id, "completion": completion}
-            conn.execute(insert(db.game_endings).values(**ending))
+            written = write_ending(conn, game.game_id, completion, played)
+        if written != completion:
+            print(f"game {game.game_id}: its log has a gap, so it is abandoned", flush=True)
 
-    async def close(self) -> None:
-        """Stop every game task (the server is shutting down)."""
-        for task in list(self.tasks):
+    def sweep(self) -> list[uuid.UUID]:
+        """Mark abandoned the games a crash or a restart stopped (``games.abandon_quiet``)."""
+        here = [running.game.game_id for running in self.running]
+        with self.engine().begin() as conn:
+            return abandon_quiet(conn, running=here)
+
+    async def _sweeping(self) -> None:
+        while not self.closing.is_set():
+            try:
+                for game in await asyncio.to_thread(self.sweep):
+                    print(f"game {game}: stopped without an ending; now abandoned", flush=True)
+            except Exception as problem:  # the database may be down; try next time
+                print(f"the sweep for stopped games failed: {problem!r}", flush=True)
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self.closing.wait(), self.sweep_s)
+
+    def start(self) -> None:
+        """Start the sweep for games stopped without an ending, now and every ``sweep_s``."""
+        self.sweeper = asyncio.create_task(self._sweeping())
+
+    async def close(self, grace_s: float = 10) -> None:
+        """The server is shutting down: stop every game, which ends it ``abandoned`` and
+        writes it out, wait up to ``grace_s`` for that, then cancel whatever is left."""
+        self.closing.set()  # the sweep finishes what it is doing, then stops
+        for running in list(self.running):
+            running.stop("The server is restarting, so this game has ended.")
+        waiting = [*self.tasks, *([self.sweeper] if self.sweeper else [])]
+        if waiting:
+            await asyncio.wait(waiting, timeout=grace_s)
+        tasks = [task for task in waiting if not task.done()]
+        for task in tasks:
             task.cancel()
-        for task in list(self.tasks):
+        for task in tasks:
             with contextlib.suppress(asyncio.CancelledError):
                 await task

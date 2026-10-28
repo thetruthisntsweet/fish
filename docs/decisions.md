@@ -717,3 +717,21 @@ new games would leave the corpus and take five other people's games with them. J
 also keep other sites from submitting these forms for a signed-in player. Alternatives:
 recording the acceptance on Continue before the email (it would belong to nobody, or need a
 cookie before consent); letting a withdrawn player play on (the cost falls on others).
+
+**D71 · 2026-10-28 · Games that cannot go on end `abandoned`, and a log never has a gap.**
+A game in the server's memory ends early in three ways, each recorded as `abandoned`
+(corpus.md §3) and told to its players. On shutdown (a deploy, a restart) the server stops
+every game, writes its rows and its ending. A write that fails is retried for about a minute,
+enough for a database restart or failover; if it never succeeds the game is stopped and
+nothing more of it is written, because a later row after a missing one would make a log that
+cannot replay. A crash leaves a game with no ending, so at start and every minute the server
+marks `abandoned` each game with no ending, not running in it, that has written nothing for
+five minutes: a live game writes a round trip per person every 5 seconds and its bots act
+every few seconds, so during a deploy, when the old server still runs its games, none of them
+is caught. Before any ending is written the stored actions are counted and their numbers
+checked; a game with a gap ends `abandoned`, since the export would otherwise stop on it.
+Alternatives: marking every game without an ending at start (it would abandon the old
+server's live games during a zero-downtime deploy); recording which process runs each game
+(a column on an append-only table for something a quiet-time rule settles); buffering rows in
+memory without limit while the database is down (a crash would lose them, and the game would
+go on unrecorded).

@@ -33,10 +33,11 @@ class Recorder:
 class Writes(Hub):
     """A hub whose database writes are recorded instead of made."""
 
-    def __init__(self, *, fail: bool = False) -> None:
+    def __init__(self, *, fail: bool = False, failures: int = 0) -> None:
         super().__init__(lambda: None, "test")  # pyright: ignore[reportArgumentType]
         self.done: list[tuple[str, object]] = []
         self.fail = fail
+        self.failures = failures  # how many writes of rows fail before they work
 
     def _write_start(self, formed: Formed, seed: int, started: object) -> uuid.UUID:  # pyright: ignore[reportIncompatibleMethodOverride]
         if self.fail:
@@ -44,20 +45,46 @@ class Writes(Hub):
         return uuid.uuid4()
 
     def write_rows(self, actions: list[dict[str, object]], log: list[dict[str, object]]) -> None:
-        if self.fail:
+        if self.fail or self.failures:
+            self.failures = max(0, self.failures - 1)
             raise RuntimeError("database down")
         self.done.append(("rows", len(actions) + len(log)))
 
     def refusal(self, player: Player) -> str | None:
         return None
 
-    def write_ending(self, game: object, completion: str) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def write_ending(self, game: object, completion: str, played: int) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         self.done.append(("ending", completion))
 
 
 class Table:
+    entries: tuple[()] = ()
+
     def sent(self, now: int) -> int:
         return 0
+
+
+class Forever:
+    """A game the rules never end: it waits for input that never changes anything."""
+
+    def __init__(self) -> None:
+        self.game_id = uuid.uuid4()
+        self.table = Table()
+        self.ended = False
+        self.given = False
+
+    def seat_of(self, player: uuid.UUID) -> int | None:
+        return 0
+
+    def next_wake(self) -> int | None:
+        return None
+
+    def handle(self, event: object, now: int) -> list[object]:
+        return []
+
+    def rows(self) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+        first, self.given = not self.given, True
+        return ([{"seq": 0}], []) if first else ([], [])
 
 
 class OneStep:
@@ -132,17 +159,40 @@ def test_a_game_that_ends_is_written_and_its_players_return_to_the_lobby() -> No
     asyncio.run(scenario())
 
 
-def test_a_failed_write_is_reported_and_the_game_goes_on(
+def test_a_write_that_fails_is_tried_again(capsys: pytest.CaptureFixture[str]) -> None:
+    async def scenario() -> None:
+        hub = Writes(failures=2)
+        running = Running(hub, OneStep(), players(6), 0, retry_s=(0, 0, 0))  # pyright: ignore[reportArgumentType]
+        running.inputs.put_nowait(Acted(0, 0))
+        await running.run()
+        assert hub.done == [("rows", 1), ("ending", "finished")]
+        assert not running.lost
+
+    asyncio.run(scenario())
+    assert capsys.readouterr().out.count("a write failed") == 2
+
+
+def test_a_write_that_keeps_failing_stops_the_game_and_writes_nothing_more(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     async def scenario() -> None:
-        hub = Writes(fail=True)
-        running = Running(hub, OneStep(), players(6), 0)  # pyright: ignore[reportArgumentType]
+        hub, six = Writes(fail=True), players(6)
+        conns = [attach(hub, p) for p in six[:1]]
+        running = Running(hub, Forever(), six, 0, retry_s=(0,))  # pyright: ignore[reportArgumentType]
+        for p in six:
+            hub.games[p.id] = running
         running.inputs.put_nowait(Acted(0, 0))
         await running.run()
+        assert running.lost
+        assert running.stopped == "The game had to stop: its moves could not be saved."
+        assert hub.done == []  # no ending: the sweep marks it abandoned later
+        assert hub.games == {}
+        await drain(*(c for c, _ in conns))
+        sent = conns[0][1].sent
+        assert {"type": "error", "code": "not_now", "message": running.stopped} in sent
 
     asyncio.run(scenario())
-    assert "a write failed" in capsys.readouterr().out
+    assert capsys.readouterr().out.count("a write failed") == 2
 
 
 def test_a_game_that_cannot_start_sends_its_players_back(
@@ -212,16 +262,81 @@ def test_a_released_player_is_shown_the_lobby() -> None:
     asyncio.run(scenario())
 
 
-def test_stopping_the_hub_stops_its_games() -> None:
+def test_shutting_down_abandons_every_game_and_says_why() -> None:
+    async def scenario() -> None:
+        hub, six = Writes(), players(6)
+        connection, far = attach(hub, six[0])
+        running = Running(hub, Forever(), six, 0)  # pyright: ignore[reportArgumentType]
+        for p in six:
+            hub.games[p.id] = running
+        hub.running.add(running)
+        hub._spawn(running.run(), lambda: hub.running.discard(running))  # pyright: ignore[reportPrivateUsage]
+        await asyncio.sleep(0)
+        await hub.close()
+        assert hub.done == [("rows", 1), ("ending", "abandoned")]
+        assert hub.running == set()
+        await drain(connection)
+        assert "The server is restarting, so this game has ended." in [
+            m.get("message") for m in far.sent
+        ]
+
+    asyncio.run(scenario())
+
+
+def test_a_game_that_will_not_stop_is_cancelled() -> None:
     async def scenario() -> None:
         hub = Writes()
 
-        async def forever() -> None:
+        async def stuck() -> None:
             await asyncio.Event().wait()
 
-        task = asyncio.create_task(forever())
-        hub.tasks.add(task)
+        hub._spawn(stuck(), lambda: None)  # pyright: ignore[reportPrivateUsage]
+        await hub.close(grace_s=0.01)
+        assert hub.tasks == set()
+
+    asyncio.run(scenario())
+
+
+def test_the_sweep_runs_at_start_and_again_and_survives_failures(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    found = [uuid.uuid4()]
+
+    class Sweeping(Writes):
+        calls = 0
+
+        def sweep(self) -> list[uuid.UUID]:
+            Sweeping.calls += 1
+            if Sweeping.calls == 1:
+                raise RuntimeError("database down")
+            return found
+
+    async def scenario() -> None:
+        hub = Sweeping()
+        hub.sweep_s = 0.01
+        hub.start()
+        while Sweeping.calls < 3:
+            await asyncio.sleep(0.01)
         await hub.close()
-        assert task.cancelled()
+
+    asyncio.run(scenario())
+    out = capsys.readouterr().out
+    assert "the sweep for stopped games failed" in out
+    assert f"game {found[0]}: stopped without an ending; now abandoned" in out
+
+
+def test_stopping_twice_and_closing_an_idle_hub_change_nothing() -> None:
+    async def scenario() -> None:
+        hub, six = Writes(fail=True), players(6)
+        running = Running(hub, Forever(), six, 0, retry_s=())  # pyright: ignore[reportArgumentType]
+        hub.games[six[0].id] = running  # only one of the six is still at the table
+        running.stop("first")
+        running.stop("second")
+        await running.run()
+        assert running.stopped == "first"
+        running.writes.put_nowait(lambda: None)  # once lost, nothing more is written
+        running.writes.put_nowait(None)
+        await running._write()  # pyright: ignore[reportPrivateUsage]
+        await Writes().close()
 
     asyncio.run(scenario())

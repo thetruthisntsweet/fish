@@ -115,8 +115,20 @@ rejections, handovers), in order, from a writer thread so the database never hol
 game. When the rules end the game: its `game_endings` row, after the last action. The export
 (`python -m fish_server.corpus_export`) reads all of it back as `fish-corpus-v2` records.
 
-Games are held in the one server process's memory. A deploy or restart ends any game in
-progress; its rows stay, with no ending, and T3.2 marks such games abandoned.
+Games are held in the one server process's memory, so a game that cannot go on ends
+`abandoned` (corpus.md §3), and its players are told why:
+
+- **A deploy or restart:** the server stops every game, writes what it has, and ends it
+  `abandoned`. Deploying during real games cuts them off, so deploy between game nights.
+- **The database unreachable:** each write is retried for about a minute; if it never
+  succeeds, the game is stopped and nothing more of it is written.
+- **A crash**, or a stop the server could not write: the game has no ending. At start and
+  every minute the server marks `abandoned` each game with no ending that is not running in
+  it and has written nothing for five minutes. A live game writes every few seconds, so the
+  old server's games during a deploy are never caught.
+
+Before an ending is written, the game's stored actions are checked for a gap; a game whose
+log could not replay it ends `abandoned`, whatever the rules said.
 
 ## 7. Trying it
 
