@@ -735,3 +735,15 @@ server's live games during a zero-downtime deploy); recording which process runs
 (a column on an append-only table for something a quiet-time rule settles); buffering rows in
 memory without limit while the database is down (a crash would lose them, and the game would
 go on unrecorded).
+
+**D72 · 2026-10-28 · The note-taking question: protocol 3, asked of those still seated.**
+When the rules end a game, the server asks each person who still holds their seat and is
+connected "Did you take notes during this game?" (`note_question`, question `v1`), and writes
+their `note_answer` (`yes`, `no` or `declined`) for that seat, once. The question waits for an
+answer only while the player stays connected and does not start another game; otherwise the
+seat is `unanswered`, as corpus.md §4.2 counts it. A person a bot replaced is not asked: their
+seat's play was partly the bot's, and the handover already flags the game. Abandoned games ask
+nothing, since they never enter the corpus. The two messages change the protocol, now
+version 3. Alternatives: asking everyone who ever held a seat (the released person may be
+playing another game by then); asking before the final update (the game's end would wait on
+the answer).

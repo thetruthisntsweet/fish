@@ -4,7 +4,8 @@
  * A message the server cannot act on. ``protocol_version``: the client was built for
  * another version and must reload. ``bad_message``: not a message this protocol has.
  * ``not_signed_in``: the connection has no session. ``not_now``: a real message that does
- * not fit this moment (joining a queue while seated, pressing with no table).
+ * not fit this moment (joining a queue while seated, pressing with no table, answering no
+ * question).
  */
 export interface ServerError {
   code: "protocol_version" | "bad_message" | "not_signed_in" | "not_now";

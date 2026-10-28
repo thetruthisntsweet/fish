@@ -19,6 +19,8 @@ def test_one_schema_per_message() -> None:
         "JoinRoom.json",
         "Leave.json",
         "Lobby.json",
+        "NoteAnswer.json",
+        "NoteQuestion.json",
         "Ping.json",
         "Pong.json",
         "Press.json",

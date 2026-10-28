@@ -93,13 +93,14 @@ class OneStep:
 
     def __init__(self, seat: int | None = 0) -> None:
         self.seat = seat
+        self.gone: set[uuid.UUID] = set()  # players a bot replaced
         self.game_id = uuid.uuid4()
         self.table = Table()
         self.ended = False
         self.events: list[object] = []
 
     def seat_of(self, player: uuid.UUID) -> int | None:
-        return self.seat
+        return None if player in self.gone else self.seat
 
     def next_wake(self) -> int | None:
         return None
@@ -141,6 +142,7 @@ def test_a_game_that_ends_is_written_and_its_players_return_to_the_lobby() -> No
         hub, six = Writes(), players(6)
         conns = [attach(hub, p) for p in six[:2]]  # four of the six are not connected
         game = OneStep()
+        game.gone.add(six[1].id)  # the bot that takes seat 1 (Release below) replaced them
         running = Running(hub, game, six, 0)  # pyright: ignore[reportArgumentType]
         for p in six:
             hub.games[p.id] = running
@@ -153,8 +155,9 @@ def test_a_game_that_ends_is_written_and_its_players_return_to_the_lobby() -> No
         assert hub.lobby.seated == set()
         await drain(*(c for c, _ in conns))
         first, second = (far.sent for _, far in conns)
-        assert [m["type"] for m in first] == ["lobby", "ping", "lobby"]
-        assert [m["type"] for m in second] == ["lobby", "lobby"]  # released, then not sent to
+        assert [m["type"] for m in first] == ["lobby", "ping", "note_question", "lobby"]
+        assert [m["type"] for m in second] == ["lobby", "lobby"]  # released: not asked
+        assert hub.notes == {six[0].id: (game.game_id, 0)}
 
     asyncio.run(scenario())
 
@@ -340,3 +343,49 @@ def test_stopping_twice_and_closing_an_idle_hub_change_nothing() -> None:
         await Writes().close()
 
     asyncio.run(scenario())
+
+
+def test_a_note_answer_is_written_for_the_seat_asked_once() -> None:
+    async def scenario() -> None:
+        hub, game = Writes(), uuid.uuid4()
+        (player,) = players(1)
+        connection, far = attach(hub, player)
+        written: list[tuple[uuid.UUID, int, str]] = []
+        hub.write_note = lambda g, s, a: written.append((g, s, a))  # type: ignore[method-assign]
+        hub.ask(player, game, 4)
+        await hub.receive(connection, '{"type": "note_answer", "answer": "yes"}')
+        await hub.receive(connection, '{"type": "note_answer", "answer": "no"}')  # asked once
+        await drain(connection)
+        assert written == [(game, 4, "yes")]
+        assert [m["type"] for m in far.sent] == ["lobby", "note_question", "error"]
+        assert far.sent[1]["text"] == "Did you take notes during this game?"
+
+    asyncio.run(scenario())
+
+
+def test_leaving_or_playing_on_without_answering_is_unanswered(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    async def scenario() -> None:
+        hub, six = Writes(), players(6)
+        conns = [attach(hub, p) for p in six]
+        hub.ask(six[0], uuid.uuid4(), 0)
+        hub.disconnect(conns[0][0])
+        assert six[0].id not in hub.notes
+        hub.ask(six[1], uuid.uuid4(), 1)
+        for connection, _ in conns[1:]:
+            await hub.receive(connection, '{"type": "join_queue"}')
+        connection, _ = attach(hub, six[0])
+        await hub.receive(connection, '{"type": "join_queue"}')  # the sixth: a table forms
+        assert hub.notes == {}
+
+        def broken(game: uuid.UUID, seat: int, answer: str) -> None:
+            raise RuntimeError("database down")
+
+        hub.write_note = broken  # type: ignore[method-assign]
+        hub.ask(six[2], uuid.uuid4(), 2)
+        await hub.receive(conns[2][0], '{"type": "note_answer", "answer": "no"}')
+        await hub.close()
+
+    asyncio.run(scenario())
+    assert "a note answer could not be written" in capsys.readouterr().out

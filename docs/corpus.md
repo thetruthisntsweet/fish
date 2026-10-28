@@ -88,10 +88,12 @@ new controller and its memory setting, the number of actions applied so far, the
 time and the reason (`turn_timeout` or `disconnect`). Who controlled a seat at any action is
 therefore known exactly, and a game has a handover if any seat ever had one.
 
-**4.2 The note-taking answer.** After the game, every person who played in it and is still
-connected is asked whether they took notes. The answer is appended as `yes`, `no` or
-`declined`, with the question's version and time; a person who leaves before answering has
-no row (`unanswered`).
+**4.2 The note-taking answer.** When the rules end a game (finished or unfinished), every
+person who still holds their seat and is connected is asked "Did you take notes during this
+game?" (question `v1`, T3.2). The answer is appended as `yes`, `no` or `declined`, with the
+question's version and time. A person who leaves, or starts another game, before answering,
+and a person whose seat a bot took, has no row (`unanswered`). Abandoned games ask nothing:
+they never enter the corpus.
 
 ## 5. Actions and time
 

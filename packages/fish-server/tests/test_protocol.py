@@ -30,10 +30,12 @@ from fish_server.protocol import (
     ClientHello,
     JoinRoom,
     Lobby,
+    NoteAnswer,
     Press,
     ServerHello,
     Update,
     View,
+    note_question,
     parse_client_message,
     server_hello,
     update,
@@ -63,7 +65,7 @@ def new_table(seed: int) -> Table:
 def test_server_hello_reports_the_versions_this_server_runs() -> None:
     hello = server_hello()
     assert hello.type == "server_hello"
-    assert hello.protocol_version == PROTOCOL_VERSION == 2
+    assert hello.protocol_version == PROTOCOL_VERSION == 3
     assert hello.ruleset_version == RULESET_VERSION
     assert hello.rng_algorithm == RNG_ALGORITHM
 
@@ -98,6 +100,10 @@ def test_every_message_has_a_unique_type_tag() -> None:
         ('{"type": "press", "set_id": 8, "seen": null}', Press(type="press", set_id=8, seen=None)),
         ('{"type": "press", "set_id": 0, "seen": 12}', Press(type="press", set_id=0, seen=12)),
         ('{"type": "act", "index": 912}', Act(type="act", index=912)),
+        (
+            '{"type": "note_answer", "answer": "declined"}',
+            NoteAnswer(type="note_answer", answer="declined"),
+        ),
     ],
 )
 def test_client_messages_are_read(raw: str, expected: object) -> None:
@@ -122,6 +128,7 @@ def test_client_messages_are_read(raw: str, expected: object) -> None:
         '{"type": "join_room", "code": "AB1CD0"}',  # 1 and 0 are not in room codes
         '{"type": "join_room", "code": "ab23cd"}',
         '{"type": "pong", "nonce": -1}',
+        '{"type": "note_answer", "answer": "maybe"}',
     ],
 )
 def test_anything_else_is_refused(raw: str) -> None:
@@ -132,6 +139,12 @@ def test_anything_else_is_refused(raw: str) -> None:
 def test_room_codes_use_no_lookalike_characters() -> None:
     assert not set("IO01") & set(ROOM_CODE_ALPHABET)
     assert len(set(ROOM_CODE_ALPHABET)) == len(ROOM_CODE_ALPHABET) == 32
+
+
+def test_the_note_taking_question_is_asked_word_for_word() -> None:
+    """Research Plan §4: one question after each game, its words versioned."""
+    question = note_question()
+    assert (question.version, question.text) == ("v1", "Did you take notes during this game?")
 
 
 def test_the_lobby_names_what_a_player_waits_for() -> None:

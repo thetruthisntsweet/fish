@@ -1,0 +1,24 @@
+{
+  "additionalProperties": false,
+  "description": "The answer to ``note_question``: ``declined`` for preferring not to say.",
+  "properties": {
+    "answer": {
+      "enum": [
+        "yes",
+        "no",
+        "declined"
+      ],
+      "type": "string"
+    },
+    "type": {
+      "const": "note_answer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "answer"
+  ],
+  "title": "NoteAnswer",
+  "type": "object"
+}
