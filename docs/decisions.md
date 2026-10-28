@@ -747,3 +747,15 @@ nothing, since they never enter the corpus. The two messages change the protocol
 version 3. Alternatives: asking everyone who ever held a seat (the released person may be
 playing another game by then); asking before the final update (the game's end would wait on
 the answer).
+
+**D73 · 2026-10-28 · T3.2 close-out: the website end to end, consent to corpus.**
+`test_end_to_end.py` now reaches the real server as a browser would: six people accept the
+consent screen, ask for a sign-in link over HTTP, use it, connect with the cookie, are
+matched by the solo queue, play a whole game and answer the note-taking question; the export
+reads the game back with every seat's consent flags and note, and leaves it out once one of
+them withdraws on the website. A second test stops the server mid-game as a deploy does.
+uvicorn closes every WebSocket with 1012 (service restart) before the app's shutdown runs,
+so players learn of a restart from that code, which the client (T3.4) shows, not from a
+message; the game then ends `abandoned`, as D71 says. T3.2 is complete: the consent
+redesign (D68–D70), endings and the log (D71), and the note-taking question (D72) are in
+`docs/server.md` and `docs/corpus.md`.

@@ -1,7 +1,8 @@
 # The game server
 
-How the website's server plays a game (T3.1): signing in, matchmaking, the website's rules
-around the engine, the messages, and what is written to the database as a game is played.
+How the website's server plays a game (T3.1, T3.2): consent and signing in, matchmaking, the
+website's rules around the engine, the messages, what is written to the database as a game
+is played, and how a game that cannot go on ends.
 The rules are the Canonical Ruleset v1.1 ([rules.md](rules.md)); what is recorded is
 [corpus.md](corpus.md). The server is the `fish-server` package, which is not published.
 
@@ -14,7 +15,8 @@ The rules are the Canonical Ruleset v1.1 ([rules.md](rules.md)); what is recorde
 | `lobby` | the solo queue and group rooms | nothing |
 | `protocol` | every message, as Pydantic models (the client's types are generated from them) | nothing |
 | `signin`, `auth`, `mailer` | signing in with an emailed link | the database, Resend |
-| `games` | writing a new table's game and seats | the database |
+| `consent`, `withdraw` | acceptances of the consent screen, withdrawals | the database |
+| `games` | writing a new table's game, seats and seat flags; endings; the sweep | the database |
 | `hub` | connections, the lobby and the games in progress, on one event loop | sockets, the database |
 | `app` | the HTTP endpoints and `/ws` | |
 
@@ -119,8 +121,10 @@ game. When the rules end the game: its `game_endings` row, after the last action
 Games are held in the one server process's memory, so a game that cannot go on ends
 `abandoned` (corpus.md §3), and its players are told why:
 
-- **A deploy or restart:** the server stops every game, writes what it has, and ends it
-  `abandoned`. Deploying during real games cuts them off, so deploy between game nights.
+- **A deploy or restart:** every player's connection closes with code 1012 (service
+  restart), which the client shows as the server restarting; the server then stops every
+  game, writes what it has, and ends it `abandoned`. Deploying during real games cuts them
+  off, so deploy between game nights.
 - **The database unreachable:** each write is retried for about a minute; if it never
   succeeds, the game is stopped and nothing more of it is written.
 - **A crash**, or a stop the server could not write: the game has no ending. At start and
@@ -149,7 +153,13 @@ PASS.
 
 `test_table.py` (every website rule, on a fake clock, and random games that must be corpus
 records), `test_protocol.py` (the view mirrors `fish-view-v1` exactly; strict parsing),
-`test_signin.py`, `test_lobby.py`, `test_game.py`, `test_hub.py`, `test_ws.py` (real
-WebSockets, a real database) and `test_end_to_end.py`: the real server on a real port, six
-scripted players signed in by cookie, matched by the solo queue, playing a whole game to its
-end, and the export reading it back as a corpus record that replays to the same end.
+`test_signin.py`, `test_consent.py` (acceptances, new versions, withdrawals, who may play),
+`test_lobby.py`, `test_game.py`, `test_hub.py` (retries, stopping, the sweep, the note-taking
+question), `test_endings.py` (endings only on a whole log; the sweep never touching a live
+game), `test_ws.py` (real WebSockets, a real database), and `test_end_to_end.py`: the real
+server on a real port, and six people who accept the consent screen, ask for a link over
+HTTP, use it, connect with the cookie, are matched by the solo queue, play a whole game and
+answer the note-taking question. The export reads the game back as a corpus record that
+replays to the same end with every seat's flags and note, and leaves it out once one of them
+withdraws. A second test stops the server mid-game, as a deploy does: every connection closes
+with 1012 and the game ends `abandoned`.
