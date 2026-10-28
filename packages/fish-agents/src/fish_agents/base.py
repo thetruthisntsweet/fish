@@ -14,7 +14,7 @@ two decisions repeat each other's draws.
 This module imports nothing outside fish-rules, so the server can run agents as bots.
 """
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from fish_rules.cards import Seat, check_seat
 from fish_rules.rng import SplitMix64, stream
@@ -27,6 +27,17 @@ class Agent(Protocol):
     def act(self, view: PlayerView, rng: SplitMix64) -> int:
         """The index of the action to take, given what this seat may know and a generator for
         any random choice."""
+        ...
+
+
+@runtime_checkable
+class Observer(Protocol):
+    """An agent that wants every view its seat is shown, not only those it acts on: an agent
+    with memory (``fish_agents.memory``). ``play_game`` and the server's bots (T3.5) show it
+    every view, so it misses no event even when it is not asked to act."""
+
+    def observe(self, view: PlayerView) -> None:
+        """See ``view``, which this agent's seat is shown now."""
         ...
 
 

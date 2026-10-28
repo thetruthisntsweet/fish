@@ -6,14 +6,18 @@ returns the game record (``fish_rules.record``). Each agent sees only its own vi
 its randomness from ``PolicyStreams``, so the same agents and game seed always give the same
 game. An agent that returns an illegal action raises ``IllegalActionError``.
 
+An agent that is an ``Observer`` (an agent with memory, ``fish_agents.memory``) is also shown
+its seat's view after every action, whoever acted, so it is shown every event exactly as a
+player at the table would be, not only when it is its turn to act.
+
 It needs the environment: install fish-agents with its ``env`` extra (the workspace's
 ``uv sync --all-packages`` already has it). The server never imports this module.
 """
 
 from collections.abc import Sequence
 
-from fish_agents.base import Agent, PolicyStreams
-from fish_env.env import FishEnv, seat_of
+from fish_agents.base import Agent, Observer, PolicyStreams
+from fish_env.env import AGENTS, FishEnv, seat_of
 from fish_rules.cards import NUM_SEATS
 
 
@@ -24,7 +28,10 @@ def play_game(agents: Sequence[Agent], game_seed: int) -> dict[str, object]:
     game = FishEnv()
     game.reset(seed=game_seed)
     streams = PolicyStreams(game_seed)
+    observers = [(seat, agent) for seat, agent in enumerate(agents) if isinstance(agent, Observer)]
     while game.agents:
+        for seat, observer in observers:
+            observer.observe(game.view(AGENTS[seat]))
         agent = game.agent_selection
         if game.terminations[agent] or game.truncations[agent]:
             game.step(None)
