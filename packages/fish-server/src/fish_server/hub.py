@@ -29,8 +29,9 @@ person who leaves, or starts another game, without answering is ``unanswered``
 **When a game cannot go on** (T3.2; docs/corpus.md §3), it ends ``abandoned``, and its
 players are told why:
 
-- *The server shuts down* (a deploy, a restart): every game is stopped, its rows written,
-  and its ending written as ``abandoned``.
+- *The server shuts down* (a deploy, a restart): uvicorn first closes every connection with
+  1012 (service restart), which the client shows; then every game is stopped, its rows
+  written, and its ending written as ``abandoned``.
 - *A write keeps failing*: it is retried for about a minute (``RETRY_S``), then the game is
   stopped and nothing more of it is written, since a log with a gap cannot replay it.
 - *The server crashed*, or the database was down when it stopped: the game has no ending.
