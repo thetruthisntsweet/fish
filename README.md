@@ -10,8 +10,8 @@ alike. This project measures how much: how much the way people play reveals abou
 cards beyond what the rules alone allow, how much players leak about their own hands, and
 whether any of it is deliberate signalling.
 
-**Version 0.1.0**, the first public release: the rules engine, a multi-agent environment and
-a random baseline. See [what's next](#whats-next).
+**Version 0.2.0**: the rules engine, a multi-agent environment, a random baseline, exact
+deduction of where every card can be, and agent memory. See [what's next](#whats-next).
 
 ## Install
 
@@ -59,8 +59,8 @@ baseline, inspecting a recorded game, and the shape of a training loop.
 | Package | What it is |
 |---|---|
 | [fish-rules](https://pypi.org/project/fish-rules/) | The rules engine: [Canonical Ruleset v1.1](docs/rules.md), immutable states, seeded and exactly replayable games, the projection that decides what each seat sees, and [Layer 1](docs/deduction.md), which works out exactly where each card can be from what a seat has seen. Standard library only. |
-| [fish-env](https://pypi.org/project/fish-env/) | The PettingZoo environment: 648-bit observations, masks over 913 actions, declaration windows after every event. Passes PettingZoo's API and seed tests. |
-| [fish-agents](https://pypi.org/project/fish-agents/) | The agent interface (`act(view, rng) -> int`), B0 (random legal play), and `play_game` for six agents. |
+| [fish-env](https://pypi.org/project/fish-env/) | The PettingZoo environment: 648-bit observations, masks over 913 actions, declaration windows after every event, and a [memory wrapper](docs/memory.md) for training. Passes PettingZoo's API and seed tests. |
+| [fish-agents](https://pypi.org/project/fish-agents/) | The agent interface (`act(view, rng) -> int`), B0 (random legal play), [agent memory](docs/memory.md) (full, last-k or none), and `play_game` for six agents. |
 
 Every game is its seed plus its actions, and every encoding a game depends on (the random
 numbers, the deal, actions, states, views, observations) is frozen under a name and pinned by
@@ -79,11 +79,10 @@ in [docs/rules.md](docs/rules.md).
 
 ## What's next
 
-Planned, in order: an agent memory wrapper (full, last-k or no memory), stronger baselines
-B1 to B3, and a website where people play, whose anonymised games will be released as a
-corpus under CC BY 4.0 with a datasheet ([corpus](docs/corpus.md),
-[datasheet plan](docs/datasheet-plan.md)). Changes are listed in the
-[changelog](CHANGELOG.md).
+Planned, in order: stronger baselines B1 to B3, and a website where people play, whose
+anonymised games will be released as a corpus under CC BY 4.0 with a datasheet
+([corpus](docs/corpus.md), [datasheet plan](docs/datasheet-plan.md)). Changes are listed in
+the [changelog](CHANGELOG.md).
 
 ## Documentation
 
@@ -92,6 +91,8 @@ corpus under CC BY 4.0 with a datasheet ([corpus](docs/corpus.md),
 - [Agents](docs/agents.md): the agent interface, B0, and the checks that run B0 games
 - [Deduction](docs/deduction.md): Layer 1, where each card can be, how it works and why it
   is exact
+- [Memory](docs/memory.md): what agents remember, for agents and for training, and what k
+  counts
 - [Examples](examples/README.md): four short scripts that run after `pip install`
 - [Determinism](docs/determinism.md): the random-number scheme behind every recorded game,
   and the frozen encodings of actions, records, views and observations

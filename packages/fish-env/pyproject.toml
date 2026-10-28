@@ -1,6 +1,6 @@
 [project]
 name = "fish-env"
-version = "0.1.0"
+version = "0.2.0"
 description = "A PettingZoo environment for the six-player card game Fish."
 readme = "README.md"
 license = "Apache-2.0"
@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
 ]
-dependencies = ["fish-rules>=0.1,<0.2", "pettingzoo>=1.27", "gymnasium>=1.4", "numpy>=2.5"]
+dependencies = ["fish-rules>=0.2,<0.3", "pettingzoo>=1.27", "gymnasium>=1.4", "numpy>=2.5"]
 
 [project.urls]
 Homepage = "https://github.com/thetruthisntsweet/fish"

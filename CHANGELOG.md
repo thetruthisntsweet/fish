@@ -6,15 +6,39 @@ version is 0.x, a minor release may change the interface. The rules have their o
 and changelog ([docs/rules.md](docs/rules.md), R.10), and every frozen encoding has its own
 name: a change to one is never silent, and is always listed here.
 
-## Unreleased
+## 0.2.0 (2026-10-27)
+
+Exact deduction of where every card can be, and agent memory. No frozen encoding changed:
+games recorded with 0.1.0 replay identically.
 
 ### fish-rules
 
-- Layer 1 (`fish_rules.deduce`): exactly which seats may hold each card, for any seat (or the
-  public view) from its view and the events it remembers, with full, last-k or no memory.
-  `deduce`, `solve` and `example_deal` (`fish_rules.deduce.solve`); the constraints behind
-  them (`fish_rules.deduce.history`); `Tracker` for agents (`fish_rules.deduce.tracker`); and
-  `knowledge` and `certain_misses` over recorded games (`fish_rules.deduce.games`).
+- Layer 1 (`fish_rules.deduce`, [docs/deduction.md](docs/deduction.md)): exactly which seats
+  may hold each card, for any seat (or the public view) from its view and the events it
+  remembers, with full, last-k or no memory. `deduce`, `solve` and `example_deal`
+  (`fish_rules.deduce.solve`); the constraints behind them (`fish_rules.deduce.history`);
+  `Tracker` for agents (`fish_rules.deduce.tracker`); and `knowledge` and `certain_misses`
+  over recorded games (`fish_rules.deduce.games`).
+- The four control actions with no fields (`OpenWindow`, `CloseWindow`, `AssignTimeout`,
+  `ChoiceTimeout`) refuse attribute assignment with `FrozenInstanceError` on every Python
+  3.14 release; before 3.14.7 they raised `TypeError`.
+
+### fish-env
+
+- `memory_env(remembered)` and `MemoryWrapper` (`fish_env.memory`,
+  [docs/memory.md](docs/memory.md)): each agent's `infos` entry holds, under `"memory"`, the
+  observations it had just after the events it remembers (all, the latest k, or none). The
+  observation and action spaces are unchanged.
+
+### fish-agents
+
+- Agent memory (`fish_agents.memory`, [docs/memory.md](docs/memory.md)): `MemorySetting`
+  (full, last-k or none, written as the corpus writes it; k counts events), `Memory` for one
+  seat, with Layer 1's deduction from what it remembers, and `Remembering`, which gives an
+  agent with `act(view, memory, rng)` a memory for each seat it plays.
+- `Observer` (`fish_agents.base`): `play_game` shows an agent that has `observe(view)` its
+  seat's view after every action, whoever acted. B0's games are unchanged.
+- The packages require each other at 0.2.
 
 ## 0.1.0 (2026-10-25)
 

@@ -51,8 +51,9 @@ itself.
 Seats are written relative to the observer, in the same order as the action layout: slots
 0–2 are the observer's team in ascending order (the `me` block marks which is the observer),
 slots 3–5 the other team. Earlier events are not repeated; an agent that wants them must
-remember them, which the memory wrapper (T2.8) will do. Seats that may not act get an
-all-zero mask.
+remember them. `fish_env.memory_env(remembered)` keeps them for it: each agent's `infos`
+entry holds the observations it had just after the events it remembers (`docs/memory.md`).
+Seats that may not act get an all-zero mask.
 
 ## Actions
 
@@ -94,8 +95,8 @@ the same state.
 Corpus games are played on the website and benchmark games in this environment, under
 different mechanics by design (R.8.9). Here every agent is asked in every window. On the
 website a window opens only when someone presses Call, and timers apply (R.8.3–R.8.5). The
-environment has no timers (R.8.6). Agent memory (full, last-k or none) is a wrapper that
-T2.8 adds.
+environment has no timers (R.8.6). Agent memory (full, last-k or none) is the agent's, not
+the environment's (`docs/memory.md`); k counts events, so last-k means the same on both.
 
 ## How it is checked
 

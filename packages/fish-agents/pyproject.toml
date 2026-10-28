@@ -1,6 +1,6 @@
 [project]
 name = "fish-agents"
-version = "0.1.0"
+version = "0.2.0"
 description = "Baseline agents for the card game Fish, and the interface they share."
 readme = "README.md"
 license = "Apache-2.0"
@@ -18,11 +18,11 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
 ]
-dependencies = ["fish-rules>=0.1,<0.2"]
+dependencies = ["fish-rules>=0.2,<0.3"]
 
 [project.optional-dependencies]
 # fish_agents.play runs agents in the environment; the server never needs it.
-env = ["fish-env>=0.1,<0.2"]
+env = ["fish-env>=0.2,<0.3"]
 torch = ["torch"]
 
 [project.urls]

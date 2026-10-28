@@ -553,3 +553,42 @@ memory length; when a call and its after-call choice come from one action, they 
 decision point. Layer 1 is listed under Unreleased in the changelog and ships in 0.2.0, with
 the memory wrapper (T2.8), rather than in a release of its own. T2.7 is complete:
 `docs/deduction.md` describes it.
+
+**D57 · 2026-10-27 · k counts events, not views.**
+Last-k memory (T2.8) keeps the latest k events: asks, calls and after-call choices. A seat is
+shown each event in several views (the window after it, the turn, a call's assignment), and
+how many depends on the platform: the environment asks every seat in every window, the
+website opens a window only when someone presses Call (R.8.9). Counted in views, the same k
+would mean less memory in benchmark games than in corpus games; counted in events, it means
+the same on both, and it is what Layer 1's tracker already counts (D56). The corpus's `k`
+records events. Alternative: views, the unit an agent is handed; rejected for the reason
+above.
+
+**D58 · 2026-10-27 · Memory belongs to the agent, which is shown every view.**
+`fish_agents.memory` gives a seat a `Memory` (its remembered events, the view that first
+showed each, and Layer 1 from exactly those), and `Remembering(agent, setting)` makes an agent
+with `act(view, memory, rng)` an ordinary `Agent` with one memory per seat. To remember events
+others cause, an agent must see views it does not act on, so `Observer` (`observe(view)`) is
+added and `play_game` shows every observer its seat's view after every action; this draws no
+randomness, so an agent that ignores its memory plays B0's games exactly. Like the tracker,
+memory keeps an unbroken run and starts again after a missed view. The module needs only
+fish-rules, so the server's bots can use it (T3.5). Alternatives: replaying the game's records
+for the agent (it would see more than it was shown if it missed views, and the server has no
+such records for a bot); keeping memory in the engine (Plan §3: memory is the player's, and
+the rules must be the same under every setting).
+
+**D59 · 2026-10-27 · The environment puts memory in `infos`, not in the observation space.**
+`fish_env.memory_env(remembered)` adds, to each agent's `infos` entry, the observations it had
+just after each event it remembers: `int8`, shape `(n, 648)`, oldest first. The observation
+and action spaces stay `fish_env.env()`'s, so policies and conformance tests written for it
+run unchanged, and a learner chooses its own encoding of the past (stacked, recurrent,
+attention). Alternatives: a fixed-shape stacked observation (full memory has no bound, and a
+padded maximum would be most of every observation); a Gymnasium `Sequence` space (poorly
+supported by PettingZoo's tests and by learning libraries).
+
+**D60 · 2026-10-27 · 0.2.0: Layer 1 and memory (T2.8 close-out).**
+T2.7's deduction and T2.8's memory are released together as 0.2.0, as D56 planned; the three
+packages require each other at 0.2. No frozen encoding changed, so 0.1.0's games replay
+identically. The code supports every Python 3.14 release: CI's 3.14.0 refuses the slotted,
+frozen dataclass form for classes with no fields, so the four field-less control actions
+declare empty `__slots__` themselves. T2.8 is complete: `docs/memory.md` describes it.
