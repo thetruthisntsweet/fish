@@ -216,6 +216,12 @@ class Table:
 
     # ------------------------------------------------------------ timers
 
+    def phase_deadline(self) -> tuple[str, int] | None:
+        """The running window, assignment or choice timer: its name (``window``,
+        ``assignment``, ``choice``) and when it fires; None if none is running."""
+        timed = _TIMED.get(self.state.phase)
+        return None if timed is None else (timed[2], self._since + timed[0])
+
     def turn_deadline(self) -> int | None:
         """When the running turn timer fires, or None if none is running (R.8.4)."""
         return self._turn_at
@@ -352,9 +358,9 @@ class Table:
         if self.state.phase is Phase.OVER:
             return None
         due: list[tuple[int, int, Seat]] = []
-        timed = _TIMED.get(self.state.phase)
-        if timed is not None:
-            due.append((self._since + timed[0], 0, 0))
+        phase = self.phase_deadline()
+        if phase is not None:
+            due.append((phase[1], 0, 0))
         if self._turn_at is not None and self.state.current is not None:
             due.append((self._turn_at, 1, self.state.current))
         due.extend((at, 2, seat) for seat, at in self._away.items())

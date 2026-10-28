@@ -1,0 +1,15 @@
+{
+  "additionalProperties": false,
+  "description": "Stop waiting: leave the queue or the room.",
+  "properties": {
+    "type": {
+      "const": "leave",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "Leave",
+  "type": "object"
+}

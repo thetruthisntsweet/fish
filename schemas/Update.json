@@ -1,0 +1,489 @@
+{
+  "$defs": {
+    "ActionIndex": {
+      "exclusiveMaximum": 913,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "AskEventData": {
+      "additionalProperties": false,
+      "description": "R.3.3: an ask and its answer.",
+      "properties": {
+        "asker": {
+          "$ref": "#/$defs/SeatNumber"
+        },
+        "card": {
+          "$ref": "#/$defs/CardNumber"
+        },
+        "number": {
+          "$ref": "#/$defs/Count"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "target": {
+          "$ref": "#/$defs/SeatNumber"
+        },
+        "type": {
+          "const": "AskEvent",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "number",
+        "asker",
+        "target",
+        "card",
+        "success"
+      ],
+      "title": "AskEventData",
+      "type": "object"
+    },
+    "CallEventData": {
+      "additionalProperties": false,
+      "description": "R.4.4-R.4.5, R.2.3: a call and its result, with the true holders of its six cards.\n``assignment`` is null if the caller ran out of time.",
+      "properties": {
+        "assignment": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SeatNumber"
+              },
+              "maxItems": 6,
+              "minItems": 6,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "caller": {
+          "$ref": "#/$defs/SeatNumber"
+        },
+        "correct": {
+          "type": "boolean"
+        },
+        "holders": {
+          "items": {
+            "$ref": "#/$defs/SeatNumber"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "type": "array"
+        },
+        "number": {
+          "$ref": "#/$defs/Count"
+        },
+        "scored_by": {
+          "$ref": "#/$defs/TeamNumber"
+        },
+        "set_id": {
+          "$ref": "#/$defs/SetNumber"
+        },
+        "source": {
+          "enum": [
+            "window",
+            "turn",
+            "runout"
+          ],
+          "type": "string"
+        },
+        "type": {
+          "const": "CallEvent",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "number",
+        "caller",
+        "set_id",
+        "source",
+        "assignment",
+        "holders",
+        "correct",
+        "scored_by"
+      ],
+      "title": "CallEventData",
+      "type": "object"
+    },
+    "CallInView": {
+      "additionalProperties": false,
+      "description": "R.8.3: the call being assigned, shown to everyone.",
+      "properties": {
+        "caller": {
+          "$ref": "#/$defs/SeatNumber"
+        },
+        "set_id": {
+          "$ref": "#/$defs/SetNumber"
+        }
+      },
+      "required": [
+        "caller",
+        "set_id"
+      ],
+      "title": "CallInView",
+      "type": "object"
+    },
+    "CardNumber": {
+      "exclusiveMaximum": 54,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ChoiceEventData": {
+      "additionalProperties": false,
+      "description": "R.5: the after-call choice's outcome.",
+      "properties": {
+        "number": {
+          "$ref": "#/$defs/Count"
+        },
+        "seat": {
+          "$ref": "#/$defs/SeatNumber"
+        },
+        "team": {
+          "$ref": "#/$defs/TeamNumber"
+        },
+        "type": {
+          "const": "ChoiceEvent",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "number",
+        "team",
+        "seat"
+      ],
+      "title": "ChoiceEventData",
+      "type": "object"
+    },
+    "ChoiceInView": {
+      "additionalProperties": false,
+      "description": "R.5.2: the after-call choice in progress; ``own_vote`` is this seat's only.",
+      "properties": {
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/SeatNumber"
+          },
+          "type": "array"
+        },
+        "chooser": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeatNumber"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "own_vote": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeatNumber"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "team": {
+          "$ref": "#/$defs/TeamNumber"
+        }
+      },
+      "required": [
+        "team",
+        "candidates",
+        "chooser",
+        "own_vote"
+      ],
+      "title": "ChoiceInView",
+      "type": "object"
+    },
+    "Count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "SeatNumber": {
+      "exclusiveMaximum": 6,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "SetNumber": {
+      "exclusiveMaximum": 9,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "TeamNumber": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "Timer": {
+      "additionalProperties": false,
+      "description": "A running timer and how long it had left when the update was sent (R.2.6, R.8.5).",
+      "properties": {
+        "ms_left": {
+          "$ref": "#/$defs/Count"
+        },
+        "name": {
+          "enum": [
+            "window",
+            "assignment",
+            "choice",
+            "turn"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "ms_left"
+      ],
+      "title": "Timer",
+      "type": "object"
+    },
+    "View": {
+      "additionalProperties": false,
+      "description": "A seat's view exactly as ``fish_rules.view.view_to_data`` writes it (``fish-view-v1``,\ndocs/determinism.md \u00a710).",
+      "properties": {
+        "call": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CallInView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "choice": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ChoiceInView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeatNumber"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "encoding": {
+          "const": "fish-view-v1",
+          "type": "string"
+        },
+        "hand": {
+          "items": {
+            "$ref": "#/$defs/CardNumber"
+          },
+          "type": "array"
+        },
+        "hand_sizes": {
+          "items": {
+            "$ref": "#/$defs/Count"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "type": "array"
+        },
+        "last_event": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "AskEvent": "#/$defs/AskEventData",
+                  "CallEvent": "#/$defs/CallEventData",
+                  "ChoiceEvent": "#/$defs/ChoiceEventData"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/AskEventData"
+                },
+                {
+                  "$ref": "#/$defs/CallEventData"
+                },
+                {
+                  "$ref": "#/$defs/ChoiceEventData"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legal": {
+          "items": {
+            "$ref": "#/$defs/ActionIndex"
+          },
+          "type": "array"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "enum": [
+                "finished",
+                "unfinished"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phase": {
+          "enum": [
+            "turn",
+            "window",
+            "assign",
+            "choose",
+            "vote",
+            "runout",
+            "over"
+          ],
+          "type": "string"
+        },
+        "scored_by": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TeamNumber"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        "seat": {
+          "$ref": "#/$defs/SeatNumber"
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowInView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "winner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TeamNumber"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "encoding",
+        "seat",
+        "hand",
+        "hand_sizes",
+        "scored_by",
+        "phase",
+        "current",
+        "call",
+        "choice",
+        "window",
+        "last_event",
+        "outcome",
+        "winner",
+        "legal"
+      ],
+      "title": "View",
+      "type": "object"
+    },
+    "WindowInView": {
+      "additionalProperties": false,
+      "description": "R.8.3: a window is open; this seat's own declaration in it, never anyone else's.",
+      "properties": {
+        "own_declaration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SetNumber"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "responded": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "own_declaration",
+        "responded"
+      ],
+      "title": "WindowInView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "This seat's view now, sent after every change at the table, the moment it happens\n(R.2.6). ``actions`` are the indices this seat may ``act`` with, ascending, and\n``pressable`` the sets it may press Call on. ``timers``: the window, assignment or choice\ntimer and the current player's turn timer, whichever are running. ``bots``: the seats a bot\nholds now, shown as bots (T3.4); a person handed over finds their own seat among them\n(R.8.4).",
+  "properties": {
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/ActionIndex"
+      },
+      "type": "array"
+    },
+    "bots": {
+      "items": {
+        "$ref": "#/$defs/SeatNumber"
+      },
+      "type": "array"
+    },
+    "pressable": {
+      "items": {
+        "$ref": "#/$defs/SetNumber"
+      },
+      "type": "array"
+    },
+    "timers": {
+      "items": {
+        "$ref": "#/$defs/Timer"
+      },
+      "type": "array"
+    },
+    "type": {
+      "const": "update",
+      "type": "string"
+    },
+    "view": {
+      "$ref": "#/$defs/View"
+    }
+  },
+  "required": [
+    "type",
+    "view",
+    "actions",
+    "pressable",
+    "timers",
+    "bots"
+  ],
+  "title": "Update",
+  "type": "object"
+}

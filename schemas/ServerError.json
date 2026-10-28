@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "description": "A message the server cannot act on. ``protocol_version``: the client was built for\nanother version and must reload. ``bad_message``: not a message this protocol has.\n``not_signed_in``: the connection has no session. ``not_now``: a real message that does\nnot fit this moment (joining a queue while seated, pressing with no table).",
+  "properties": {
+    "code": {
+      "enum": [
+        "protocol_version",
+        "bad_message",
+        "not_signed_in",
+        "not_now"
+      ],
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "type": {
+      "const": "error",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "code",
+    "message"
+  ],
+  "title": "ServerError",
+  "type": "object"
+}

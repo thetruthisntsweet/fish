@@ -1,0 +1,41 @@
+{
+  "$defs": {
+    "Count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "SetNumber": {
+      "exclusiveMaximum": 9,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "additionalProperties": false,
+  "description": "R.8.3: press Call, naming a set. R.8.7: ``seen`` is the number of the last event the\nplayer had seen (``view.last_event.number``), null before the first.",
+  "properties": {
+    "seen": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Count"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "set_id": {
+      "$ref": "#/$defs/SetNumber"
+    },
+    "type": {
+      "const": "press",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "set_id",
+    "seen"
+  ],
+  "title": "Press",
+  "type": "object"
+}

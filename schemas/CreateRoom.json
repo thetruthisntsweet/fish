@@ -1,0 +1,15 @@
+{
+  "additionalProperties": false,
+  "description": "Make a room for a group; the server replies with its code in ``lobby``.",
+  "properties": {
+    "type": {
+      "const": "create_room",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "CreateRoom",
+  "type": "object"
+}

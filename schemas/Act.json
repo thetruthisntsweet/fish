@@ -1,0 +1,26 @@
+{
+  "$defs": {
+    "ActionIndex": {
+      "exclusiveMaximum": 913,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A seat action: its index in ``fish-action-index-v1``, from the player's own seat; one\nof ``update.actions``.",
+  "properties": {
+    "index": {
+      "$ref": "#/$defs/ActionIndex"
+    },
+    "type": {
+      "const": "act",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "index"
+  ],
+  "title": "Act",
+  "type": "object"
+}
