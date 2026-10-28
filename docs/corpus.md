@@ -45,13 +45,16 @@ cohort seed is a fixed 64-bit value held in the server's settings and published 
 frozen corpus, so the assignment can be checked. Cohort players are matched only with each
 other (T3.1).
 
-**2.2 Consent and age.** Two append-only event tables. A player's status at any moment is
-their latest event of each kind.
+**2.2 Consent, seat flags and withdrawal.** As the Consent Screen (§3) and the Research
+Plan (§6) set them out; three append-only tables (T3.2, replacing T1.6's first design, D68).
 
-| Event | Fields |
+| Record | Fields |
 |---|---|
-| consent | `player_id`, `at`, `consent_version` (the exact text shown, by version), `research_use` (yes/no), `public_release` (yes/no, CC BY 4.0), `no_outside_communication` (attested), `no_notes` (attested); a withdrawal is a consent event with `research_use` no |
-| age | `player_id`, `at`, `confirmed_18_plus` (T3.3); no date of birth is stored |
+| acceptance (`consents`) | `player_id`, `at`, `version` (the text shown: `v1.0`, or `v1.0-pilot` on staging), and the screen's three confirmations: `us_resident_adult` (lives in the US and is a legal adult there), `agrees` (to take part, including the CC BY 4.0 release), `no_outside_communication`. Written only when all three are ticked, so they are always true. No date of birth is stored |
+| seat flags (`seat_consents`) | for each person's seat, the version and the three confirmations, copied from that person's latest acceptance when the game starts, with the acceptance it came from |
+| withdrawal (`withdrawals`) | `player_id`, `at`, `channel` (`website` or `email`); a record of its own, never a change to an acceptance, and not undone by a later one |
+
+The age gate is the screen's first confirmation; nothing else about age is kept.
 
 ## 3. Games
 
@@ -149,16 +152,16 @@ so there is one definition.
 
 ## 6. Membership and analysis sets
 
-Membership is computed at every export from the latest flags (`fish_server.corpus_export`,
-§7). The analysis-set flags that depend only on the game (completed, finished, solo, any bot, note answers,
+Membership is computed at every export from the seats' flags and the withdrawals
+(`fish_server.corpus_export`, §7). The analysis-set flags that depend only on the game (completed, finished, solo, any bot, note answers,
 cohort) are computed from the record itself by `fish_rules.corpus.analysis_flags`, so every
 reader gets the same sets without trusting a stored copy.
 
-- **Eligible person.** At export time: latest age event confirmed 18+, and latest consent
-  event with `research_use` yes. For the public release, also `public_release` yes.
-- **Corpus game.** Completed (§3), at least one person played in it, and every person who
-  held any seat at any point is eligible. One ineligible person removes the whole game: their
-  actions are part of every other seat's history.
+- **Corpus game.** Completed (§3), at least one person played in it, every person's seat
+  has its consent flags (§2.2), and nobody who held a seat in it has withdrawn. Flags are
+  copied when the game starts, so accepting afterwards does not bring a game in. One
+  withdrawal removes every game that person played, whole: their actions are part of every
+  other seat's history.
 - **Primary set** (T1.1): corpus games that finished (R.7.1), were joined through solo
   matchmaking, had no bot in any seat at any point, and in which nobody answered `yes` to
   the note-taking question.
@@ -191,16 +194,18 @@ reads it back, so no writer can produce a record that does not read.
 - **Players** appear under a pseudonym drawn at random for each release, the same for every
   game of that release and unrelated to any internal identifier, so per-player analyses
   (T1.1 §5.1, the most-frequent-players check) still work.
-- **Consent** is represented only by membership: every released game passed §6.
+- **Consent** is represented by membership: every released game passed §6. (T3.2 adds each
+  person's seat flags to the record itself.)
 - **Re-export.** A release is regenerated from the log, never edited. After a withdrawal,
   the next export simply leaves the game out.
 
 **Running the export.** `python -m fish_server.corpus_export --out corpus.jsonl` writes the
-research export, one record per line in order of start time, and `--public` the CC BY 4.0
-release, which also needs each person's `public_release` consent. It connects as the server's
-own login, which can only read and insert, refuses to overwrite a file, and prints how many
-games it exported and why each one left out was left out: not ended, abandoned, no person
-played, or a person not eligible. Release game ids are `g-000001`, `g-000002`, … in that
+corpus, one record per line in order of start time. Everyone who plays has agreed to the
+CC BY 4.0 release, so this one export is both the research corpus and what is released. It
+connects as the server's own login, which can only read and insert, refuses to overwrite a
+file, and prints how many games it exported and why each one left out was left out: not
+ended, abandoned, no person played, a person's seat without consent flags, or a person who
+withdrew. Release game ids are `g-000001`, `g-000002`, … in that
 order. Every record is read back before it is written; a stored game the log cannot reproduce,
 or one played under another ruleset, stops the export with an error instead.
 
@@ -211,8 +216,8 @@ or one played under another ruleset, stops the export with an error instead.
 | T1.5 | the consent text and its versions (§2.2) |
 | T1.6 | this design; the record format (`fish_rules.corpus`) and cohort draw (`fish_rules.cohort`); the tables; membership and export; the datasheet plan |
 | T3.1 | writing players, games, seats, actions and server log rows; cohort matchmaking |
-| T3.2 | the logging pipeline and completion status |
-| T3.3 | the age event |
+| T3.2 | consent, seat flags and withdrawals (§2.2); the logging pipeline and completion status |
+| T3.3 | the consent screen, whose first confirmation is the age gate |
 | T3.5 | bot seats, memory settings, handovers |
 | T4.4 | weekly integrity checks and the handover share |
 | T4.5 | the freeze, the split seed, anonymisation |
@@ -227,7 +232,8 @@ two agree. Every table but `player_contacts` is append-only (§1).
 |---|---|---|
 | `players` | `player_id`, `signup_number` (from the `signup_numbers` sequence), `cohort`, `signed_up_at` (§2) | each person's pseudonym and cohort flag |
 | `player_contacts` | the email address for sign-in links; the only table rows can be deleted from | nothing |
-| `consent_events`, `age_events` | §2.2 | membership only (§6) |
+| `consents`, `withdrawals` | §2.2 | membership only (§6) |
+| `seat_consents` | §2.2, one row per person's seat, written with the seats | membership (§6) |
 | `games` | §3 except the ending; the seed as `numeric(20,0)`, since 64-bit seeds do not fit PostgreSQL's signed `bigint` | `seed`, versions, `game` |
 | `game_endings` | `completion` and `ended_at`, one row written when the game ends | `game.completion`; a game with no row has not ended |
 | `seats` | the six controllers at the start (§4) | `seats` |

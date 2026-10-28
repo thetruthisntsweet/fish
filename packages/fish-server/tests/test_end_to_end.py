@@ -61,8 +61,8 @@ def port(app: Engine) -> Iterator[int]:
 
 
 def signed_in(app: Engine, count: int) -> list[tuple[uuid.UUID, str]]:
-    """``count`` players outside the cohort, each with a session, consent and age events, so
-    their games enter the corpus."""
+    """``count`` players outside the cohort, each with a session and an acceptance of the
+    consent screen, so their seats get consent flags and their games enter the corpus."""
     out: list[tuple[uuid.UUID, str]] = []
     n = 0
     with app.begin() as conn:
@@ -75,16 +75,14 @@ def signed_in(app: Engine, count: int) -> list[tuple[uuid.UUID, str]]:
             if cohort:
                 continue
             conn.execute(
-                insert(db.consent_events).values(
+                insert(db.consents).values(
                     player_id=player,
-                    consent_version="test",
-                    research_use=True,
-                    public_release=True,
+                    version="v1.0",
+                    us_resident_adult=True,
+                    agrees=True,
                     no_outside_communication=True,
-                    no_notes=True,
                 )
             )
-            conn.execute(insert(db.age_events).values(player_id=player, confirmed_18_plus=True))
             out.append((player, start_session(conn, player)))
     return out
 
@@ -142,7 +140,7 @@ def test_a_whole_game_from_sign_in_to_the_corpus(app: Engine, port: int) -> None
         time.sleep(0.1)
 
     with app.connect() as conn:
-        records, summary = export(conn, public=False)
+        records, summary = export(conn)
         actions = conn.execute(select(func.count()).select_from(db.actions)).scalar_one()
     assert (summary.games, summary.exported) == (1, 1)
     game = read_corpus_record(records[0])

@@ -44,6 +44,7 @@ def app(server_env: str) -> Iterator[Engine]:
 def write_game(engine: Engine) -> dict[str, Any]:
     """Write one short game with every kind of row, as the server would. Returns its ids."""
     people = [uuid.uuid4() for _ in range(5)]
+    consents: list[int] = []
     game_id = uuid.uuid4()
     actions = random_game(7, 8)[:12]
     with engine.begin() as conn:
@@ -55,17 +56,13 @@ def write_game(engine: Engine) -> dict[str, Any]:
             conn.execute(
                 insert(db.player_contacts).values(player_id=person, email=f"{person}@example.org")
             )
-            conn.execute(
-                insert(db.consent_events).values(
-                    player_id=person,
-                    consent_version="v1",
-                    research_use=True,
-                    public_release=True,
-                    no_outside_communication=True,
-                    no_notes=True,
-                )
+            consents.append(
+                conn.execute(
+                    insert(db.consents)
+                    .values(player_id=person, version="v1.0", **CONFIRMED)
+                    .returning(db.consents.c.consent_id)
+                ).scalar_one()
             )
-            conn.execute(insert(db.age_events).values(player_id=person, confirmed_18_plus=True))
         conn.execute(
             insert(db.games).values(
                 game_id=game_id,
@@ -86,6 +83,14 @@ def write_game(engine: Engine) -> dict[str, Any]:
                     game_id=game_id, seat=seat, player_id=person, memory="human"
                 )
             )
+        for seat, (person, consent) in enumerate(zip(people[:4], consents, strict=False)):
+            conn.execute(
+                insert(db.seat_consents).values(
+                    game_id=game_id, seat=seat, player_id=person, consent_id=consent,
+                    version="v1.0", **CONFIRMED,
+                )
+            )  # fmt: skip
+        conn.execute(insert(db.withdrawals).values(player_id=people[3], channel="email"))
         conn.execute(
             insert(db.seats).values(game_id=game_id, seat=5, agent="b1-v1", memory="last-k", k=8)
         )
@@ -113,7 +118,7 @@ def write_game(engine: Engine) -> dict[str, Any]:
             )
         )
         conn.execute(insert(db.game_endings).values(game_id=game_id, completion="abandoned"))
-    return {"game_id": game_id, "people": people, "actions": actions}
+    return {"game_id": game_id, "people": people, "actions": actions, "consents": consents}
 
 
 # ---------------------------------------------------------------- the schema
@@ -182,6 +187,18 @@ def test_a_contact_address_can_be_removed(owner: Engine) -> None:
 
 
 # ---------------------------------------------------------------- constraints
+
+
+CONFIRMED = {"us_resident_adult": True, "agrees": True, "no_outside_communication": True}
+
+
+def _consent(**values: object) -> tuple[Table, dict[str, object]]:
+    return db.consents, {"player_id": "PERSON", "version": "v1.0"} | CONFIRMED | values
+
+
+def _seat_consent(**values: object) -> tuple[Table, dict[str, object]]:
+    base = {"seat": 4, "player_id": "SEAT4", "consent_id": "CONSENT4", "version": "v1.0"}
+    return db.seat_consents, base | CONFIRMED | values
 
 
 def _player(**values: object) -> tuple[Table, dict[str, object]]:
@@ -265,6 +282,40 @@ BAD: list[tuple[str, tuple[Table, dict[str, object]], str]] = [
         "fk_note_answers_game_id_seat_seats",
     ),
     ("second ending", (db.game_endings, {"completion": "finished"}), "pk_game_endings"),
+    ("consent unticked", _consent(agrees=False), "ck_consents_confirmed"),
+    ("consent not adult", _consent(us_resident_adult=False), "ck_consents_confirmed"),
+    ("consent version", _consent(version="1.0"), "ck_consents_version"),
+    (
+        "withdrawal channel",
+        (db.withdrawals, {"player_id": "PERSON", "channel": "fax"}),
+        "ck_withdrawals_channel",
+    ),
+    (
+        "seat flags unticked",
+        _seat_consent(no_outside_communication=False),
+        "ck_seat_consents_confirmed",
+    ),
+    (
+        "seat flags twice",
+        _seat_consent(seat=0, player_id="PERSON", consent_id="CONSENT"),
+        "pk_seat_consents",
+    ),
+    (
+        "another's acceptance",
+        _seat_consent(consent_id="CONSENT"),
+        "fk_seat_consents_consent_id_player_id_version_consents",
+    ),
+    (
+        "another's seat",
+        _seat_consent(player_id="OTHER", consent_id="CONSENT1"),
+        "fk_seat_consents_game_id_seat_player_id_seats",
+    ),
+    (
+        "acceptance of another version",
+        _seat_consent(version="v1.1"),
+        "fk_seat_consents_consent_id_player_id_version_consents",
+    ),
+    ("a bot's seat", _seat_consent(seat=5), "fk_seat_consents_game_id_seat_player_id_seats"),
     (
         "completion",
         (db.game_endings, {"game_id": "OTHER_GAME", "completion": "done"}),
@@ -294,6 +345,14 @@ def test_constraints_reject_what_the_record_format_rejects(
             value = other_game["game_id"]
         elif value == "GAME":
             value = written["game_id"]
+        elif value == "SEAT4":
+            value = written["people"][4]
+        elif value == "CONSENT":
+            value = written["consents"][0]
+        elif value == "CONSENT1":
+            value = written["consents"][1]
+        elif value == "CONSENT4":
+            value = written["consents"][4]
         filled[key] = value
     with pytest.raises(IntegrityError, match=constraint), app.begin() as conn:
         conn.execute(insert(table).values(filled))

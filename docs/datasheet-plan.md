@@ -60,8 +60,8 @@ writes a script that prints them all; the datasheet quotes its output.
 | Over what timeframe? | From launch (13 December) to the freeze (by 28 February); the exact first and last months are in the data. | now; dates at freeze |
 | Ethical review? | The research plan and consent screen were reviewed and approved by Dr. Hany, including ethics review (T1.4). | release (§8) |
 | Collected from individuals directly or via third parties? | Directly, from their play on the site. | now |
-| Were individuals notified, and did they consent? | Yes: every person passes an opt-in consent screen (T1.5) before playing, which states the CC BY 4.0 release, and attests to no outside communication and no notes. The version of the text each person agreed to is stored. | now |
-| Can consent be revoked? | Yes. A withdrawal is recorded as a new consent event, and every later export leaves out every game the person played. | now |
+| Were individuals notified, and did they consent? | Yes: every person passes an opt-in consent screen (T1.5) before playing, which states the CC BY 4.0 release, and confirms three things: they live in the United States and are a legal adult there, they agree to take part, and they will not communicate with teammates outside the game. The version of the text each person agreed to is stored, and copied onto each of their seats when a game starts. Whether they took notes is asked after each game instead. | now |
+| Can consent be revoked? | Yes. A withdrawal is recorded as a record of its own (through the website or by email), and every later export leaves out every game the person played, whole. | now |
 | Has an impact analysis been done? | | release (§8) |
 
 ## 4. Preprocessing and cleaning

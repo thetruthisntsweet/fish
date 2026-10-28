@@ -1,14 +1,14 @@
-"""Corpus membership and export (docs/corpus.md §6, §7; T1.6).
+"""Corpus membership and export (docs/corpus.md §6, §7; T1.6, T3.2).
 
-    python -m fish_server.corpus_export --out corpus.jsonl            # research export
-    python -m fish_server.corpus_export --out release.jsonl --public  # CC BY 4.0 release
+    python -m fish_server.corpus_export --out corpus.jsonl
 
-Membership is computed at every export from the latest flags, never decided by hand. A person
-is eligible when their latest age event confirms 18+ and their latest consent event allows
-research use (and, for ``--public``, the public release). A game enters when it has ended
-under the rules (finished, or stopped at 1,000 asks), at least one person played in it, and
-every person who held a seat in it is eligible. One ineligible person removes the whole game.
-A withdrawal is a new consent row, so the next export simply leaves those games out.
+Membership is computed at every export from stored flags, never decided by hand (Research
+Plan §6). A game enters when it has ended under the rules (finished, or stopped at 1,000
+asks), at least one person played in it, every person's seat has its consent flags (copied
+from that person's acceptance when the game started, ``seat_consents``), and nobody who held a
+seat in it has withdrawn. One withdrawal removes every game that person played, whole, with
+the other seats' moves. Everyone who plays has agreed to the CC BY 4.0 release, so the one
+export is both the research corpus and the release.
 
 Each game is written as one ``fish-corpus-v1`` record (``fish_rules.corpus``), one per line,
 in order of start time. Release game ids are ``g-000001``, ``g-000002``, ... in that order,
@@ -43,18 +43,17 @@ from fish_server.settings import database_url
 
 COMPLETED: Final = ("finished", "unfinished")
 
-_ELIGIBLE: Final = """
-    WITH consent AS (
-        SELECT DISTINCT ON (player_id) player_id, research_use, public_release
-        FROM consent_events ORDER BY player_id, at DESC, event_id DESC
-    ), age AS (
-        SELECT DISTINCT ON (player_id) player_id, confirmed_18_plus
-        FROM age_events ORDER BY player_id, at DESC, event_id DESC
-    )
-    SELECT consent.player_id FROM consent JOIN age USING (player_id)
-    WHERE consent.research_use AND age.confirmed_18_plus
-      AND (consent.public_release OR NOT :public)
+_UNCONSENTED: Final = """
+    SELECT DISTINCT seats.game_id FROM seats
+    LEFT JOIN seat_consents USING (game_id, seat)
+    WHERE seats.player_id IS NOT NULL AND seat_consents.game_id IS NULL
 """
+"""Games with a person's seat that has no consent flags."""
+
+_WITHDRAWN: Final = """
+    SELECT DISTINCT seats.game_id FROM seats JOIN withdrawals USING (player_id)
+"""
+"""Games in which someone who has withdrawn held a seat."""
 
 
 class ExportError(Exception):
@@ -70,7 +69,8 @@ class Summary:
     not_ended: int = 0
     abandoned: int = 0
     no_person: int = 0
-    ineligible: int = 0
+    unconsented: int = 0
+    withdrawn: int = 0
     pseudonyms: dict[uuid.UUID, str] = field(default_factory=dict[uuid.UUID, str])
 
     def lines(self) -> list[str]:
@@ -80,14 +80,10 @@ class Summary:
             f"left out, not ended: {self.not_ended}",
             f"left out, abandoned: {self.abandoned}",
             f"left out, no person played: {self.no_person}",
-            f"left out, a person not eligible: {self.ineligible}",
+            f"left out, a person's seat without consent: {self.unconsented}",
+            f"left out, a person withdrew: {self.withdrawn}",
             f"people: {len(self.pseudonyms)}",
         ]
-
-
-def eligible_people(conn: Connection, *, public: bool) -> set[uuid.UUID]:
-    """The people eligible now (§6), for the research export or the public release."""
-    return set(conn.execute(text(_ELIGIBLE), {"public": public}).scalars())
 
 
 def _pseudonym(summary: Summary, person: uuid.UUID) -> str:
@@ -183,10 +179,11 @@ def _record(
         raise ExportError(f"game {game_id} is not a valid record: {error}") from None
 
 
-def export(conn: Connection, *, public: bool) -> tuple[list[dict[str, object]], Summary]:
+def export(conn: Connection) -> tuple[list[dict[str, object]], Summary]:
     """Every corpus game as a record, in order of start time, and the summary (§6, §7)."""
     summary = Summary()
-    eligible = eligible_people(conn, public=public)
+    unconsented = set(conn.execute(text(_UNCONSENTED)).scalars())
+    withdrawn = set(conn.execute(text(_WITHDRAWN)).scalars())
     people: dict[object, list[object]] = {}
     for game_id, player_id in conn.execute(
         select(db.seats.c.game_id, db.seats.c.player_id).where(db.seats.c.player_id.is_not(None))
@@ -207,8 +204,10 @@ def export(conn: Connection, *, public: bool) -> tuple[list[dict[str, object]], 
             summary.abandoned += 1
         elif not held:
             summary.no_person += 1
-        elif not all(person in eligible for person in held):
-            summary.ineligible += 1
+        elif game["game_id"] in withdrawn:
+            summary.withdrawn += 1
+        elif game["game_id"] in unconsented:
+            summary.unconsented += 1
         else:
             release_id = f"g-{len(records) + 1:06d}"
             records.append(_record(conn, dict(game), release_id, summary))
@@ -227,14 +226,13 @@ def main(argv: list[str] | None = None, engine: Engine | None = None) -> int:
         prog="python -m fish_server.corpus_export", description="Export the corpus."
     )
     parser.add_argument("--out", type=Path, required=True, help="a new JSON Lines file")
-    parser.add_argument("--public", action="store_true", help="the CC BY 4.0 release")
     args = parser.parse_args(argv)
     if args.out.exists():
         parser.error(f"{args.out} exists; refusing to overwrite it")
     engine = engine or create_engine(database_url(), poolclass=pool.NullPool)
     try:
         with engine.connect() as conn:
-            records, summary = export(conn, public=args.public)
+            records, summary = export(conn)
     except ExportError as error:
         print(f"FAIL {error}", file=sys.stderr)
         return 1

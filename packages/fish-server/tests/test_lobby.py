@@ -246,6 +246,33 @@ def test_a_new_table_is_written_before_its_first_action(app: Engine) -> None:
     ]
 
 
+def test_each_person_s_seat_copies_their_latest_acceptance(app: Engine) -> None:
+    """Consent Screen §3: the seat's flags are the person's latest acceptance when the game
+    starts; a person with none gets none, and the game cannot enter the corpus."""
+    six = signed_up(app, 6, cohort=False)
+    confirmed = {"us_resident_adult": True, "agrees": True, "no_outside_communication": True}
+    with app.begin() as conn:
+        for player in six[:5]:
+            conn.execute(
+                insert(db.consents).values(player_id=player.id, version="v1.0", **confirmed)
+            )
+        conn.execute(insert(db.consents).values(player_id=six[0].id, version="v1.1", **confirmed))
+        game = start_game(
+            conn, Formed(tuple(six), "solo", cohort_table=False), seed=1, server_commit="t",
+            started_at=datetime(2026, 12, 13, tzinfo=UTC),
+        )  # fmt: skip
+        flags = (
+            conn.execute(select(db.seat_consents).where(db.seat_consents.c.game_id == game))
+            .mappings()
+            .all()
+        )
+    by_seat = {row["seat"]: row for row in flags}
+    assert sorted(by_seat) == [0, 1, 2, 3, 4]  # the sixth person has not accepted
+    assert by_seat[0]["version"] == "v1.1"
+    assert all(by_seat[s]["player_id"] == six[s].id for s in by_seat)
+    assert all(row["us_resident_adult"] and row["agrees"] for row in flags)
+
+
 def test_seeds_are_64_bit_and_differ() -> None:
     seeds = {new_seed() for _ in range(50)}
     assert len(seeds) == 50
