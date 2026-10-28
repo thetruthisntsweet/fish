@@ -52,8 +52,8 @@ call conserves cards, priority alternates teams, and so on).
 **Rule traceability.** A test cites the rule it checks in its name or docstring (`R.4.3`,
 `test_r8_3_…`). `scripts/check_rule_citations.py` fails unless every rule of the current
 ruleset is cited by a test or listed in its `OWED` table with the task that will test it.
-Four rules are owed today: R.2.5 and R.2.6 (the client, T3.4), R.8.4 (the turn timer,
-reconnection and handover, T3.1) and R.8.8 (website bots, T3.5). A citation of a range such as "R.8.3-R.8.7"
+Three rules are owed today: R.2.5 and R.2.6 (the client, T3.4) and R.8.8 (website bots,
+T3.5). A citation of a range such as "R.8.3-R.8.7"
 cites every rule in it, so name only the rules a test checks. It runs as a pre-commit hook.
 
 **Whole games under environment mechanics.** `fish_rules.playout.random_game` plays whole
@@ -80,8 +80,11 @@ clock passed in, so `test_table.py` drives it on a fake clock: a press opens a 1
 with the presser's declaration, actions sent in a window are discarded, the assignment and the
 choice time out at exactly 30 and 15 seconds on the server clock however late the table is
 checked, and stale, illegal and malformed inputs are rejected and logged (R.8.3, R.8.5, R.8.7).
-Random games with random inputs from every seat at random times, legal or not, must each be a
-corpus record that reads back.
+A person who does not act within 60 seconds of a new turn, or reconnect within 30 seconds, is
+handed to a bot, and the turn timer stops for windows, assignments and choices and keeps
+running while its player is away (R.8.4). Random games with random inputs from every seat,
+connections and disconnections at random times, legal or not, with random seats held by bots
+from the deal, must each be a corpus record that reads back.
 
 **What each seat sees.** `test_view_leaks.py` changes everything hidden from a seat (the
 other hands with sizes kept, the seed, other seats' window answers and votes) at every step of
