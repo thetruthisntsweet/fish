@@ -259,5 +259,5 @@ def test_an_ending_is_written_once(app: Engine) -> None:
     table = Formed(tuple(Player(p, False) for p in seated), "group", cohort_table=False)
     with app.begin() as conn:
         game_id = start_game(conn, table, seed=5, server_commit="t", started_at=datetime.now(UTC))
-    Hub(lambda: app, "t").write_ending(Game(game_id, 5, seated), "abandoned")
+    Hub(lambda: app, "t").write_ending(Game(game_id, 5, seated), "abandoned", 0)
     assert count(app, db.game_endings, game_id=game_id, completion="abandoned") == 1
