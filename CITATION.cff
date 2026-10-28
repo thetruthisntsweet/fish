@@ -4,8 +4,8 @@ title: "Fish: a benchmark for signalling under adversarial observation"
 type: software
 authors:
   - name: "Sanjeev Kumar"
-version: 0.1.0
-date-released: "2026-10-25"
+version: 0.2.0
+date-released: "2026-10-27"
 license: Apache-2.0
 repository-code: "https://github.com/thetruthisntsweet/fish"
 abstract: >-

@@ -279,7 +279,7 @@ wheels = [
 
 [[package]]
 name = "fish-agents"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/fish-agents" }
 dependencies = [
     { name = "fish-rules" },
@@ -303,7 +303,7 @@ provides-extras = ["env", "torch"]
 
 [[package]]
 name = "fish-env"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/fish-env" }
 dependencies = [
     { name = "fish-rules" },
@@ -339,7 +339,7 @@ requires-dist = [
 
 [[package]]
 name = "fish-rules"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/fish-rules" }
 
 [[package]]

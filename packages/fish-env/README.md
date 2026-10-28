@@ -11,6 +11,8 @@ card game of asking, deduction and calls, and the environment of the
 - Deterministic: `reset(seed=...)` gives the same game every time, and every game can be saved
   as a record and replayed exactly.
 - Passes PettingZoo's own API and seed tests.
+- Agent memory for training: `memory_env(remembered)` puts the observations each agent had
+  just after the events it remembers (all, the latest k, or none) in its `infos`.
 
 ```python
 import numpy as np
@@ -21,6 +23,26 @@ game.reset(seed=42)
 rng = np.random.default_rng(0)
 for agent in game.agent_iter():
     observation, reward, terminated, truncated, info = game.last()
+    if terminated or truncated:
+        action = None
+    else:
+        action = int(rng.choice(np.flatnonzero(observation["action_mask"])))
+    game.step(action)
+```
+
+With memory, each agent's `infos` holds what it remembers:
+
+```python
+import numpy as np
+from fish_env import memory_env
+
+game = memory_env(remembered=8)  # each agent remembers the last 8 events; None for all
+game.reset(seed=42)
+rng = np.random.default_rng(0)
+for agent in game.agent_iter():
+    observation, reward, terminated, truncated, info = game.last()
+    past = info["memory"]  # the observations just after the events it remembers: (n, 648)
+    assert past.shape[0] <= 8
     if terminated or truncated:
         action = None
     else:

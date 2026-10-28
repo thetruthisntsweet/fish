@@ -44,6 +44,17 @@ environment selects until the game is over, and returns the game record
 (`fish_rules.record`), which `replay_record` replays exactly. It needs fish-agents' `env`
 extra; the workspace's `uv sync --all-packages` already has it.
 
+An agent that is an `Observer` (it has `observe(view)`) is also shown its seat's view after
+every action, whoever acted. Agents with memory are observers.
+
+## Memory
+
+An agent remembers everything it is shown, only the latest k events, or nothing beyond its
+current view. `fish_agents.memory.Remembering(agent, setting)` gives an agent that takes
+`act(view, memory, rng)` a memory for each seat it plays, with Layer 1's deduction from what
+it remembers. `docs/memory.md` describes the settings, what k counts, and the environment's
+memory wrapper for training.
+
 ## B0, the random legal agent (`b0-v1`)
 
 `fish_agents.b0.B0` chooses uniformly among its legal actions at every decision, with one
