@@ -449,6 +449,19 @@ def test_r8_4_people_who_never_connect_are_handed_over_after_30_seconds() -> Non
     assert rows(table, "connection")[0]["state"] == "connected"
 
 
+def test_r8_7_round_trips_are_recorded_for_connected_people_only() -> None:
+    table = new_table(1, people=(0, 1))
+    assert table.round_trip(0, 41_000, 5 * SECOND_US)
+    assert not table.round_trip(2, 41_000, 5 * SECOND_US)  # a bot's seat
+    table.disconnect(1, 6 * SECOND_US)
+    assert not table.round_trip(1, 41_000, 7 * SECOND_US)  # away
+    assert not table.round_trip(0, -1, 8 * SECOND_US)
+    assert rows(table, "rtt") == [
+        {"type": "rtt", "after": 0, "at_us": 5 * SECOND_US, "seat": 0, "rtt_us": 41_000}
+    ]
+    record(table)
+
+
 def test_seats_a_bot_holds_from_the_deal_have_no_timers() -> None:
     current = first_player(new_table(1))
     alone = next(s for s in SEATS if s != current)

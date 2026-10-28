@@ -86,6 +86,14 @@ running while its player is away (R.8.4). Random games with random inputs from e
 connections and disconnections at random times, legal or not, with random seats held by bots
 from the deal, must each be a corpus record that reads back.
 
+**The game server.** `test_game.py` drives one game in progress on a fake clock: every
+connected person is sent every change, rejections are answered with the state, people are
+pinged every 5 seconds and the round trip recorded (R.8.7), handovers release their person,
+and whole random games end with rows that are exactly the table's log. `test_hub.py` checks
+the plumbing between connections, games and the database writer, and `test_ws.py` plays a
+game over real WebSockets with six players and a real database, a window closing on the real
+clock.
+
 **What each seat sees.** `test_view_leaks.py` changes everything hidden from a seat (the
 other hands with sizes kept, the seed, other seats' window answers and votes) at every step of
 random games, and requires the seat's view to stay the same. It also requires public

@@ -144,6 +144,10 @@ rights only. Tables that must never change once written get
 - Sign-in: `POST /auth/link` with `{"email": …}` emails a link, which opens `/sign-in` with
   one button; pressing it signs in for 30 days (`fish_server.auth`). Locally the link is
   printed in the server's output.
+- The game: `/ws`, a WebSocket that needs the session cookie and starts with
+  `client_hello` (`fish_server.protocol`, `fish_server.hub`). Games are held in the server's
+  memory and written to the database as they happen; a deploy or restart ends any game in
+  progress.
 - The **Shell** page of `fish-staging` runs commands on the server, for example
   `python -m fish_server.privileges check`. The database accepts no connections from outside
   Render, so the Shell is the way in.
