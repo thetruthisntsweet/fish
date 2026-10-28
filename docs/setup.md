@@ -105,6 +105,12 @@ The test suite creates and drops its own throwaway databases and its own login
 | `FISH_APP_DB_USER` | tests only | overrides the login name; leave unset |
 | `HYPOTHESIS_PROFILE` | tests | `dev` (default, 100 examples), `ci` (1,000), `nightly` (50,000); see [testing.md](testing.md) |
 | `PORT` | the server image | port to listen on; Render sets it |
+| `FISH_EMAIL` | the server | `console` (default: sign-in emails printed in the server's output) or `resend` (sent through Resend; Render) |
+| `FISH_RESEND_API_KEY` | the server, with `resend` | Resend key with sending access to the sending domain only; set in Render, never in a file |
+| `FISH_EMAIL_FROM` | the server | sender of sign-in emails; defaults to `Fish <signin@mail.thedefinitivesanjeevexperience.com>` |
+| `FISH_COHORT_SEED` | the server | 64-bit seed of the held-out cohort draw (corpus.md §2.1); never changed once anyone has signed up |
+| `FISH_PUBLIC_URL` | the server | where sign-in links point; defaults to `RENDER_EXTERNAL_URL` (Render sets it), else `http://127.0.0.1:8000` |
+| `FISH_SIGNIN_DAILY_LIMIT` | the server | most sign-in emails sent in 24 hours; default 90, under Resend's free 100 a day |
 
 The server's own URL is never written anywhere: it is the admin URL with the user and
 password swapped for `fish_server` and `FISH_APP_DB_PASSWORD`.
@@ -135,6 +141,9 @@ rights only. Tables that must never change once written get
   network only). Configuration: `render.yaml`.
 - `GET /health` — is the server up, and which versions it runs.
 - `GET /health/db` — can it reach its database, and at which migration.
+- Sign-in: `POST /auth/link` with `{"email": …}` emails a link, which opens `/sign-in` with
+  one button; pressing it signs in for 30 days (`fish_server.auth`). Locally the link is
+  printed in the server's output.
 - The **Shell** page of `fish-staging` runs commands on the server, for example
   `python -m fish_server.privileges check`. The database accepts no connections from outside
   Render, so the Shell is the way in.

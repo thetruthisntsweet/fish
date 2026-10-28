@@ -24,6 +24,15 @@ services:
           property: connectionString
       - key: FISH_APP_DB_PASSWORD # the fish_server login's password; Render generates it
         generateValue: true
+      # Sign-in by emailed link (T3.1). Links point at RENDER_EXTERNAL_URL, which Render sets.
+      - key: FISH_EMAIL
+        value: resend
+      - key: FISH_EMAIL_FROM
+        value: Fish <signin@mail.thedefinitivesanjeevexperience.com>
+      - key: FISH_RESEND_API_KEY # Resend key with sending access to that domain only
+        sync: false
+      - key: FISH_COHORT_SEED # 64-bit; never changed once anyone has signed up (corpus.md §2.1)
+        sync: false
 
 databases:
   - name: fish-staging-db # cannot be renamed later

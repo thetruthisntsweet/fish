@@ -1,9 +1,9 @@
-"""The Fish game server (T2.1 subtasks 12-13: health checks and WebSocket echo only).
+"""The Fish game server (T2.1 subtasks 12-13; T3.1).
 
-Game logic arrives in T3.1. Until then the server proves the deployment works end to end:
 ``GET /health`` for the hosting platform's health checks, ``GET /health/db`` to confirm the
 database is reachable and migrated, and ``/ws/echo`` to show that long-lived WebSocket
-connections survive the platform's proxy (T2.1 §10, §17).
+connections survive the platform's proxy (T2.1 §10, §17). Signing in by emailed link is in
+``fish_server.auth``.
 
 Run locally:  uv run uvicorn fish_server.app:app --reload
 """
@@ -18,7 +18,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from fish_rules.rng import RNG_ALGORITHM
 from fish_rules.version import RULESET_VERSION
-from fish_server import __version__
+from fish_server import __version__, auth
 from fish_server.database import dispose_engine, get_engine, schema_revision
 from fish_server.protocol import PROTOCOL_VERSION, server_hello
 
@@ -33,6 +33,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="Fish server", version=__version__, docs_url=None, redoc_url=None, lifespan=lifespan
 )
+app.include_router(auth.router)
 
 
 class Health(BaseModel):

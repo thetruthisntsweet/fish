@@ -82,3 +82,72 @@ def database_url() -> str:
     """URL the running server uses: the admin URL, logged in as the server's login instead."""
     url = make_url(admin_database_url()).set(username=app_login_role(), password=app_password())
     return url.render_as_string(hide_password=False)
+
+
+# ---------------------------------------------------------------- sign-in (T3.1)
+
+PUBLIC_URL_VAR = "FISH_PUBLIC_URL"
+RENDER_URL_VAR = "RENDER_EXTERNAL_URL"
+EMAIL_VAR = "FISH_EMAIL"
+RESEND_KEY_VAR = "FISH_RESEND_API_KEY"
+EMAIL_FROM_VAR = "FISH_EMAIL_FROM"
+COHORT_SEED_VAR = "FISH_COHORT_SEED"
+DAILY_LINKS_VAR = "FISH_SIGNIN_DAILY_LIMIT"
+
+DEFAULT_PUBLIC_URL = "http://127.0.0.1:8000"
+DEFAULT_EMAIL_FROM = "Fish <signin@mail.thedefinitivesanjeevexperience.com>"
+DEFAULT_DAILY_LINKS = 90
+"""Below Resend's free 100 emails a day, so a flood of requests is refused here rather than
+by the provider."""
+
+
+def public_url() -> str:
+    """The address players reach the server at, for the links in sign-in emails:
+    FISH_PUBLIC_URL, else the address Render gives the service (RENDER_EXTERNAL_URL), else
+    the local development server."""
+    for var in (PUBLIC_URL_VAR, RENDER_URL_VAR):
+        value = os.environ.get(var, "").strip().rstrip("/")
+        if value:
+            if not value.startswith(("https://", "http://")):
+                raise ValueError(f"{var} must start with https:// or http://, got {value!r}")
+            return value
+    return DEFAULT_PUBLIC_URL
+
+
+def email_mode() -> str:
+    """How sign-in emails go out: ``console`` (the default: printed in the server's log, for
+    development and tests) or ``resend`` (sent through Resend, on Render)."""
+    mode = os.environ.get(EMAIL_VAR, "").strip() or "console"
+    if mode not in ("console", "resend"):
+        raise ValueError(f"{EMAIL_VAR} is console or resend, not {mode!r}")
+    return mode
+
+
+def resend_api_key() -> str:
+    """The Resend API key (sending access only, for the one domain)."""
+    return _required(RESEND_KEY_VAR)
+
+
+def email_from() -> str:
+    """The sender of sign-in emails, as ``Name <address>``."""
+    return os.environ.get(EMAIL_FROM_VAR, "").strip() or DEFAULT_EMAIL_FROM
+
+
+def cohort_seed() -> int:
+    """The held-out cohort's seed (docs/corpus.md §2.1): a whole number in [0, 2**64). It
+    must never change for a database once anyone has signed up, and is published with the
+    frozen corpus."""
+    raw = _required(COHORT_SEED_VAR)
+    if not raw.isdecimal() or int(raw) >= 2**64:
+        raise ValueError(f"{COHORT_SEED_VAR} is a whole number from 0 to 2**64 - 1")
+    return int(raw)
+
+
+def daily_link_limit() -> int:
+    """How many sign-in emails the server sends in any 24 hours, at most."""
+    raw = os.environ.get(DAILY_LINKS_VAR, "").strip()
+    if not raw:
+        return DEFAULT_DAILY_LINKS
+    if not raw.isdecimal():
+        raise ValueError(f"{DAILY_LINKS_VAR} is a whole number")
+    return int(raw)

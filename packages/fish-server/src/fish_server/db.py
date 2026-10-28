@@ -1,4 +1,5 @@
-"""Database metadata shared by the server and Alembic (T2.1 subtask 9; tables from T1.6).
+"""Database metadata shared by the server and Alembic (T2.1 subtask 9; tables from T1.6 and
+T3.1).
 
 The tables hold what docs/corpus.md §2 to §5 says every website game records. Migration 0003
 creates them; ``tests/test_corpus_tables.py`` checks that this metadata and the migrated
@@ -7,9 +8,9 @@ database agree, so the two cannot drift.
 Every table that records play or consent is in ``APPEND_ONLY``: its triggers refuse UPDATE,
 DELETE and TRUNCATE for every role, the owner included (``privileges.append_only_sql``), and
 the server's login may only read and insert anyway (D15). A game's end is therefore a row of
-its own in ``game_endings``, not a column filled in later. Only ``player_contacts``, which
-holds email addresses and never leaves the server (§7), is outside the list, so that an
-address can be removed on request.
+its own in ``game_endings``, not a column filled in later. Only the tables in ``PRIVATE`` are
+outside the list: ``player_contacts``, which holds email addresses, and the sign-in links and
+sessions (T3.1). They never leave the server (§7), and an address can be removed on request.
 
 Constraints repeat the rules of the record format (``fish_rules.corpus``) where a column
 alone can enforce them; whatever needs a replay is checked when a record is read. Nothing is
@@ -105,6 +106,64 @@ age_events = Table(
     _timestamp("at"),
     Column("confirmed_18_plus", Boolean, nullable=False),
 )
+
+# ---------------------------------------------------------------- sign-in (T3.1)
+#
+# Links and sessions are kept as tokens' SHA-256 hashes, never the tokens. The server's login
+# may only insert, so using a link and ending a session are rows of their own; a primary key
+# makes each happen at most once. None of these is exported, and an address removed on
+# request is removed from ``sign_in_links`` too, so they are not append-only.
+
+
+def _token_hash(name: str) -> Column[str]:
+    return Column(name, Text, primary_key=True)
+
+
+sign_in_links = Table(
+    "sign_in_links",
+    metadata,
+    _token_hash("token_hash"),
+    Column("email", Text, nullable=False),
+    _timestamp("created_at"),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Index(None, "email", "created_at"),
+    Index(None, "created_at"),
+    CheckConstraint("length(token_hash) = 64", name="token_hash"),
+)
+
+sign_in_uses = Table(
+    "sign_in_uses",
+    metadata,
+    Column("token_hash", ForeignKey("sign_in_links.token_hash"), primary_key=True),
+    _timestamp("used_at"),
+)
+
+sessions = Table(
+    "sessions",
+    metadata,
+    _token_hash("token_hash"),
+    Column("player_id", ForeignKey("players.player_id"), nullable=False, index=True),
+    _timestamp("created_at"),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("length(token_hash) = 64", name="token_hash"),
+)
+
+session_ends = Table(
+    "session_ends",
+    metadata,
+    Column("token_hash", ForeignKey("sessions.token_hash"), primary_key=True),
+    _timestamp("ended_at"),
+)
+
+PRIVATE: Final[tuple[str, ...]] = (
+    "player_contacts",
+    "sign_in_links",
+    "sign_in_uses",
+    "sessions",
+    "session_ends",
+)
+"""Tables that never leave the server (docs/corpus.md §7) and whose rows an administrator may
+remove: contact addresses, sign-in links and sessions. Every other table is append-only."""
 
 # ---------------------------------------------------------------- games (§3)
 

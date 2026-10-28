@@ -130,8 +130,8 @@ def test_the_migration_creates_exactly_the_metadata(owner: Engine) -> None:
         assert conn.execute(text("SELECT to_regclass('signup_numbers')")).scalar() is not None
 
 
-def test_every_table_but_the_contacts_is_append_only() -> None:
-    assert set(db.APPEND_ONLY) == set(db.metadata.tables) - {"player_contacts"}
+def test_every_table_but_the_private_ones_is_append_only() -> None:
+    assert set(db.APPEND_ONLY) == set(db.metadata.tables) - set(db.PRIVATE)
 
 
 # ---------------------------------------------------------------- writing and reading
