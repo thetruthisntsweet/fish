@@ -2,9 +2,10 @@
 
 Each version is one text, word for word, which the web client holds
 (``client/src/study/texts.ts``), and the last day its participants can withdraw through the
-website (Consent Screen §2.7). A site shows one of them (``FISH_CONSENT_VERSION``). A new text
-is a new entry here and in the client, never a change to an old one: everyone who accepted
-an old text can still reread exactly what they agreed to.
+website (Consent Screen §2.7). ``client/src/study/versions.json`` lists the same versions and
+days, and tests on both sides check that they agree. A site shows one of them
+(``FISH_CONSENT_VERSION``). A new text is a new entry here and in the client, never a change
+to an old one: everyone who accepted an old text can still reread exactly what they agreed to.
 """
 
 from dataclasses import dataclass
