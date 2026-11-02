@@ -309,7 +309,9 @@ def test_the_form_needs_an_address(client: tuple[TestClient, MemoryMailer], body
 
 def test_a_link_that_is_not_one_shows_why(client: tuple[TestClient, MemoryMailer]) -> None:
     http, _ = client
-    assert http.post("/auth/verify", data={"token": "nope"}).status_code == 400
+    answer = http.post("/auth/verify", data={"token": "nope"})
+    assert answer.status_code == 400
+    assert "<a href='/'>Ask for a new link</a>" in answer.text  # back to the client
     assert http.post("/auth/verify", data={}).status_code == 400
 
 

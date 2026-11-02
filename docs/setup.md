@@ -61,7 +61,8 @@ All from the repository root.
 | Run the Python tests only | `uv run --env-file .env pytest` |
 | Run one package's tests | `uv run --env-file .env pytest packages/fish-rules` |
 | Start the server (reloads on save) | `uv run --env-file .env uvicorn fish_server.app:app --reload` |
-| Start the client (http://localhost:5173) | `npm --prefix client run dev` |
+| Start the client (http://127.0.0.1:5173) | `npm --prefix client run dev` |
+| Build the client, which the server then serves at http://127.0.0.1:8000 | `npm --prefix client run build` |
 | Run the client tests | `npm --prefix client test` |
 | Build the published packages, install them as a user would, and run the README examples | `uv run --no-project --python 3.14 python scripts/check_install.py` |
 | Make a release | [runbooks/release.md](runbooks/release.md) |
@@ -73,8 +74,11 @@ All from the repository root.
 | Run the hooks on every file | `uv run pre-commit run --all-files` |
 | Hold a WebSocket open to test a server | `uv run python scripts/ws_soak.py ws://localhost:8000/ws/echo --minutes 1 --every 10` |
 
-With the server and client both running, the client's `/api` and `/ws` requests are
-forwarded to the server on port 8000.
+The server serves the built client itself (`client/dist`; the image builds it), so on
+Render the pages, the endpoints and `/ws` are one address. Locally, `npm --prefix client run
+dev` serves the live client on port 5173 and forwards everything else to the server on port
+8000. To land on it after using a sign-in link, set `FISH_PUBLIC_URL=http://127.0.0.1:5173`
+in `.env` and restart the server.
 
 ## 4. The local database
 

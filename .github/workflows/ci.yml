@@ -163,6 +163,12 @@ jobs:
             sleep 1
           done
           exit 1
+      - name: / serves the web client, with its script
+        run: |
+          page=$(curl --silent --fail http://localhost:8000/)
+          grep --quiet 'id="root"' <<<"$page"
+          script=$(grep --only-matching '/assets/[^"]*\.js' <<<"$page" | head -1)
+          curl --silent --fail --output /dev/null "http://localhost:8000$script"
       - name: /ws/echo holds a connection and echoes
         run: >-
           uv run --no-project --with websockets

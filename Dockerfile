@@ -14,9 +14,19 @@ WORKDIR /app
 COPY . .
 RUN uv sync --locked --no-dev --no-editable --package fish-server
 
+# ---------------------------------------------------------------- client stage
+# Builds the web client (T3.3) exactly as package-lock.json pins it. Only client/dist is kept;
+# the server serves it (fish_server.pages).
+FROM node:24-slim AS client
+WORKDIR /client
+COPY client/package.json client/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY client/ ./
+RUN npm run build
+
 # ---------------------------------------------------------------- runtime stage
-# Only Python, the finished virtual environment and the migrations: no uv, no source tree,
-# no tests.
+# Only Python, the finished virtual environment, the migrations and the built client: no uv,
+# no Node, no source tree, no tests.
 FROM python:3.14-slim
 # A non-root user with a login shell and a ~/.ssh folder: Render's Shell page and SSH
 # need both for Docker services (used for the restore drill, docs/runbooks/restore-drill.md).
@@ -27,6 +37,8 @@ COPY --from=build /app/.venv /app/.venv
 # Render's pre-deploy command runs `alembic upgrade head` from /app (render.yaml).
 COPY --from=build /app/alembic.ini /app/alembic.ini
 COPY --from=build /app/packages/fish-server/migrations /app/packages/fish-server/migrations
+# The server serves the client from client/dist under /app (fish_server.settings.client_dir).
+COPY --from=client /client/dist /app/client/dist
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 USER fish

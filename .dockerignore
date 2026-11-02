@@ -11,7 +11,8 @@
 .hypothesis
 .coverage
 .import_linter_cache
-client
+client/node_modules
+client/dist
 docs
 infra
 schemas
