@@ -104,11 +104,13 @@ week's M4.
 
 | List (Resend segment) | Who | Where it comes from |
 |---|---|---|
-| Invited | Until 7 December, the Gov School group (all adults); from then on, also everyone else who has said they are willing to play, mainly Lake Braddock alumni | The researcher's lists, imported into Resend |
+| Invited | Until 7 December, the Gov School group (all adults); from then on, also the rest of those invited, chosen from everyone who has said they are willing to play (mainly Lake Braddock alumni): about 950 people in all | The researcher's lists, imported into Resend |
 | Players: group 1 | Signed-up players outside the held-out cohort who have not withdrawn | Copied from the study database before each Monday's M4 (`python -m fish_server.audience`, [runbooks/email.md](runbooks/email.md) §4) |
 | Players: group 2 | Signed-up players in the held-out cohort who have not withdrawn | The same |
 
-Three lists, the most Resend's free marketing plan allows. M1 and M2 go to Invited while it
+Three lists and at most 1,000 contacts, the most Resend's free marketing plan allows. About
+950 are invited, so that players who sign up with an address other than the one invited still
+fit when they are copied into their Players list. M1 and M2 go to Invited while it
 holds only the Gov School group; the rest of the pool is added on 7 December, before M3. One
 list for every invitation also means nobody on both of the researcher's lists is sent the
 same message twice. Each message is read first as a test copy sent from its draft (Resend's
