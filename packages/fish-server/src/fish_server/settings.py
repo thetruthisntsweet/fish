@@ -20,6 +20,8 @@ from pathlib import Path
 
 from sqlalchemy import make_url
 
+from fish_server.study import VERSIONS
+
 ADMIN_DATABASE_URL_VAR = "FISH_ADMIN_DATABASE_URL"
 APP_PASSWORD_VAR = "FISH_APP_DB_PASSWORD"
 APP_USER_VAR = "FISH_APP_DB_USER"
@@ -174,16 +176,17 @@ def server_commit() -> str:
 
 CONSENT_VERSION_VAR = "FISH_CONSENT_VERSION"
 DEFAULT_CONSENT_VERSION = "v1.0"
-_CONSENT_VERSION = re.compile(r"v[0-9]+\.[0-9]+(-pilot)?")
 
 
 def consent_version() -> str:
     """The consent text this site shows and asks people to accept (Consent Screen §1, §4):
     ``v1.0`` for the study, ``v1.0-pilot`` on the staging site. Everyone accepts the current
-    one before their next game."""
+    one before their next game. It must be one of the texts the site has
+    (``fish_server.study``)."""
     version = os.environ.get(CONSENT_VERSION_VAR, "").strip() or DEFAULT_CONSENT_VERSION
-    if not _CONSENT_VERSION.fullmatch(version):
-        raise ValueError(f"{CONSENT_VERSION_VAR} is like v1.0 or v1.0-pilot, not {version!r}")
+    if version not in VERSIONS:
+        known = ", ".join(VERSIONS)
+        raise ValueError(f"{CONSENT_VERSION_VAR} is one of {known}, not {version!r}")
     return version
 
 

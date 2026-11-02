@@ -28,7 +28,9 @@ move messages and rows.
 
 The consent screen comes first (Consent Screen §2; the client builds it, T3.3). `GET /study`
 gives the version this site shows (`FISH_CONSENT_VERSION`: `v1.0`, or `v1.0-pilot` on
-staging).
+staging), the last day its participants can withdraw on the website (`withdraw_until`), and
+whether they still can (`withdrawal_open`). The versions a site can show, and their last
+days, are `fish_server.study`; the server refuses to start with any other.
 
 1. `POST /auth/link` with `{"email": …, "consent": {"version": …, "us_resident_adult": true,
    "agrees": true, "no_outside_communication": true}}` emails a link (Resend on Render; printed in the
@@ -51,8 +53,10 @@ withdrawn, whether they may play); `POST /auth/sign-out` ends the session.
 
 - **A new version** of the text (Consent Screen §2.8): set `FISH_CONSENT_VERSION`, and each
   player accepts it with `POST /consent` before their next game.
-- **Withdrawing** on the website: `POST /withdraw` with `{"confirm": true}`. By email: in
-  the `fish-staging` (or production) **Shell**, `python -m fish_server.withdraw <address>`.
+- **Withdrawing** on the website: `POST /withdraw` with `{"confirm": true}`, until the end of
+  the text's last day in US Eastern time (14 February 2027; 31 March 2027 for the pilot), and
+  409 after. By email: in the `fish-staging` (or production) **Shell**,
+  `python -m fish_server.withdraw <address>`, which has no deadline: you decide by hand.
   Either way it is a record of its own, made once and never undone; every game the person
   played leaves the corpus at the next export, and they cannot play again.
 - **Who may play:** only a player who has accepted the current text and not withdrawn may
