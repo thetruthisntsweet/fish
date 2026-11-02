@@ -47,7 +47,8 @@ set up in T4.1 subtask 2.
 
 **Sender.** `Sanjeev Kumar (Fish study) <fish@news.thedefinitivesanjeevexperience.com>`, replies
 to 821sanjeevkumar@gmail.com. Bulk email goes from its own subdomain so that it never affects
-the delivery of sign-in links (T4.1 subtask 3).
+the delivery of sign-in links. Messages are sent with `scripts/broadcast.py`, which takes their
+words from this page ([runbooks/email.md](runbooks/email.md)).
 
 ## 3. Game nights
 
@@ -105,6 +106,7 @@ and include it in that week's M4.
 | Pool | Everyone else who has said they are willing to play, mainly Lake Braddock alumni | The researcher's list, imported into Resend |
 | Players: group 1 | Signed-up players outside the held-out cohort who have not withdrawn | Copied from the study database before each Monday's M4 (T4.1 subtask 4) |
 | Players: group 2 | Signed-up players in the held-out cohort who have not withdrawn | The same |
+| Test | The researcher's own addresses, to read each message before it goes out | Added by hand |
 
 The lists live only in Resend and in the study database's email table; none of them is ever
 in this repository. Resend's contacts are deleted on 31 March 2027, with the email table
