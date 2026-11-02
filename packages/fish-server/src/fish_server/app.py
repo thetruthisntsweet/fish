@@ -3,7 +3,8 @@
 ``GET /health`` for the hosting platform's health checks, ``GET /health/db`` to confirm the
 database is reachable and migrated, and ``/ws/echo`` to show that long-lived WebSocket
 connections survive the platform's proxy (T2.1 §10, §17). Signing in by emailed link is in
-``fish_server.auth``; ``/ws`` is the game itself (``fish_server.hub``).
+``fish_server.auth``; ``/ws`` is the game itself (``fish_server.hub``); the web client's pages
+and files are ``fish_server.pages``.
 
 Run locally:  uv run uvicorn fish_server.app:app --reload
 """
@@ -20,7 +21,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from fish_rules.rng import RNG_ALGORITHM
 from fish_rules.version import RULESET_VERSION
-from fish_server import __version__, auth
+from fish_server import __version__, auth, pages
 from fish_server.database import dispose_engine, get_engine, schema_revision
 from fish_server.games import load_player
 from fish_server.hub import Connection, Hub, error
@@ -46,6 +47,7 @@ app = FastAPI(
     title="Fish server", version=__version__, docs_url=None, redoc_url=None, lifespan=lifespan
 )
 app.include_router(auth.router)
+app.include_router(pages.router)
 
 
 class Health(BaseModel):

@@ -17,7 +17,8 @@ in ``fish_server.signin``; acceptances and withdrawals in ``fish_server.consent`
   withdraw from the study.
 - ``POST /auth/sign-out``: end the session and clear the cookie.
 
-The pages are plain HTML until the web client (T3.4) takes them over.
+The sign-in pages are plain HTML; everything else a person sees is the web client
+(``fish_server.pages``).
 """
 
 import html
@@ -155,7 +156,7 @@ async def verify(request: Request) -> Response:
         return _page(
             "Sign-in link not valid",
             "<h1>This link has expired or was already used</h1>"
-            "<p>Ask for a new one on the sign-in page.</p>",
+            "<p><a href='/'>Ask for a new link</a>.</p>",
             status=400,
         )
     response = RedirectResponse("/", status_code=303)
