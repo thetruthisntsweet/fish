@@ -150,7 +150,10 @@ jobs:
   # width: the consent screen, signing in, the study information and withdrawing.
   browser:
     name: The website in a browser
-    runs-on: ubuntu-latest
+    # Playwright 1.56 has Chromium and its system libraries for Ubuntu 24.04 but not 26.04,
+    # which ubuntu-latest now is. Move back to ubuntu-latest with a Playwright
+    # release that supports it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
       postgres:
