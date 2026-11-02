@@ -31,7 +31,7 @@ the most the free marketing plan allows:
 | Segment | What goes in | When |
 |---|---|---|
 | `Invited` | the Gov School group, from a CSV with one column, `email` | now |
-| `Invited` | the rest of the pool, imported into the same segment | Mon 7 Dec, after the upgrade in §2 |
+| `Invited` | the rest of those invited, imported into the same segment: about 950 people in all, Gov School included | Mon 7 Dec |
 | `Players: group 1`, `Players: group 2` | make them empty now; they are filled from the study database (§4) | before each Monday |
 
 Someone on both of your lists becomes one contact, since Resend keeps one per address. Delete
@@ -58,12 +58,13 @@ export RESEND_BROADCAST_KEY="$(security find-generic-password -a "$USER" -s fish
   ask for links. Move to **Pro** (50,000 a month, no daily limit) and give the production
   service `FISH_SIGNIN_DAILY_LIMIT=1500` in `render.yaml` (T4.3). Staging keeps 90: the pilot
   is small.
-- **Invitations.** The free marketing plan holds 1,000 contacts and three segments, enough
-  for the Gov School group and the pilot. Before adding the pool to `Invited`, move to the
-  marketing plan for its size (5,000 contacts at the time of writing). It is needed until the
-  last invitation, M6 on 9 February.
+- **Invitations stay on the free plan.** It holds 1,000 contacts and three segments, and
+  every contact counts once, whichever segments it is in. About 950 are invited, which leaves
+  room for players who sign up with another address: `fish_server.audience` adds them as new
+  contacts. If Resend ever refuses a contact for the limit, the copy stops and says so (§4).
+  Never delete a contact who unsubscribed to make room: Resend would forget that they did.
 
-Check the prices on Resend's pricing page when you upgrade; they change.
+Check the price on Resend's pricing page when you upgrade; it changes.
 
 ## 3. Sending a message
 

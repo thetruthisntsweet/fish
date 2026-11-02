@@ -869,6 +869,7 @@ who M1 and M2 are for, and the rest of the pool joins it before M3. Every later 
 then one broadcast to one list, so someone on both of the researcher's lists is one contact
 and gets each message once. The Players lists stay two, because each group has its own
 Wednesday nights. `scripts/broadcast.py` sends a message only to its heading's list, and
-`python -m fish_server.audience` takes withdrawn players out of `Invited`. Alternative: the
-paid plan for its segments alone (it is needed from 7 December anyway, for the pool's 5,000
-contacts, but not before).
+`python -m fish_server.audience` takes withdrawn players out of `Invited`. About 950 people
+are invited in all, chosen from the willing pool, so the free plan's 1,000 contacts also hold
+every invitation and every player. Alternative: the paid marketing plan, for more segments
+and the whole pool of about 5,000 (more invitations than the study needs to manage).
