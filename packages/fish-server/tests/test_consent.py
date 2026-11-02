@@ -2,13 +2,16 @@
 screen travels with the sign-in link and is recorded when it is used; a signed-in player can
 accept a new version; only the current text, with all three confirmations, is accepted; a
 withdrawal, from the website or by email, is recorded once and never undone; and only a
-player who has accepted the current text and not withdrawn may wait for a game. Skipped
+player who has accepted the current text and not withdrawn may wait for a game. Withdrawing
+on the website closes at the end of the text's last day, US Eastern time (T3.3). Skipped
 without FISH_TEST_DATABASE_URL."""
 
 import re
 import uuid
 from collections.abc import Iterator
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,13 +19,17 @@ from sqlalchemy import Engine, create_engine, func, pool, select
 
 from fish_server import db
 from fish_server.app import app as server
-from fish_server.auth import limiter
+from fish_server.auth import clock, limiter
 from fish_server.consent import Acceptance, Standing, accept, problem, standing
 from fish_server.lobby import Player
 from fish_server.mailer import MemoryMailer, mailer
 from fish_server.settings import COHORT_SEED_VAR, CONSENT_VERSION_VAR, consent_version, database_url
 from fish_server.signin import player_for
+from fish_server.study import VERSIONS
 from fish_server.withdraw import main as withdraw_by_email
+
+NOW = datetime(2026, 11, 20, 18, tzinfo=UTC)
+"""A day of the study, well before anyone's last day to withdraw."""
 
 ACCEPTED: dict[str, object] = {
     "version": "v1.0",
@@ -45,6 +52,7 @@ def app(server_env: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
 def client(app: Engine) -> Iterator[tuple[TestClient, MemoryMailer]]:
     mail = MemoryMailer()
     server.dependency_overrides[mailer] = lambda: mail
+    server.dependency_overrides[clock] = lambda: NOW
     limiter._seen.clear()  # pyright: ignore[reportPrivateUsage]
     with TestClient(server) as http:
         yield http, mail
@@ -91,9 +99,25 @@ def test_the_site_s_version_comes_from_the_settings(monkeypatch: pytest.MonkeyPa
     assert consent_version() == "v1.0"
     monkeypatch.setenv(CONSENT_VERSION_VAR, "v1.0-pilot")
     assert consent_version() == "v1.0-pilot"
-    monkeypatch.setenv(CONSENT_VERSION_VAR, "1.0")
-    with pytest.raises(ValueError, match=r"like v1\.0"):
+    monkeypatch.setenv(CONSENT_VERSION_VAR, "v9.9")  # a text the site does not have
+    with pytest.raises(ValueError, match=r"one of v1\.0, v1\.0-pilot, not 'v9\.9'"):
         consent_version()
+
+
+@pytest.mark.parametrize(
+    ("version", "last_day"), [("v1.0", "2027-02-14"), ("v1.0-pilot", "2027-03-31")]
+)
+def test_withdrawing_closes_at_the_end_of_the_texts_last_day_in_eastern_time(
+    version: str, last_day: str
+) -> None:
+    """Consent Screen §1, §4: "You can withdraw until 14 February 2027"; the pilot, until 31
+    March 2027."""
+    text = VERSIONS[version]
+    assert text.withdraw_until.isoformat() == last_day
+    midnight = datetime.combine(text.withdraw_until + timedelta(days=1), time())
+    assert text.closes == midnight.replace(tzinfo=ZoneInfo("America/New_York"))
+    assert text.withdrawal_open(text.closes - timedelta(microseconds=1))
+    assert not text.withdrawal_open(text.closes)
 
 
 def test_standing_says_who_may_play() -> None:
@@ -112,7 +136,11 @@ def test_the_screen_s_acceptance_is_recorded_when_the_link_is_used(
     client: tuple[TestClient, MemoryMailer], app: Engine
 ) -> None:
     http, mail = client
-    assert http.get("/study").json() == {"version": "v1.0"}
+    assert http.get("/study").json() == {
+        "version": "v1.0",
+        "withdraw_until": "2027-02-14",
+        "withdrawal_open": True,
+    }
     assert sign_in(http, mail, "new@example.org", ACCEPTED) == 202
     (row,) = consents(app)
     assert (row["version"], row["us_resident_adult"], row["agrees"]) == ("v1.0", True, True)
@@ -144,7 +172,8 @@ def test_signing_in_again_needs_no_acceptance_and_a_new_version_needs_one(
     sign_in(http, mail, "d@example.org", ACCEPTED)
     sign_in(http, mail, "d@example.org")  # on another device, no screen
     assert len(consents(app)) == 1
-    monkeypatch.setenv(CONSENT_VERSION_VAR, "v1.1")  # the text changed (Consent Screen §2.8)
+    monkeypatch.setitem(VERSIONS, "v1.1", VERSIONS["v1.0"])  # a new text (Consent Screen §2.8)
+    monkeypatch.setenv(CONSENT_VERSION_VAR, "v1.1")
     assert http.get("/auth/me").json()["study"]["may_play"] is False
     assert http.post("/consent", json=ACCEPTED).status_code == 422  # not the text shown now
     assert http.post("/consent", json=ACCEPTED | {"version": "v1.1"}).status_code == 204
@@ -177,6 +206,41 @@ def test_withdrawing_on_the_website_is_recorded_once_and_ends_playing(
     study = http.get("/auth/me").json()["study"]
     assert (study["withdrawn"], study["may_play"]) == (True, False)
     assert http.post("/consent", json=ACCEPTED).status_code == 409  # never undone
+
+
+def test_the_pilot_site_says_its_own_last_day(
+    client: tuple[TestClient, MemoryMailer], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    http, _ = client
+    monkeypatch.setenv(CONSENT_VERSION_VAR, "v1.0-pilot")
+    assert http.get("/study").json() == {
+        "version": "v1.0-pilot",
+        "withdraw_until": "2027-03-31",
+        "withdrawal_open": True,
+    }
+
+
+def test_withdrawing_on_the_website_closes_after_the_last_day(
+    client: tuple[TestClient, MemoryMailer], app: Engine
+) -> None:
+    http, mail = client
+    sign_in(http, mail, "late@example.org", ACCEPTED)
+    sign_in(http, mail, "early@example.org", ACCEPTED)
+    closes = VERSIONS["v1.0"].closes
+    server.dependency_overrides[clock] = lambda: closes - timedelta(seconds=1)
+    assert http.get("/study").json()["withdrawal_open"] is True
+    assert http.post("/withdraw", json={"confirm": True}).status_code == 204  # just in time
+    server.dependency_overrides[clock] = lambda: closes
+    assert http.get("/study").json()["withdrawal_open"] is False
+    assert http.post("/withdraw", json={"confirm": True}).status_code == 204  # already done
+    sign_in(http, mail, "late@example.org")
+    late = http.post("/withdraw", json={"confirm": True})
+    assert (late.status_code, late.json()) == (
+        409,
+        {"detail": "Withdrawing closed at the end of 14 February 2027."},
+    )
+    assert len(withdrawals(app)) == 1
+    assert http.get("/auth/me").json()["study"]["withdrawn"] is False
 
 
 def test_a_withdrawal_by_email_is_recorded_from_the_command_line(

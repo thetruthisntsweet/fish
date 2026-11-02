@@ -1,7 +1,8 @@
 """The sign-in and study endpoints (T3.1; consent and withdrawal, T3.2). How sign-in works is
 in ``fish_server.signin``; acceptances and withdrawals in ``fish_server.consent``.
 
-- ``GET /study``: the version of the study information this site shows.
+- ``GET /study``: the version of the study information this site shows, the last day its
+  participants can withdraw on the website, and whether they still can.
 - ``POST /auth/link`` with ``{"email": ..., "consent": {...}}``: email a sign-in link,
   carrying the acceptance made on the consent screen (``fish_server.consent``); 422 if the
   acceptance is not of the current text with all three confirmations. 202 whether or not the
@@ -14,7 +15,7 @@ in ``fish_server.signin``; acceptances and withdrawals in ``fish_server.consent`
 - ``GET /auth/me``: 200 ``{"signed_in": true, "study": {...}}`` with a session (the version
   last accepted, whether withdrawn, whether they may play), 401 without.
 - ``POST /consent``: accept the current text; ``POST /withdraw`` with ``{"confirm": true}``:
-  withdraw from the study.
+  withdraw from the study, until the end of the text's last day (US Eastern time); 409 after.
 - ``POST /auth/sign-out``: end the session and clear the cookie.
 
 The sign-in pages are plain HTML; everything else a person sees is the web client
@@ -24,6 +25,7 @@ The sign-in pages are plain HTML; everything else a person sees is the web clien
 import html
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Final, Literal
 from urllib.parse import parse_qs, quote
 
@@ -48,6 +50,7 @@ from fish_server.signin import (
     start_session,
     use_link,
 )
+from fish_server.study import VERSIONS
 
 COOKIE: Final = "fish_session"
 PER_NETWORK_ADDRESS: Final = 10
@@ -55,6 +58,11 @@ PER_NETWORK_ADDRESS: Final = 10
 
 router = APIRouter()
 limiter = RateLimiter(PER_NETWORK_ADDRESS, 3600, time.monotonic)
+
+
+def clock() -> datetime:
+    """The time now; tests replace it to try the withdrawal deadline."""
+    return datetime.now(UTC)
 
 
 class LinkRequest(BaseModel):
@@ -180,9 +188,18 @@ def signed_in(token: str | None) -> uuid.UUID | None:
 
 
 @router.get("/study")
-def study() -> JSONResponse:
-    """The version of the study information this site shows (Consent Screen §1, §4)."""
-    return JSONResponse({"version": consent_version()})
+def study(now: Annotated[datetime, Depends(clock)]) -> JSONResponse:
+    """The version of the study information this site shows (Consent Screen §1, §4), the last
+    day to withdraw on the website (§2.7), and whether withdrawing is still open."""
+    current = consent_version()
+    version = VERSIONS[current]
+    return JSONResponse(
+        {
+            "version": current,
+            "withdraw_until": version.withdraw_until.isoformat(),
+            "withdrawal_open": version.withdrawal_open(now),
+        }
+    )
 
 
 def _standing(player: uuid.UUID) -> dict[str, object]:
@@ -228,16 +245,25 @@ def give_consent(
 
 @router.post("/withdraw", status_code=204)
 def withdraw_here(
-    form: WithdrawRequest, fish_session: Annotated[str | None, Cookie()] = None
+    form: WithdrawRequest,
+    now: Annotated[datetime, Depends(clock)],
+    fish_session: Annotated[str | None, Cookie()] = None,
 ) -> Response:
-    """The account page's "Withdraw from the study" button, confirmed (Consent Screen §2.7).
-    Withdrawing twice records it once."""
+    """The account page's "Withdraw from the study" button, confirmed (Consent Screen §2.7),
+    open until the end of the text's last day. Withdrawing twice records it once."""
     player = signed_in(fish_session)
     if player is None:
         return JSONResponse({"detail": "Sign in first."}, 401)
+    current = consent_version()
     with get_engine().begin() as conn:
-        if not standing(conn, player, consent_version()).withdrawn:
-            withdraw(conn, player, "website")
+        if standing(conn, player, current).withdrawn:
+            return Response(status_code=204)
+        version = VERSIONS[current]
+        if not version.withdrawal_open(now):
+            day = version.withdraw_until
+            last = f"{day.day} {day:%B %Y}"
+            return JSONResponse({"detail": f"Withdrawing closed at the end of {last}."}, 409)
+        withdraw(conn, player, "website")
     return Response(status_code=204)
 
 
