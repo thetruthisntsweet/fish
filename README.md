@@ -107,6 +107,11 @@ the [changelog](CHANGELOG.md).
 - [Decision log](docs/decisions.md): what was chosen, and why
 - [Setup](docs/setup.md): working on the code: a working copy, everyday commands,
   troubleshooting
+- [Recruitment](docs/recruitment.md): who is invited and when, the game nights, and every
+  message word for word
+- [Site addresses](docs/runbooks/domains.md): giving each site an address of its own
+- [Email](docs/runbooks/email.md): sending invitations and game-night emails, the weekly
+  routine, and what to delete when the study ends
 - [Restore drill](docs/runbooks/restore-drill.md): rehearsing a database restore on staging
 - [Releasing](docs/runbooks/release.md): publishing a new version
 

@@ -810,3 +810,53 @@ website is tested end to end in Chromium (`test_browser.py`, marked `browser`, r
 width in both texts and colour schemes, and one person accepts, signs in, rereads, withdraws
 and signs out, with the database checked at each step. Alternative: a "Sign in" shortcut for
 returning players (a new person could make an account without accepting).
+
+**D79 · 2026-11-02 · Game nights: Sundays for everyone, alternate Wednesdays for each group.**
+Tables of six fill only when people come at once, so the study has scheduled nights (Research
+Plan §3; docs/recruitment.md §3): every Sunday, 8–10 pm Eastern, from 13 December to
+14 February, and every other Wednesday for each of the two groups, none on 24–25 December or
+31 December – 1 January. The held-out cohort is about 15% of sign-ups and plays only with
+itself, so it needs nights of its own; giving the other group alternate Wednesdays too means
+every player is told of "your group's game nights", and nobody learns which group is held out.
+The pace is 110 corpus games a week; two full weeks short add a Friday night. Alternatives:
+cohort-only nights announced as such (it would tell people their group); one weekly night
+(the cohort's tables would rarely fill).
+
+**D80 · 2026-11-02 · Each site has one address of its own, and `onrender.com` is switched off.**
+Invitations link to `fish.` (the study) and `fish-pilot.` (the pilot, on staging) under the
+researcher's domain, sign-in links point there (`FISH_PUBLIC_URL`), and the Render address
+answers 404 (`renderSubdomainPolicy: disabled`). A second address for the same site would
+split people's sessions between them, and an unfamiliar `onrender.com` link in an email reads
+as a phishing attempt. `test_blueprint.py` holds each service's `FISH_PUBLIC_URL` to its one
+domain. Alternative: keeping both addresses and redirecting in the server (more code for the
+same result).
+
+**D81 · 2026-11-02 · Invitations are sent word for word from the recruitment page.**
+Every message is in docs/recruitment.md before it is sent, and `scripts/broadcast.py` takes
+its words from there and nowhere else, so what was sent is what the datasheet can quote. It
+sends only to the lists a message's heading names (or a Test list), refuses anything left
+unfilled, builds each week's game nights from the schedule (whose weekdays it checks), and
+makes a draft unless told to schedule. Bulk email goes through Resend Broadcasts from its own
+subdomain, `news.`, with an unsubscribe link, so that complaints about invitations cannot slow
+sign-in links from `mail.`. The full-access key it needs stays in the researcher's keychain.
+Alternatives: pasting messages into Resend's editor (the sent words could drift from the
+page); sending from a personal Gmail (about 500 a day, and the spam folder).
+
+**D82 · 2026-11-02 · Players reach the game-night lists from the Render Shell, by group.**
+Only the study database knows who has accepted, who has withdrawn and who is in the cohort,
+and it is reachable only inside Render, so `python -m fish_server.audience` runs in the
+production Shell before each Monday's email. It puts each player in their group's segment and
+takes everyone who withdrew out of every list, invitations included, so no one is invited to
+play who can no longer play. It never changes a subscription: an unsubscribed contact stays
+unsubscribed. The key is typed at a prompt and never stored on the server, and it prints
+counts, never addresses. The pilot site refuses it. Alternatives: a full-access key in the
+server's settings (a leaked server would expose the contact lists); exporting a CSV of
+addresses to the researcher's computer (another copy of the email list to delete).
+
+**D83 · 2026-11-02 · Progress is counted as the export counts; T4.1 close-out.**
+`python -m fish_server.stats` counts corpus games with the export's own membership rule
+(`corpus_export.membership`, now shared), so a withdrawal lowers past weeks as it lowers the
+corpus, and reports each Eastern week's pace against 110, bot handovers (T4.4) and, on the
+pilot site, how long games take (M3's `{N}`). T4.1's tools are complete: the schedule and
+messages (D79, D81), the sites' addresses (D80), the lists (D82) and the counts; recruitment
+itself runs from 16 November to 9 February as docs/recruitment.md §2 sets out.
