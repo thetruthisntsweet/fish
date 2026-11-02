@@ -55,7 +55,7 @@ writes a script that prints them all; the datasheet quotes its output.
 |---|---|---|
 | How was the data acquired? | Directly: every action is logged by the game server as it happens (T3.1, T3.2), under the website mechanics of the Canonical Ruleset v1.1 (R.8.3 to R.8.8). | now |
 | What mechanisms were used? | The project's website and game server; the rules engine validates every action. The pipeline is tested to reproduce every game exactly (corpus.md §1, §7). | now |
-| Sampling strategy? | Adult volunteers, recruited starting with the Gov School group (T4.1). Players are matched solo by default; groups may join together, and those games are flagged. 15% of sign-ups, chosen at random in blocks of 20, play only with each other. | now; recruitment at release |
+| Sampling strategy? | Adult volunteers, recruited starting with the Gov School group (T4.1; every invitation and the game nights are in [recruitment.md](recruitment.md)). Players are matched solo by default; groups may join together, and those games are flagged. 15% of sign-ups, chosen at random in blocks of 20, play only with each other. | now; recruitment at release |
 | Who was involved in collection, and how were they compensated? | | release (§8) |
 | Over what timeframe? | From launch (13 December) to the freeze (by 28 February); the exact first and last months are in the data. | now; dates at freeze |
 | Ethical review? | The research plan and consent screen were reviewed and approved by Dr. Hany, including ethics review (T1.4). | release (§8) |
