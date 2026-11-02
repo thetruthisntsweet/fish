@@ -89,13 +89,13 @@ export async function getStanding(): Promise<Standing | null> {
   };
 }
 
-async function post(path: string, body: unknown): Promise<Outcome> {
+async function post(path: string, body?: unknown): Promise<Outcome> {
   let response: Response;
   try {
     response = await fetch(path, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
     return { ok: false, status: 0, detail: UNREACHABLE };
@@ -123,4 +123,23 @@ export function requestLink(email: string, consent: Acceptance): Promise<Outcome
 /** A signed-in player accepts the text shown now. */
 export function acceptConsent(consent: Acceptance): Promise<Outcome> {
   return post("/consent", consent);
+}
+
+/** The account page's "Withdraw from the study", confirmed (Consent Screen §2.7). */
+export function withdraw(): Promise<Outcome> {
+  return post("/withdraw", { confirm: true });
+}
+
+export function signOut(): Promise<Outcome> {
+  return post("/auth/sign-out");
+}
+
+/** "2027-02-14" as the study information writes dates: "14 February 2027". */
+export function longDate(day: string): string {
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }

@@ -1,5 +1,6 @@
 """Tests for fish_server.pages (T3.3): the server serves the built web client."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -101,3 +102,11 @@ def test_a_server_without_a_built_client_says_how_to_build_it(
 def test_the_endpoints_are_still_the_servers(client: TestClient) -> None:
     assert client.get("/health").json()["status"] == "ok"
     assert client.get("/sign-in", params={"token": "x"}).text.count("<form") == 1
+
+
+def test_the_client_has_a_screen_for_exactly_the_pages_served() -> None:
+    """client/src/navigation.ts lists the paths the client shows a screen for."""
+    source = Path(__file__).resolve().parents[3] / "client" / "src" / "navigation.ts"
+    found = re.search(r"export const PAGES = \[([^\]]*)\]", source.read_text(encoding="utf-8"))
+    assert found is not None
+    assert tuple(re.findall(r'"([^"]+)"', found.group(1))) == PAGES

@@ -1,166 +1,86 @@
-// The website (T3.3). The consent screen comes first for anyone not signed in (Consent
-// Screen §2.1); a signed-in player whose accepted text is out of date sees it again (§2.8).
+// The website (T3.3): the front page with the consent screen (screens/Home.tsx), "Study
+// information" and the account page, with the footer that links them (Consent Screen §2).
 // The client holds no rules logic of its own (Plan §3): the game screens arrive in T3.4.
 import { useEffect, useState } from "react";
-import {
-  UNREACHABLE,
-  acceptConsent,
-  getStanding,
-  getStudy,
-  requestLink,
-  type Acceptance,
-  type Standing,
-} from "./api.ts";
-import { ConsentScreen } from "./screens/ConsentScreen.tsx";
-import { EmailScreen } from "./screens/EmailScreen.tsx";
-import { Declined, LinkSent, Problem, SignedIn, Withdrawn } from "./screens/Messages.tsx";
-import { studyText, type StudyText } from "./study/texts.ts";
-
-const OUT_OF_DATE = "This page is out of date. Reload it to get the latest version.";
-
-type View =
-  | { readonly kind: "loading" }
-  | { readonly kind: "problem"; readonly message: string; readonly reload: boolean }
-  | { readonly kind: "consent"; readonly text: StudyText; readonly renewing: boolean }
-  | { readonly kind: "declined"; readonly text: StudyText; readonly renewing: boolean }
-  | { readonly kind: "email"; readonly acceptance: Acceptance; readonly email: string }
-  | { readonly kind: "sent"; readonly acceptance: Acceptance; readonly email: string }
-  | { readonly kind: "signed-in" }
-  | { readonly kind: "withdrawn" };
-
-/** Where someone starts, from where they stand with the study (null: not signed in). */
-function start(text: StudyText, standing: Standing | null): View {
-  if (standing === null) {
-    return { kind: "consent", text, renewing: false };
-  }
-  if (standing.withdrawn) {
-    return { kind: "withdrawn" };
-  }
-  return standing.mayPlay ? { kind: "signed-in" } : { kind: "consent", text, renewing: true };
-}
-
-/** Ask the server which text it shows and who is signed in, and pick the screen. */
-async function arrive(): Promise<View> {
-  try {
-    const [study, standing] = await Promise.all([getStudy(), getStanding()]);
-    const text = studyText(study.version);
-    if (text === undefined) {
-      return { kind: "problem", message: OUT_OF_DATE, reload: true }; // a newer server
-    }
-    return start(text, standing);
-  } catch {
-    return { kind: "problem", message: UNREACHABLE, reload: false };
-  }
-}
+import { AccountPage } from "./screens/AccountPage.tsx";
+import { Home } from "./screens/Home.tsx";
+import { InformationPage } from "./screens/InformationPage.tsx";
+import { Link } from "./screens/Link.tsx";
+import { Problem } from "./screens/Messages.tsx";
+import { loadSite, type Loading } from "./site.ts";
 
 export default function App() {
-  const [view, setView] = useState<View>({ kind: "loading" });
+  const [loading, setLoading] = useState<Loading>({ kind: "loading" });
+  const [path, setPath] = useState(window.location.pathname);
 
   useEffect(() => {
     let showing = true;
-    void arrive().then((next) => {
+    void loadSite().then((next) => {
       if (showing) {
-        setView(next);
+        setLoading(next);
       }
     });
+    const moved = () => {
+      setPath(window.location.pathname);
+    };
+    window.addEventListener("popstate", moved);
     return () => {
       showing = false;
+      window.removeEventListener("popstate", moved);
     };
   }, []);
 
-  /** Continue on the consent screen: a new person goes on to the email field, carrying the
-   * acceptance; a signed-in player's acceptance is recorded now. */
-  async function continueWith(renewing: boolean, accepted: Acceptance): Promise<string | null> {
-    if (!renewing) {
-      setView({ kind: "email", acceptance: accepted, email: "" });
-      return null;
-    }
-    const outcome = await acceptConsent(accepted);
-    if (outcome.ok) {
-      setView(await arrive());
-      return null;
-    }
-    switch (outcome.status) {
-      case 401: // the session ran out: sign in again, with this acceptance
-        setView({ kind: "email", acceptance: accepted, email: "" });
-        return null;
-      case 409:
-        setView({ kind: "withdrawn" });
-        return null;
-      default:
-        return outcome.detail;
-    }
+  /** Ask the server again after something changed there, keeping the page as it is. */
+  function refresh() {
+    void loadSite().then(setLoading);
   }
 
-  async function send(accepted: Acceptance, email: string): Promise<string | null> {
-    const outcome = await requestLink(email, accepted);
-    if (!outcome.ok) {
-      return outcome.detail;
-    }
-    setView({ kind: "sent", acceptance: accepted, email });
-    return null;
-  }
-
-  function screen() {
-    switch (view.kind) {
+  function page() {
+    switch (loading.kind) {
       case "loading":
         return <p className="quiet">Loading…</p>;
       case "problem":
         return (
           <Problem
-            message={view.message}
+            message={loading.message}
             onRetry={() => {
-              if (view.reload) {
+              if (loading.reload) {
                 window.location.reload();
               } else {
-                setView({ kind: "loading" });
-                void arrive().then(setView);
+                setLoading({ kind: "loading" });
+                refresh();
               }
             }}
           />
         );
-      case "consent":
-        return (
-          <ConsentScreen
-            text={view.text}
-            renewing={view.renewing}
-            onContinue={(accepted) => continueWith(view.renewing, accepted)}
-            onDecline={() => {
-              setView({ kind: "declined", text: view.text, renewing: view.renewing });
-            }}
-          />
-        );
-      case "declined":
-        return (
-          <Declined
-            onReread={() => {
-              setView({ kind: "consent", text: view.text, renewing: view.renewing });
-            }}
-          />
-        );
-      case "email":
-        return (
-          <EmailScreen initial={view.email} onSend={(email) => send(view.acceptance, email)} />
-        );
-      case "sent":
-        return (
-          <LinkSent
-            email={view.email}
-            onAgain={() => {
-              setView({ kind: "email", acceptance: view.acceptance, email: view.email });
-            }}
-          />
-        );
-      case "signed-in":
-        return <SignedIn />;
-      case "withdrawn":
-        return <Withdrawn />;
+      case "ready":
+        switch (path) {
+          case "/information":
+            return <InformationPage site={loading.site} />;
+          case "/account":
+            return <AccountPage site={loading.site} onChange={refresh} />;
+          default:
+            // A new standing starts the front page afresh.
+            return (
+              <Home
+                key={JSON.stringify(loading.site.standing)}
+                site={loading.site}
+                onChange={refresh}
+              />
+            );
+        }
     }
   }
 
+  const signedIn = loading.kind === "ready" && loading.site.standing !== null;
   return (
     <div className="site">
-      <main>{screen()}</main>
+      <main>{page()}</main>
+      <footer className="footer">
+        <Link to="/">Fish</Link>
+        <Link to="/information">Study information</Link>
+        {signedIn && <Link to="/account">Your account</Link>}
+      </footer>
     </div>
   );
 }
