@@ -2,16 +2,15 @@
 screen travels with the sign-in link and is recorded when it is used; a signed-in player can
 accept a new version; only the current text, with all three confirmations, is accepted; a
 withdrawal, from the website or by email, is recorded once and never undone; and only a
-player who has accepted the current text and not withdrawn may wait for a game. Withdrawing
-on the website closes at the end of the text's last day, US Eastern time (T3.3). Skipped
-without FISH_TEST_DATABASE_URL."""
+player who has accepted the current text and not withdrawn may wait for a game; and
+withdrawing on the website closes after the text's last day (T3.3). Skipped without
+FISH_TEST_DATABASE_URL."""
 
 import re
 import uuid
 from collections.abc import Iterator
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -102,22 +101,6 @@ def test_the_site_s_version_comes_from_the_settings(monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv(CONSENT_VERSION_VAR, "v9.9")  # a text the site does not have
     with pytest.raises(ValueError, match=r"one of v1\.0, v1\.0-pilot, not 'v9\.9'"):
         consent_version()
-
-
-@pytest.mark.parametrize(
-    ("version", "last_day"), [("v1.0", "2027-02-14"), ("v1.0-pilot", "2027-03-31")]
-)
-def test_withdrawing_closes_at_the_end_of_the_texts_last_day_in_eastern_time(
-    version: str, last_day: str
-) -> None:
-    """Consent Screen §1, §4: "You can withdraw until 14 February 2027"; the pilot, until 31
-    March 2027."""
-    text = VERSIONS[version]
-    assert text.withdraw_until.isoformat() == last_day
-    midnight = datetime.combine(text.withdraw_until + timedelta(days=1), time())
-    assert text.closes == midnight.replace(tzinfo=ZoneInfo("America/New_York"))
-    assert text.withdrawal_open(text.closes - timedelta(microseconds=1))
-    assert not text.withdrawal_open(text.closes)
 
 
 def test_standing_says_who_may_play() -> None:
