@@ -1,10 +1,215 @@
+/* The Fish website. Readable on a phone first (Consent Screen §2.2): the key points fit on
+   the first screen at phone width, so nothing sits above the title but a thin margin. */
+
 :root {
-  font-family: system-ui, sans-serif;
+  --ink: #1d232b;
+  --quiet: #5a6470;
+  --paper: #fbfaf7;
+  --panel: #ffffff;
+  --line: #d9dde2;
+  --accent: #1f5f8b;
+  --accent-ink: #ffffff;
+  --notice: #fff4d6;
+  --problem: #a32121;
+  --focus: #2b7fc0;
+
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: 100%;
   line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
   color-scheme: light dark;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6e9ed;
+    --quiet: #a3acb6;
+    --paper: #14181d;
+    --panel: #1c2128;
+    --line: #333b45;
+    --accent: #5fa8dc;
+    --accent-ink: #0d1116;
+    --notice: #3a3218;
+    --problem: #ff8a80;
+    --focus: #8cc4ee;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  padding: 2rem;
+  background: var(--paper);
+}
+
+.site {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 3rem;
+}
+
+h1 {
+  font-size: 1.45rem;
+  line-height: 1.25;
+  margin: 0.25rem 0 0.75rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+  line-height: 1.3;
+  margin: 1.5rem 0 0.4rem;
+}
+
+p,
+ul {
+  margin: 0 0 0.75rem;
+}
+
+ul {
+  padding-left: 1.25rem;
+}
+
+li + li {
+  margin-top: 0.35rem;
+}
+
+a {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.quiet {
+  color: var(--quiet);
+}
+
+/* The study information. The key points (its first section) stand out a little. */
+.study > section:first-of-type {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.9rem 0.1rem;
+}
+
+.study > section:first-of-type h2 {
+  margin-top: 0;
+}
+
+.notice {
+  background: var(--notice);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.9rem;
+}
+
+/* The confirmations: whole rows are the tap target. */
+.confirmations fieldset {
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--panel);
+  margin: 1.5rem 0 1rem;
+  padding: 0.5rem 0.9rem 0.75rem;
+}
+
+.confirmations legend {
+  font-weight: 700;
+  padding: 0 0.25rem;
+}
+
+.check {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.6rem 0;
+  cursor: pointer;
+}
+
+.check + .check {
+  border-top: 1px solid var(--line);
+}
+
+.check input {
+  flex: none;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin: 0.1rem 0 0;
+  accent-color: var(--accent);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 1rem 1.1rem 0.5rem;
+  margin-top: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+  margin: 1rem 0;
+}
+
+.field span {
+  font-weight: 600;
+}
+
+input[type="email"] {
+  font: inherit;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.problem {
+  color: var(--problem);
+  font-weight: 600;
 }
