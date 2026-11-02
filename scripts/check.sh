@@ -47,5 +47,7 @@ echo "== Client: tests"
 npm --prefix client test
 echo "== Client: build"
 npm --prefix client run build
+echo "== The website in Chromium (needs: uv run playwright install chromium, once)"
+uv run pytest -m browser -p no:cacheprovider
 
 echo "All checks passed."
