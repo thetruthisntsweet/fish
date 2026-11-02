@@ -79,6 +79,20 @@ export function fakeServer(): FakeServer {
       }
       case "POST /auth/link":
         return Promise.resolve(json(202, { status: "sent" }));
+      case "POST /withdraw":
+        if (server.standing === null) {
+          return Promise.resolve(json(401, { detail: "Sign in first." }));
+        }
+        if (!server.standing.withdrawn && !server.withdrawalOpen) {
+          return Promise.resolve(
+            json(409, { detail: "Withdrawing closed at the end of 14 February 2027." }),
+          );
+        }
+        server.standing.withdrawn = true;
+        return Promise.resolve(json(204));
+      case "POST /auth/sign-out":
+        server.standing = null;
+        return Promise.resolve(json(204));
       case "POST /consent":
         if (server.standing !== null) {
           server.standing.accepted = server.version;
