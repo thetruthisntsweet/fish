@@ -25,7 +25,7 @@ plan allows three domains; this is the second.
 | `Test` | your own addresses, for trying each message first | now |
 | `Gov School` | the Gov School group: import a CSV with an `email` column | now |
 | `Pool` | everyone else willing to play | by Mon 7 Dec, after the upgrade in §2 |
-| `Players: group 1`, `Players: group 2` | copied from the study database (T4.1 subtask 4) | before each Monday |
+| `Players: group 1`, `Players: group 2` | make them empty now; they are filled from the study database (§4) | before each Monday |
 
 Delete each CSV from your computer once it is imported. A list never goes in the repository.
 
@@ -88,7 +88,7 @@ message goes at 9:00 am Eastern on its day:
 | M7, Mon 15 Feb | `M7 --segment "Players: group 1" ...`, then `"Players: group 2"` |
 
 M3's `<minutes>` is the pilot's median game length, rounded to five minutes. Before each M4,
-copy the players into their segments (T4.1 subtask 4) and check the week's pace
+copy the players into their segments (§4) and check the week's pace
 ([recruitment.md](../recruitment.md) §3).
 
 The script takes the words from `docs/recruitment.md` and nowhere else, and refuses a
@@ -96,7 +96,36 @@ message for a list its heading does not name, a placeholder left unfilled, a `--
 not a Monday, or a time already past. To change a message, change the page (a pull request,
 as for any change), then send.
 
-## 4. After 31 March 2027
+## 4. Before each Monday's M4: copying the players
+
+The two Players segments hold everyone who has accepted the study information and not
+withdrawn, by group. Only the study database knows who that is, and it is reachable only
+inside Render, so the copy runs in the production service's **Shell** (from 14 December; the
+pilot site refuses, since pilot players get no game-night emails):
+
+```bash
+python -m fish_server.audience --dry-run     # what would change
+python -m fish_server.audience
+```
+
+It asks for the full-access key (paste it from your keychain; it is not shown and not
+stored) and prints counts only, for example:
+
+```
+Players: group 1: added 41, removed 0, kept 212, 3 unsubscribed
+Players: group 2: added 6, removed 0, kept 37
+Gov School: added 0, removed 1, kept 58
+Pool: added 0, removed 1, kept 4870
+(97 calls to Resend)
+```
+
+Each player goes into their own group's segment and is taken out of the other; anyone who
+has withdrawn is taken out of every segment above, so no invitation reaches someone who can
+no longer play. Nobody's subscription is changed: someone who unsubscribed stays unsubscribed,
+and Resend skips them. Running it twice changes nothing the second time, so after an error,
+run it again.
+
+## 5. After 31 March 2027
 
 The email list is deleted that day (Research Plan §6), and Resend's copy with it: in Resend,
 delete every contact and segment, then revoke the `broadcasts (laptop)` key and remove it from
