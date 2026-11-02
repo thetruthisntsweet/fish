@@ -94,9 +94,10 @@ out. Every Sunday is for everyone: the two groups play at separate tables on the
 There are no nights on 24–25 December or 31 December – 1 January.
 
 **Pace.** At least 1,000 completed games by 14 February is about 110 a week. Every Monday,
-before M4 goes out, check the week's completed games (T4.1 subtask 5). If two weeks in a row
-fall short, add a Friday night, 8:00 – 10:00 pm, for everyone, record it in the table above,
-and include it in that week's M4.
+before M4 goes out, run `python -m fish_server.stats` in the study service's Shell: it counts
+each week's corpus games and says when two full weeks in a row fall short. Then add a Friday
+night, 8:00 – 10:00 pm, for everyone, record it in the table above, and include it in that
+week's M4.
 
 ## 4. Lists
 
@@ -217,7 +218,8 @@ footer. Text in `{braces}` is filled in when the message is sent.
 >
 > [unsubscribe]
 
-`{N}` is the median game length from the pilot (T4.2), rounded to five minutes.
+`{N}` is the median game length from the pilot (T4.2), rounded to five minutes: the
+"minutes a game takes" line of `python -m fish_server.stats` on the pilot site.
 
 ### M4 · This week's game nights · every Monday, 14 Dec – 8 Feb · each Players segment
 

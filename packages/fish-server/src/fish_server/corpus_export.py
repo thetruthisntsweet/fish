@@ -29,7 +29,7 @@ import uuid
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Final, cast
+from typing import Final, Literal, cast
 
 from sqlalchemy import Connection, Engine, create_engine, pool, select, text
 
@@ -190,16 +190,48 @@ def _record(
         raise ExportError(f"game {game_id} is not a valid record: {error}") from None
 
 
+type Standing = Literal[
+    "exported", "not_ended", "abandoned", "no_person", "withdrawn", "unconsented"
+]
+"""Where a stored game stands with the corpus: in it, or why it is left out."""
+
+
+def membership(conn: Connection) -> dict[uuid.UUID, Standing]:
+    """Every stored game's standing with the corpus, now (§6). The export writes the games
+    that stand ``exported``; ``fish_server.stats`` counts them."""
+    unconsented = set(conn.execute(text(_UNCONSENTED)).scalars())
+    withdrawn = set(conn.execute(text(_WITHDRAWN)).scalars())
+    people = set(
+        conn.execute(
+            select(db.seats.c.game_id).where(db.seats.c.player_id.is_not(None)).distinct()
+        ).scalars()
+    )
+    games = conn.execute(
+        select(db.games.c.game_id, db.game_endings.c.completion).outerjoin(
+            db.game_endings, db.games.c.game_id == db.game_endings.c.game_id
+        )
+    )
+    standing: dict[uuid.UUID, Standing] = {}
+    for game_id, completion in games:
+        if completion is None:
+            standing[game_id] = "not_ended"
+        elif completion not in COMPLETED:
+            standing[game_id] = "abandoned"
+        elif game_id not in people:
+            standing[game_id] = "no_person"
+        elif game_id in withdrawn:
+            standing[game_id] = "withdrawn"
+        elif game_id in unconsented:
+            standing[game_id] = "unconsented"
+        else:
+            standing[game_id] = "exported"
+    return standing
+
+
 def export(conn: Connection) -> tuple[list[dict[str, object]], Summary]:
     """Every corpus game as a record, in order of start time, and the summary (§6, §7)."""
     summary = Summary()
-    unconsented = set(conn.execute(text(_UNCONSENTED)).scalars())
-    withdrawn = set(conn.execute(text(_WITHDRAWN)).scalars())
-    people: dict[object, list[object]] = {}
-    for game_id, player_id in conn.execute(
-        select(db.seats.c.game_id, db.seats.c.player_id).where(db.seats.c.player_id.is_not(None))
-    ):
-        people.setdefault(game_id, []).append(player_id)
+    standing = membership(conn)
     games = conn.execute(
         select(db.games, db.game_endings.c.completion)
         .outerjoin(db.game_endings, db.games.c.game_id == db.game_endings.c.game_id)
@@ -208,20 +240,12 @@ def export(conn: Connection) -> tuple[list[dict[str, object]], Summary]:
     records: list[dict[str, object]] = []
     for game in games:
         summary.games += 1
-        held = people.get(game["game_id"], [])
-        if game["completion"] is None:
-            summary.not_ended += 1
-        elif game["completion"] not in COMPLETED:
-            summary.abandoned += 1
-        elif not held:
-            summary.no_person += 1
-        elif game["game_id"] in withdrawn:
-            summary.withdrawn += 1
-        elif game["game_id"] in unconsented:
-            summary.unconsented += 1
-        else:
+        where = standing[game["game_id"]]
+        if where == "exported":
             release_id = f"g-{len(records) + 1:06d}"
             records.append(_record(conn, dict(game), release_id, summary))
+        else:
+            setattr(summary, where, getattr(summary, where) + 1)
     summary.exported = len(records)
     return records, summary
 
