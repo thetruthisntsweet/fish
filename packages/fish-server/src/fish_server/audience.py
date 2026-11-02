@@ -10,7 +10,7 @@ server; FISH_RESEND_AUDIENCE_KEY may hold it for that one command instead.
 
 Every player who has accepted the study information and not withdrawn is put in "Players:
 group 1", or "Players: group 2" if in the held-out cohort, and anyone else is taken out of
-both. A player who has withdrawn is also taken out of "Gov School" and "Pool", so that no
+both. A player who has withdrawn is also taken out of "Invited", so that no
 invitation reaches someone who can no longer play. Nothing else is changed: a contact who
 unsubscribed stays unsubscribed, and new contacts are only ever added, never resubscribed.
 It prints counts, never addresses, and running it twice changes nothing the second time.
@@ -36,7 +36,7 @@ from fish_server.settings import consent_version, database_url
 
 GROUPS: Final = {False: "Players: group 1", True: "Players: group 2"}
 """The segment for each value of the cohort flag (group 2 is the held-out cohort)."""
-INVITED: Final = ("Gov School", "Pool")
+INVITED: Final = ("Invited",)
 """The invitation lists, which a withdrawn player leaves too."""
 KEY_VAR: Final = "FISH_RESEND_AUDIENCE_KEY"
 API: Final = "https://api.resend.com"

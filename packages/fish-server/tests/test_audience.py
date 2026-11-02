@@ -39,7 +39,7 @@ class FakeResend:
     """Resend's contacts and segments, kept in memory, answering as its API does; a page of a
     segment holds two contacts, so paging is exercised."""
 
-    def __init__(self, names: tuple[str, ...] = (ONE, TWO, "Gov School", "Pool")) -> None:
+    def __init__(self, names: tuple[str, ...] = (ONE, TWO, "Invited")) -> None:
         self.ids = {name: f"seg-{i}" for i, name in enumerate(names)}
         self.contacts: dict[str, dict[str, Any]] = {}
         self.created: list[str] = []
@@ -129,20 +129,20 @@ def test_each_player_is_put_in_their_groups_segment(
     gone = sign_up(engine, True, left=True)
     fake = FakeResend()
     fake.contact("stale@example.org", ONE)  # in a Players segment, but no player
-    fake.contact(gone, "Pool", TWO)
-    fake.contact("friend@example.org", "Pool")
+    fake.contact(gone, "Invited", TWO)
+    fake.contact("friend@example.org", "Invited")
     quiet = next(iter(out))
-    fake.contact(quiet, "Pool", unsubscribed=True)  # unsubscribed from the invitations
+    fake.contact(quiet, "Invited", unsubscribed=True)  # unsubscribed from the invitations
 
     assert run(engine, fake) == 0
     assert (fake.members(ONE), fake.members(TWO)) == (out, held)
-    assert fake.members("Pool") == {"friend@example.org", quiet}  # the withdrawn player left
+    assert fake.members("Invited") == {"friend@example.org", quiet}  # the withdrawn player left
     assert fake.contacts[quiet]["unsubscribed"] is True  # added, never resubscribed
     assert quiet not in fake.created
     printed = capsys.readouterr().out
     assert f"{ONE}: added 3, removed 1, kept 0" in printed
     assert f"{TWO}: added 2, removed 1, kept 0" in printed
-    assert "Pool: added 0, removed 1, kept 2" in printed
+    assert "Invited: added 0, removed 1, kept 2" in printed
     assert "@" not in printed  # counts only, never an address
 
     assert run(engine, fake) == 0  # nothing left to do
@@ -162,7 +162,7 @@ def test_a_dry_run_changes_nothing(engine: Engine, capsys: pytest.CaptureFixture
 def test_the_players_segments_must_exist(
     engine: Engine, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert run(engine, FakeResend((ONE, "Pool"))) == 1
+    assert run(engine, FakeResend((ONE, "Invited"))) == 1
     assert f"no segment named {TWO!r}" in capsys.readouterr().err
 
 
