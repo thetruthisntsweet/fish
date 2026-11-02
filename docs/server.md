@@ -160,7 +160,7 @@ the sign-in link instead of emailing it; open it and press the button.
 On staging, sign in in a browser with a real address, copy the `fish_session` cookie's value
 from the developer tools, and run:
 
-    uv run python scripts/try_server.py https://<your-staging-host> --session <value>
+    uv run python scripts/try_server.py https://fish-pilot.thedefinitivesanjeevexperience.com --session <value>
 
 It checks the page, `/study`, `/health`, `/auth/me` and the socket (hello, lobby, a room made
 and left) and prints PASS.

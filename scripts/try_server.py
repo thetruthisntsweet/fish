@@ -5,7 +5,8 @@ Sign in first in a browser (the emailed link, then the button), then copy the va
 ``fish_session`` cookie from the browser's developer tools (Application, or Storage, then
 Cookies). Then:
 
-    uv run python scripts/try_server.py https://<your-staging-host> --session <cookie value>
+    uv run python scripts/try_server.py https://fish-pilot.thedefinitivesanjeevexperience.com \
+        --session <cookie value>
 
 It checks that ``/`` serves the web client and ``/study`` names the text the site shows,
 that ``/health`` reports protocol 3, that ``/auth/me`` says signed in and allowed to play
@@ -76,7 +77,10 @@ async def socket(base: str, session: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check a deployed Fish server end to end.")
-    parser.add_argument("base", help="the server's address, e.g. https://fish-staging.onrender.com")
+    parser.add_argument(
+        "base",
+        help="the site's address, e.g. https://fish-pilot.thedefinitivesanjeevexperience.com",
+    )
     parser.add_argument("--session", required=True, help="the fish_session cookie's value")
     args = parser.parse_args()
     base = args.base.rstrip("/")
