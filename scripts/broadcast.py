@@ -3,16 +3,17 @@
 The words come from docs/recruitment.md and nowhere else. The script reads the message there,
 fills in what the page leaves in braces, and stops if anything is left unfilled; M4 (this
 week's game nights) is built from the schedule in §3 of the same page. A message only ever
-goes to a list its heading names, or to the "Test" segment (just you).
+goes to a list its heading names.
 
-    uv run python scripts/broadcast.py M1 --segment Test                     # preview only
-    uv run python scripts/broadcast.py M1 --segment Test --create            # a draft, to try
-    uv run python scripts/broadcast.py M3 --segment Pool --fill N=25 --create
+    uv run python scripts/broadcast.py M1 --segment Invited                  # preview only
+    uv run python scripts/broadcast.py M1 --segment Invited --create         # a draft
+    uv run python scripts/broadcast.py M3 --segment Invited --fill N=25 --create
     uv run python scripts/broadcast.py M4 --segment "Players: group 2" --week 2026-12-14 \\
         --create --send-at 2026-12-14T09:00:00-05:00
 
-Without --create it only prints the message. With --create it makes a draft in Resend, which
-you read in the dashboard (Broadcasts) and send from there; --send-at schedules it instead.
+Without --create it only prints the message. With --create it makes a draft in Resend: open it
+in the dashboard (Broadcasts), send yourself a copy with "Send test email", then send it from
+there; --send-at schedules it instead.
 The key, RESEND_BROADCAST_KEY, is a full-access Resend key: it lives on your computer only,
 never in render.yaml or the repository (docs/runbooks/email.md).
 """
@@ -35,7 +36,6 @@ SENDER: Final = "Sanjeev Kumar (Fish study) <fish@news.thedefinitivesanjeevexper
 REPLY_TO: Final = "821sanjeevkumar@gmail.com"
 API: Final = "https://api.resend.com"
 KEY_VAR: Final = "RESEND_BROADCAST_KEY"
-TEST_SEGMENT: Final = "Test"
 PLAYERS: Final = ("Players: group 1", "Players: group 2")
 UNSUBSCRIBE: Final = "{{{RESEND_UNSUBSCRIBE_URL}}}"
 
@@ -176,15 +176,12 @@ def prepared(
     if key not in found:
         raise RefusedError(f"no message {key} in docs/recruitment.md; there are {', '.join(found)}")
     message = found[key]
-    if segment != TEST_SEGMENT and segment not in message.to:
-        raise RefusedError(
-            f"{key} goes to {' or '.join(message.to)} (or {TEST_SEGMENT}), not {segment!r}"
-        )
+    if segment not in message.to:
+        raise RefusedError(f"{key} goes to {' or '.join(message.to)}, not {segment!r}")
     if key == "M4":
         if week is None:
             raise RefusedError("M4 needs --week, the Monday it is sent")
-        group = segment if segment in PLAYERS else PLAYERS[0]  # a test shows group 1's nights
-        message = this_week(message, group, week, page)
+        message = this_week(message, segment, week, page)
     body = tuple(fill(line, values) for line in message.body)
     subject = fill(message.subject, values)
     left = [s for s in (subject, *body) if "{" in s or "}" in s]
@@ -322,7 +319,7 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
         description="Send a recruitment message (docs/recruitment.md)."
     )
     parser.add_argument("message", help="M1 to M7")
-    parser.add_argument("--segment", required=True, help='a list the message goes to, or "Test"')
+    parser.add_argument("--segment", required=True, help="the list the message goes to")
     parser.add_argument("--fill", action="append", default=[], metavar="NAME=VALUE")
     parser.add_argument("--week", type=date.fromisoformat, help="M4: the Monday it is sent")
     parser.add_argument("--create", action="store_true", help="make it in Resend (a draft)")
@@ -355,7 +352,10 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
         print(f"Not sent: {reason}", file=sys.stderr)
         return 1
     if args.send_at is None:
-        print(f"Draft {made} made. Read it in Resend (Broadcasts), then send it from there.")
+        print(
+            f"Draft {made} made. In Resend (Broadcasts), send yourself a copy with "
+            '"Send test email", read it, then send it from there.'
+        )
     else:
         print(f"Broadcast {made} scheduled for {args.send_at.isoformat()}.")
     return 0

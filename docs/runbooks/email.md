@@ -24,17 +24,18 @@ in the same region as `mail.`. Add the records Resend lists where you added the 
 (an `MX` and a `TXT` for bounces, and a `TXT` for the signature), then **Verify**. The free
 plan allows three domains; this is the second.
 
-**The lists.** In Resend, under **Audience**, make the segments, named exactly as
-[recruitment.md](../recruitment.md) §4 names them (the script finds them by name):
+**The lists.** In Resend, under **Audience**, make three segments, named exactly as
+[recruitment.md](../recruitment.md) §4 names them (the script finds them by name). Three is
+the most the free marketing plan allows:
 
 | Segment | What goes in | When |
 |---|---|---|
-| `Test` | your own addresses, for trying each message first | now |
-| `Gov School` | the Gov School group: import a CSV with an `email` column | now |
-| `Pool` | everyone else willing to play | by Mon 7 Dec, after the upgrade in §2 |
+| `Invited` | the Gov School group, from a CSV with one column, `email` | now |
+| `Invited` | the rest of the pool, imported into the same segment | Mon 7 Dec, after the upgrade in §2 |
 | `Players: group 1`, `Players: group 2` | make them empty now; they are filled from the study database (§4) | before each Monday |
 
-Delete each CSV from your computer once it is imported. A list never goes in the repository.
+Someone on both of your lists becomes one contact, since Resend keeps one per address. Delete
+each CSV from your computer once it is imported. A list never goes in the repository.
 
 **The key.** `scripts/broadcast.py` needs a key with **Full access** (Broadcasts and segments
 need it; the server's own key stays sending-only). In Resend, **API Keys → Create**, name it
@@ -57,41 +58,43 @@ export RESEND_BROADCAST_KEY="$(security find-generic-password -a "$USER" -s fish
   ask for links. Move to **Pro** (50,000 a month, no daily limit) and give the production
   service `FISH_SIGNIN_DAILY_LIMIT=1500` in `render.yaml` (T4.3). Staging keeps 90: the pilot
   is small.
-- **Invitations.** The free marketing plan holds 1,000 contacts, enough for `Test`, `Gov
-  School` and the pilot. Before importing `Pool`, move to the marketing plan for its size
-  (5,000 contacts at the time of writing). It is needed until the last invitation, M6 on
-  9 February.
+- **Invitations.** The free marketing plan holds 1,000 contacts and three segments, enough
+  for the Gov School group and the pilot. Before adding the pool to `Invited`, move to the
+  marketing plan for its size (5,000 contacts at the time of writing). It is needed until the
+  last invitation, M6 on 9 February.
 
 Check the prices on Resend's pricing page when you upgrade; they change.
 
 ## 3. Sending a message
 
-Every message is sent the same way: preview it, send it to yourself, then make the real one.
+Every message is sent the same way: preview it, make a draft and read a test copy of it, then
+send the draft.
 
 ```bash
-uv run python scripts/broadcast.py M1 --segment "Gov School"             # 1. read it
-uv run python scripts/broadcast.py M1 --segment Test --create            # 2. a draft to Test
+uv run python scripts/broadcast.py M1 --segment Invited                  # 1. read it
+uv run python scripts/broadcast.py M1 --segment Invited --create         # 2. a draft
 ```
 
-For step 2, open the draft in Resend (**Broadcasts**), press **Send**, and read the email on
-your phone: the links, the unsubscribe link, and that nothing reads oddly. Then:
+For step 2, open the draft in Resend (**Broadcasts**) and use **Send test email** to send a
+copy to your own address. Read it on your phone: the links, the unsubscribe link, and that
+nothing reads oddly. Then schedule the draft in the dashboard for 9:00 am Eastern on its
+day, or delete it and make it scheduled in one step:
 
 ```bash
-uv run python scripts/broadcast.py M1 --segment "Gov School" --create \
+uv run python scripts/broadcast.py M1 --segment Invited --create \
     --send-at 2026-11-16T09:00:00-05:00                                  # 3. scheduled
 ```
 
-or leave out `--send-at` and send the draft from the dashboard when you are ready. Every
-message goes at 9:00 am Eastern on its day:
+Every message goes at 9:00 am Eastern on its day:
 
 | Message | Command (after `uv run python scripts/broadcast.py`) |
 |---|---|
-| M1, Mon 16 Nov | `M1 --segment "Gov School" --create --send-at 2026-11-16T09:00:00-05:00` |
-| M2, Mon 30 Nov | `M2 --segment "Gov School" --create --send-at 2026-11-30T09:00:00-05:00` |
-| M3, Tue 8 Dec | `M3 --segment "Gov School" --fill N=<minutes> --create --send-at 2026-12-08T09:00:00-05:00`, then the same with `--segment Pool` |
+| M1, Mon 16 Nov | `M1 --segment Invited --create --send-at 2026-11-16T09:00:00-05:00` |
+| M2, Mon 30 Nov | `M2 --segment Invited --create --send-at 2026-11-30T09:00:00-05:00` |
+| M3, Tue 8 Dec | `M3 --segment Invited --fill N=<minutes> --create --send-at 2026-12-08T09:00:00-05:00` |
 | M4, each Monday | `M4 --segment "Players: group 1" --week <that Monday> --create --send-at <that Monday>T09:00:00-05:00`, then the same with `"Players: group 2"` |
-| M5, Tue 12 Jan | `M5 --segment "Gov School" ...`, then `--segment Pool` |
-| M6, Tue 9 Feb | `M6 --segment "Gov School" ...`, then `--segment Pool` |
+| M5, Tue 12 Jan | `M5 --segment Invited --create --send-at 2027-01-12T09:00:00-05:00` |
+| M6, Tue 9 Feb | `M6 --segment Invited --create --send-at 2027-02-09T09:00:00-05:00` |
 | M7, Mon 15 Feb | `M7 --segment "Players: group 1" ...`, then `"Players: group 2"` |
 
 M3's `<minutes>` is the pilot's median game length, rounded to five minutes ("minutes a game
@@ -122,8 +125,7 @@ stored) and prints counts only, for example:
 ```
 Players: group 1: added 41, removed 0, kept 212, 3 unsubscribed
 Players: group 2: added 6, removed 0, kept 37
-Gov School: added 0, removed 1, kept 58
-Pool: added 0, removed 1, kept 4870
+Invited: added 0, removed 1, kept 4928
 (97 calls to Resend)
 ```
 

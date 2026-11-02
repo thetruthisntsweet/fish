@@ -45,12 +45,12 @@ def test_the_page_has_seven_messages_each_to_its_lists() -> None:
     assert list(found) == ["M1", "M2", "M3", "M4", "M5", "M6", "M7"]
     players = ("Players: group 1", "Players: group 2")
     assert {k: m.to for k, m in found.items()} == {
-        "M1": ("Gov School",),
-        "M2": ("Gov School",),
-        "M3": ("Gov School", "Pool"),
+        "M1": ("Invited",),
+        "M2": ("Invited",),
+        "M3": ("Invited",),
         "M4": players,
-        "M5": ("Gov School", "Pool"),
-        "M6": ("Gov School", "Pool"),
+        "M5": ("Invited",),
+        "M6": ("Invited",),
         "M7": players,
     }
     for message in found.values():
@@ -78,14 +78,14 @@ def test_the_schedule_runs_from_opening_night_to_the_last_with_true_weekdays() -
 
 @pytest.mark.parametrize("key", ["M1", "M2", "M5", "M6"])
 def test_messages_with_nothing_to_fill_are_sent_as_written(key: str) -> None:
-    message = prepared(key, "Test")
+    message = prepared(key, "Invited")
     assert message.body == broadcast.messages(PAGE)[key].body
 
 
 def test_the_game_length_is_filled_in_and_nothing_is_left_in_braces() -> None:
     with pytest.raises(broadcast.RefusedError, match=r"\{N\} needs a value"):
-        prepared("M3", "Pool")
-    message = prepared("M3", "Pool", N="25")
+        prepared("M3", "Invited")
+    message = prepared("M3", "Invited", N="25")
     assert any("A game takes about" in line for line in message.body)
     assert "25 minutes" in broadcast.as_text(message)
 
@@ -119,8 +119,9 @@ def test_the_last_week_says_so_in_the_pages_words() -> None:
 @pytest.mark.parametrize(
     ("key", "segment", "week", "reason"),
     [
-        ("M1", "Pool", None, "M1 goes to Gov School"),
-        ("M3", "Players: group 1", None, "goes to Gov School or Pool"),
+        ("M1", "Pool", None, "M1 goes to Invited, not 'Pool'"),
+        ("M3", "Players: group 1", None, "M3 goes to Invited, not"),
+        ("M4", "Invited", date(2026, 12, 14), "goes to Players: group 1 or Players: group 2"),
         ("M7", "Gov School", None, "goes to Players: group 1 or Players: group 2"),
         ("M4", "Players: group 1", None, "M4 needs --week"),
         ("M4", "Players: group 1", date(2026, 12, 15), "a Monday, not a Tuesday"),
@@ -137,7 +138,7 @@ def test_anything_else_is_refused(key: str, segment: str, week: date | None, rea
 
 
 def test_the_html_links_addresses_keeps_letter_breaks_and_can_unsubscribe() -> None:
-    message = prepared("M3", "Pool", N="25")
+    message = prepared("M3", "Invited", N="25")
     body = broadcast.as_html(message)
     url = "https://fish.thedefinitivesanjeevexperience.com"
     assert f'<a href="{url}">{url}</a>, read' in body  # the comma stays outside the link
@@ -149,7 +150,7 @@ def test_the_html_links_addresses_keeps_letter_breaks_and_can_unsubscribe() -> N
 
 
 def test_the_text_version_is_the_same_words() -> None:
-    text = broadcast.as_text(prepared("M2", "Gov School"))
+    text = broadcast.as_text(prepared("M2", "Invited"))
     assert text.startswith("Hi,\n\nA reminder that the Fish pilot starts tomorrow.")
     assert "\n- Tuesday 1 December, 8:00 – 10:00 pm\n" in text  # noqa: RUF001
     assert text.endswith("Thanks,\nSanjeev\n\nUnsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}\n")
@@ -179,47 +180,50 @@ class FakeResend:
 
 @pytest.fixture
 def resend(monkeypatch: pytest.MonkeyPatch) -> FakeResend:
-    fake = FakeResend([{"id": "s-test", "name": "Test"}, {"id": "s-pool", "name": "Pool"}])
+    fake = FakeResend(
+        [{"id": "s-invited", "name": "Invited"}, {"id": "s-one", "name": "Players: group 1"}]
+    )
     monkeypatch.setattr(urllib.request, "urlopen", fake)
     return fake
 
 
 def test_a_draft_is_made_for_the_named_segment(resend: FakeResend) -> None:
-    message = prepared("M3", "Pool", N="25")
-    assert broadcast.create(message, "Pool", "re_key", None) == "b-1"
+    message = prepared("M3", "Invited", N="25")
+    assert broadcast.create(message, "Invited", "re_key", None) == "b-1"
     (_, segments, headers, _), (method, url, _, body) = resend.sent
     assert segments == "https://api.resend.com/segments"
     assert headers["Authorization"] == "Bearer re_key"
     assert (method, url) == ("POST", "https://api.resend.com/broadcasts")
     assert body == {
-        "segment_id": "s-pool",
+        "segment_id": "s-invited",
         "from": broadcast.SENDER,
         "reply_to": broadcast.REPLY_TO,
         "subject": "Play Fish for a research study, from Sunday 13 December",
         "html": broadcast.as_html(message),
         "text": broadcast.as_text(message),
-        "name": "M3 Launch invitation: Pool",
+        "name": "M3 Launch invitation: Invited",
     }  # a draft: nothing is sent until it is sent from the dashboard
 
 
 def test_a_scheduled_broadcast_says_when(resend: FakeResend) -> None:
     at = datetime(2026, 11, 16, 14, tzinfo=UTC)
-    broadcast.create(prepared("M1", "Test"), "Test", "re_key", at)
+    broadcast.create(prepared("M1", "Invited"), "Invited", "re_key", at)
     body = resend.sent[-1][3]
     assert (body["send"], body["scheduled_at"]) == (True, "2026-11-16T14:00:00+00:00")
 
 
 def test_a_segment_resend_does_not_have_is_named(resend: FakeResend) -> None:
     with pytest.raises(
-        broadcast.RefusedError, match="no segment named 'Gov School'; it has: Test, Pool"
+        broadcast.RefusedError,
+        match="no segment named 'Players: group 2'; it has: Invited, Players: group 1",
     ):
-        broadcast.create(prepared("M1", "Gov School"), "Gov School", "re_key", None)
+        broadcast.create(prepared("M7", "Players: group 2"), "Players: group 2", "re_key", None)
 
 
 def test_resends_refusal_is_shown(resend: FakeResend) -> None:
     resend.refuse = True
     with pytest.raises(broadcast.RefusedError, match=r'422 to GET /segments: \{"message": "no"\}'):
-        broadcast.create(prepared("M1", "Test"), "Test", "re_key", None)
+        broadcast.create(prepared("M1", "Invited"), "Invited", "re_key", None)
 
 
 # ---------------------------------------------------------------- the command
@@ -228,7 +232,7 @@ def test_resends_refusal_is_shown(resend: FakeResend) -> None:
 def test_without_create_it_only_shows_the_message(
     resend: FakeResend, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert broadcast.main(["M2", "--segment", "Test"]) == 0
+    assert broadcast.main(["M2", "--segment", "Invited"]) == 0
     out = capsys.readouterr().out
     assert "Subject:  Fish pilot: tomorrow at 8 pm, then Thursday and Saturday" in out
     assert "preview only" in out
@@ -240,22 +244,26 @@ def test_create_needs_the_key_and_a_future_time_with_a_zone(
 ) -> None:
     monkeypatch.delenv(broadcast.KEY_VAR, raising=False)
     now = datetime(2026, 11, 2, tzinfo=UTC)
-    assert broadcast.main(["M1", "--segment", "Test", "--create"], now) == 1
+    assert broadcast.main(["M1", "--segment", "Invited", "--create"], now) == 1
     assert "RESEND_BROADCAST_KEY is not set" in capsys.readouterr().err
     for when, reason in [
         ("2026-11-16T09:00:00", "needs a time zone"),
         ("2026-11-01T09:00:00-05:00", "in the past"),
     ]:
-        assert broadcast.main(["M1", "--segment", "Test", "--create", "--send-at", when], now) == 1
+        assert (
+            broadcast.main(["M1", "--segment", "Invited", "--create", "--send-at", when], now) == 1
+        )
         assert reason in capsys.readouterr().err
     assert (
-        broadcast.main(["M1", "--segment", "Test", "--send-at", "2026-11-16T09:00:00-05:00"], now)
+        broadcast.main(
+            ["M1", "--segment", "Invited", "--send-at", "2026-11-16T09:00:00-05:00"], now
+        )
         == 1
     )
     assert "--send-at needs --create" in capsys.readouterr().err
     monkeypatch.setenv(broadcast.KEY_VAR, "re_key")
     when = "2026-11-16T09:00:00-05:00"
-    assert broadcast.main(["M1", "--segment", "Test", "--create", "--send-at", when], now) == 0
+    assert broadcast.main(["M1", "--segment", "Invited", "--create", "--send-at", when], now) == 0
     assert "scheduled for 2026-11-16T09:00:00-05:00" in capsys.readouterr().out
-    assert broadcast.main(["M1", "--segment", "Test", "--create"], now) == 0
+    assert broadcast.main(["M1", "--segment", "Invited", "--create"], now) == 0
     assert "Draft b-1 made" in capsys.readouterr().out

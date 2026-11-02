@@ -26,14 +26,15 @@ All times are Eastern. 8:00 pm Eastern is 5:00 pm Pacific.
 
 | When | What | To | Site |
 |---|---|---|---|
-| Mon 16 Nov 2026 | M1: pilot invitation | Gov School | pilot |
-| Mon 30 Nov | M2: pilot reminder | Gov School | pilot |
+| Mon 16 Nov 2026 | M1: pilot invitation | Invited (the Gov School group only, until 7 Dec) | pilot |
+| Mon 30 Nov | M2: pilot reminder | Invited (the Gov School group only) | pilot |
 | Tue 1, Thu 3, Sat 5 Dec | Pilot nights (T4.2) | | pilot |
-| Tue 8 Dec | M3: launch invitation | Gov School, Pool | study |
+| Mon 7 Dec | The rest of the pool joins Invited | | |
+| Tue 8 Dec | M3: launch invitation | Invited | study |
 | Sun 13 Dec | Opening night; collection begins | | study |
 | Every Monday, 14 Dec – 8 Feb | M4: this week's game nights | Players: group 1, Players: group 2 (each its own dates) | study |
-| Tue 12 Jan 2027 | M5: five weeks left | Gov School, Pool | study |
-| Tue 9 Feb | M6: last week | Gov School, Pool | study |
+| Tue 12 Jan 2027 | M5: five weeks left | Invited | study |
+| Tue 9 Feb | M6: last week | Invited | study |
 | Sun 14 Feb | Last game night; collection and website withdrawal close | | study |
 | Mon 15 Feb | M7: thank you | Players: group 1, Players: group 2 | |
 
@@ -103,11 +104,15 @@ week's M4.
 
 | List (Resend segment) | Who | Where it comes from |
 |---|---|---|
-| Gov School | The Gov School group, all adults | The researcher's list, imported into Resend |
-| Pool | Everyone else who has said they are willing to play, mainly Lake Braddock alumni | The researcher's list, imported into Resend |
+| Invited | Until 7 December, the Gov School group (all adults); from then on, also everyone else who has said they are willing to play, mainly Lake Braddock alumni | The researcher's lists, imported into Resend |
 | Players: group 1 | Signed-up players outside the held-out cohort who have not withdrawn | Copied from the study database before each Monday's M4 (`python -m fish_server.audience`, [runbooks/email.md](runbooks/email.md) §4) |
 | Players: group 2 | Signed-up players in the held-out cohort who have not withdrawn | The same |
-| Test | The researcher's own addresses, to read each message before it goes out | Added by hand |
+
+Three lists, the most Resend's free marketing plan allows. M1 and M2 go to Invited while it
+holds only the Gov School group; the rest of the pool is added on 7 December, before M3. One
+list for every invitation also means nobody on both of the researcher's lists is sent the
+same message twice. Each message is read first as a test copy sent from its draft (Resend's
+"Send test email").
 
 The lists live only in Resend and in the study database's email table; none of them is ever
 in this repository. Resend's contacts are deleted on 31 March 2027, with the email table
@@ -118,7 +123,7 @@ in this repository. Resend's contacts are deleted on 31 March 2027, with the ema
 `[unsubscribe]` stands for Resend's unsubscribe link, which every bulk email carries in its
 footer. Text in `{braces}` is filled in when the message is sent.
 
-### M1 · Pilot invitation · Mon 16 Nov · Gov School
+### M1 · Pilot invitation · Mon 16 Nov · Invited
 
 **Subject:** Help me test Fish before it opens: 1, 3 or 5 December
 
@@ -155,7 +160,7 @@ footer. Text in `{braces}` is filled in when the message is sent.
 >
 > [unsubscribe]
 
-### M2 · Pilot reminder · Mon 30 Nov · Gov School
+### M2 · Pilot reminder · Mon 30 Nov · Invited
 
 **Subject:** Fish pilot: tomorrow at 8 pm, then Thursday and Saturday
 
@@ -176,7 +181,7 @@ footer. Text in `{braces}` is filled in when the message is sent.
 >
 > [unsubscribe]
 
-### M3 · Launch invitation · Tue 8 Dec · Gov School, Pool
+### M3 · Launch invitation · Tue 8 Dec · Invited
 
 **Subject:** Play Fish for a research study, from Sunday 13 December
 
@@ -250,7 +255,7 @@ For the week of 8 February, the first line reads: "This is the study's last week
 group's game nights, Eastern time:" and the list ends with "Sunday 14 February, 8:00 –
 10:00 pm (the last night)".
 
-### M5 · Five weeks left · Tue 12 Jan · Gov School, Pool
+### M5 · Five weeks left · Tue 12 Jan · Invited
 
 **Subject:** Fish study: five weeks left to play
 
@@ -269,7 +274,7 @@ group's game nights, Eastern time:" and the list ends with "Sunday 14 February, 
 >
 > [unsubscribe]
 
-### M6 · Last week · Tue 9 Feb · Gov School, Pool
+### M6 · Last week · Tue 9 Feb · Invited
 
 **Subject:** Fish study: last week to play
 

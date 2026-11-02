@@ -860,3 +860,15 @@ corpus, and reports each Eastern week's pace against 110, bot handovers (T4.4) a
 pilot site, how long games take (M3's `{N}`). T4.1's tools are complete: the schedule and
 messages (D79, D81), the sites' addresses (D80), the lists (D82) and the counts; recruitment
 itself runs from 16 November to 9 February as docs/recruitment.md §2 sets out.
+
+**D84 · 2026-11-02 · Three Resend lists, not five (changes D81, D82).**
+Resend's free marketing plan allows three segments. The Test list goes, since each draft can
+send a test copy to the researcher ("Send test email"), and the Gov School and Pool lists
+become one, `Invited`: until 7 December it holds only the Gov School group, which is exactly
+who M1 and M2 are for, and the rest of the pool joins it before M3. Every later invitation is
+then one broadcast to one list, so someone on both of the researcher's lists is one contact
+and gets each message once. The Players lists stay two, because each group has its own
+Wednesday nights. `scripts/broadcast.py` sends a message only to its heading's list, and
+`python -m fish_server.audience` takes withdrawn players out of `Invited`. Alternative: the
+paid plan for its segments alone (it is needed from 7 December anyway, for the pool's 5,000
+contacts, but not before).
