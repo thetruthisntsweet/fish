@@ -104,7 +104,7 @@ and include it in that week's M4.
 |---|---|---|
 | Gov School | The Gov School group, all adults | The researcher's list, imported into Resend |
 | Pool | Everyone else who has said they are willing to play, mainly Lake Braddock alumni | The researcher's list, imported into Resend |
-| Players: group 1 | Signed-up players outside the held-out cohort who have not withdrawn | Copied from the study database before each Monday's M4 (T4.1 subtask 4) |
+| Players: group 1 | Signed-up players outside the held-out cohort who have not withdrawn | Copied from the study database before each Monday's M4 (`python -m fish_server.audience`, [runbooks/email.md](runbooks/email.md) §4) |
 | Players: group 2 | Signed-up players in the held-out cohort who have not withdrawn | The same |
 | Test | The researcher's own addresses, to read each message before it goes out | Added by hand |
 
