@@ -145,6 +145,43 @@ jobs:
       - run: npm --prefix client ci --no-audit --no-fund
       - run: npm --prefix client test
       - run: npm --prefix client run build
+  # ---------------------------------------------------------------- the website (T3.3)
+  # The built client, served by the real server with Postgres, driven in Chromium at phone
+  # width: the consent screen, signing in, the study information and withdrawing.
+  browser:
+    name: The website in a browser
+    # Playwright 1.56 has Chromium and its system libraries for Ubuntu 24.04 but not 26.04,
+    # which ubuntu-latest now is. Move back to ubuntu-latest with a Playwright
+    # release that supports it.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17 # same major version as infra/docker-compose.yml
+        env:
+          POSTGRES_USER: fish
+          POSTGRES_PASSWORD: fish_dev
+          POSTGRES_DB: fish
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fish -d fish"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0 # setup-uv publishes no short major tag (v10)
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: uv sync --locked --all-packages
+      - run: npm --prefix client ci --no-audit --no-fund
+      - run: npm --prefix client run build
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run pytest -m browser
     # ---------------------------------------------------------------- server image
   # The same Dockerfile Render builds. Fails here, in the PR, rather than at deploy time.
   docker:

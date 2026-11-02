@@ -26,6 +26,7 @@ cd fish
 uv python install
 uv sync --all-packages
 npm --prefix client ci
+uv run playwright install chromium
 cp .env.example .env
 docker compose -f infra/docker-compose.yml up -d db
 uv run --env-file .env python -m fish_server.deploy
@@ -40,15 +41,17 @@ What each line does:
    **Always pass `--all-packages`** (see Troubleshooting).
 3. `npm --prefix client ci` installs the client's exact dependencies from
    `client/package-lock.json`. The pre-commit hooks need these too.
-4. `cp .env.example .env` creates your local settings. `.env` is never committed.
-5. `docker compose … up -d db` starts PostgreSQL on `127.0.0.1:55432`. Wait until
+4. `playwright install chromium` downloads the Chromium the browser tests drive (into your
+   user cache, outside the repository).
+5. `cp .env.example .env` creates your local settings. `.env` is never committed.
+6. `docker compose … up -d db` starts PostgreSQL on `127.0.0.1:55432`. Wait until
    `docker compose -f infra/docker-compose.yml ps` shows `healthy`.
-6. `python -m fish_server.deploy` does what Render does before every deploy: applies the
+7. `python -m fish_server.deploy` does what Render does before every deploy: applies the
    migrations, creates the server's own database login (`fish_server`), and checks that
    login can read but not alter. It should end with `Pre-deploy checks passed.`
-7. `pre-commit install` turns on the checks that run on every `git commit`. Needed once per
+8. `pre-commit install` turns on the checks that run on every `git commit`. Needed once per
    clone: git does not copy hooks.
-8. `./scripts/check.sh` runs every check CI runs. It should end with `All checks passed.`
+9. `./scripts/check.sh` runs every check CI runs. It should end with `All checks passed.`
    and no skipped tests.
 
 ## 3. Everyday commands
@@ -64,6 +67,8 @@ All from the repository root.
 | Start the client (http://127.0.0.1:5173) | `npm --prefix client run dev` |
 | Build the client, which the server then serves at http://127.0.0.1:8000 | `npm --prefix client run build` |
 | Run the client tests | `npm --prefix client test` |
+| Install Chromium for the browser tests (once) | `uv run playwright install chromium` |
+| Run the browser tests (after building the client) | `uv run --env-file .env pytest -m browser` |
 | Build the published packages, install them as a user would, and run the README examples | `uv run --no-project --python 3.14 python scripts/check_install.py` |
 | Make a release | [runbooks/release.md](runbooks/release.md) |
 | Export the corpus (docs/corpus.md §7) | `uv run --env-file .env python -m fish_server.corpus_export --out corpus.jsonl` |

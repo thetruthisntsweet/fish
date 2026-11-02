@@ -759,3 +759,54 @@ so players learn of a restart from that code, which the client (T3.4) shows, not
 message; the game then ends `abandoned`, as D71 says. T3.2 is complete: the consent
 redesign (D68–D70), endings and the log (D71), and the note-taking question (D72) are in
 `docs/server.md` and `docs/corpus.md`.
+
+**D74 · 2026-11-01 · The age gate is the consent screen's first confirmation.**
+T3.3 was planned as "Age gate (all participants 18+)". Under the approved Consent Screen it is
+the first of the three confirmations: "I live in the United States and I am a legal adult
+where I live: 18 or older (19 or older in Alabama or Nebraska; 21 or older in Mississippi)".
+Nobody plays without ticking it (D70), and the server stores it with every acceptance and
+copies it to every seat (D68, D69). No birth date is asked: the text promises that we never
+collect age, and a date would add a record to protect without making the attestation any
+truer. Alternative: a birth-date field (collects what the consent text says we do not).
+
+**D75 · 2026-11-01 · The server serves the web client.**
+The image builds the client in a Node stage and keeps only `client/dist`; `fish_server.pages`
+answers `/`, `/account` and `/information` with its `index.html` (never cached) and serves
+`/assets/` (cached for good: the names carry a hash of the contents). Every other path is
+404, so a mistyped endpoint is never answered with a page; the client's list of pages and the
+server's are checked against each other. One service and one address keep the `HttpOnly`
+session cookie working with nothing to configure, and the sign-in link's redirect to `/` now
+lands on the client. Locally, Vite serves the live client and forwards the server's paths.
+Alternatives: a separate static site (a second service, and cross-site cookies); serving the
+client for every unknown path (a typo in an endpoint would answer 200 with a page).
+
+**D76 · 2026-11-01 · The study texts live in the client, word for word, by version.**
+`client/src/study/texts.ts` holds each text as typed data, and the pilot is built from the
+same sentences as v1.0 with exactly the eight parts of Consent Screen §4 swapped, so the rest
+is word for word by construction; both were compared line by line with the approved doc. A
+version is never edited (typo fixes aside), so anyone can reread exactly what they accepted.
+`versions.json` beside the texts and `fish_server.study` list the same versions and last days,
+and tests on both sides check that they agree; the server refuses to start with a
+`FISH_CONSENT_VERSION` it has no text for. Alternatives: Markdown files rendered at run time
+(a parser, and a second shape to keep in step); the server sending the text (an old version
+would still have to be kept somewhere, and the client could not check it).
+
+**D77 · 2026-11-01 · Withdrawing on the website closes at the end of the text's last day.**
+"You can withdraw until 14 February 2027" (31 March 2027 for the pilot) is read as the end of
+that day in US Eastern time, where the study runs. `GET /study` says the day and whether
+withdrawing is open; after it the account page shows when it closed instead of the button,
+and `POST /withdraw` answers 409. A request by email has no deadline in code: the researcher
+decides, as Consent Screen §3 allows for the extra games in March. Alternative: midnight UTC
+(seven hours early for every participant).
+
+**D78 · 2026-11-01 · Returning players accept again; T3.3 close-out.**
+Anyone without a session sees the consent screen, so a returning player whose session has
+expired ticks the boxes again and the new acceptance rides their sign-in link: one more row of
+`consents`, and no way to sign in without an acceptance. A signed-in player whose accepted
+text is not the one shown accepts the new one with `POST /consent` before their next game.
+The account page's withdrawal asks for confirmation in words true under both texts. The
+website is tested end to end in Chromium (`test_browser.py`, marked `browser`, run by
+`check.sh` and CI after the client is built): the key points fit on the first screen at phone
+width in both texts and colour schemes, and one person accepts, signs in, rereads, withdraws
+and signs out, with the database checked at each step. Alternative: a "Sign in" shortcut for
+returning players (a new person could make an account without accepting).

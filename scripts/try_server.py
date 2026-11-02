@@ -1,4 +1,5 @@
-"""Check a deployed server the way a player reaches it (T3.1): health, sign-in, the game socket.
+"""Check a deployed server the way a player reaches it (T3.1, T3.3): the website, health,
+sign-in, the game socket.
 
 Sign in first in a browser (the emailed link, then the button), then copy the value of the
 ``fish_session`` cookie from the browser's developer tools (Application, or Storage, then
@@ -6,7 +7,8 @@ Cookies). Then:
 
     uv run python scripts/try_server.py https://<your-staging-host> --session <cookie value>
 
-It checks ``/health`` reports protocol 3, ``/auth/me`` says signed in and allowed to play
+It checks that ``/`` serves the web client and ``/study`` names the text the site shows,
+that ``/health`` reports protocol 3, that ``/auth/me`` says signed in and allowed to play
 (the study information accepted, not withdrawn), and over ``/ws`` that the server says
 hello, shows the lobby, makes a room and leaves it. Exits 0 and prints PASS, or 1 with what
 failed. It never joins the solo queue, so it cannot start a game.
@@ -34,6 +36,11 @@ def get(url: str, session: str | None = None) -> tuple[int, dict[str, object]]:
             return response.status, json.loads(response.read())
     except urllib.error.HTTPError as error:
         return error.code, json.loads(error.read() or b"{}")
+
+
+def page(url: str) -> str:
+    with urllib.request.urlopen(url, timeout=15) as response:
+        return response.read().decode()
 
 
 async def socket(base: str, session: str) -> None:
@@ -74,6 +81,13 @@ def main() -> int:
     args = parser.parse_args()
     base = args.base.rstrip("/")
     try:
+        if 'id="root"' not in page(f"{base}/"):
+            raise RuntimeError("/ does not serve the web client")
+        print("page:   the web client")
+        status, study = get(f"{base}/study")
+        print("study: ", status, study)
+        if status != 200 or not study.get("version"):
+            raise RuntimeError("/study should name the text this site shows")
         status, health = get(f"{base}/health")
         print("health:", status, health)
         if status != 200 or health.get("protocol_version") != PROTOCOL_VERSION:

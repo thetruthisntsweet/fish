@@ -1,8 +1,8 @@
 # The game server
 
-How the website's server plays a game (T3.1, T3.2): consent and signing in, matchmaking, the
-website's rules around the engine, the messages, what is written to the database as a game
-is played, and how a game that cannot go on ends.
+How the website's server plays a game (T3.1, T3.2, T3.3): the website itself, consent and
+signing in, matchmaking, the website's rules around the engine, the messages, what is written
+to the database as a game is played, and how a game that cannot go on ends.
 The rules are the Canonical Ruleset v1.1 ([rules.md](rules.md)); what is recorded is
 [corpus.md](corpus.md). The server is the `fish-server` package, which is not published.
 
@@ -15,18 +15,30 @@ The rules are the Canonical Ruleset v1.1 ([rules.md](rules.md)); what is recorde
 | `lobby` | the solo queue and group rooms | nothing |
 | `protocol` | every message, as Pydantic models (the client's types are generated from them) | nothing |
 | `signin`, `auth`, `mailer` | signing in with an emailed link | the database, Resend |
+| `study` | the texts a site can show, and each one's last day to withdraw | nothing |
 | `consent`, `withdraw` | acceptances of the consent screen, withdrawals | the database |
 | `games` | writing a new table's game, seats and seat flags; endings; the sweep | the database |
 | `hub` | connections, the lobby and the games in progress, on one event loop | sockets, the database |
+| `pages` | the web client's pages and files (`client/dist`) | files |
 | `app` | the HTTP endpoints and `/ws` | |
 
 Everything that decides something (the table, the game, the lobby) does no input or output,
 so the tests drive it on a fake clock and check every rule exactly; the hub and the app only
 move messages and rows.
 
-## 2. Consent and signing in
+## 2. The website, consent and signing in
 
-The consent screen comes first (Consent Screen §2; the client builds it, T3.3). `GET /study`
+The server serves the web client itself (`fish_server.pages`; the image builds it): `/`,
+`/account` and `/information` are its `index.html`, never cached, and `/assets/` its files,
+cached for good since their names change with their contents. One address for the pages, the
+endpoints and `/ws` means the session cookie needs nothing more. Any other path is 404.
+
+The client (`client/src`) holds every text a site can show, word for word
+(`study/texts.ts`). `/` shows the consent screen to anyone not signed in, and again to a
+player whose accepted text is no longer the one shown; nothing is sent or stored before
+Continue, and No thanks sends nothing. `/information` shows the text a participant accepted,
+with its confirmations, and `/account` the version accepted, "Withdraw from the study" (asked
+twice) and Sign out. The footer links them. `GET /study`
 gives the version this site shows (`FISH_CONSENT_VERSION`: `v1.0`, or `v1.0-pilot` on
 staging), the last day its participants can withdraw on the website (`withdraw_until`), and
 whether they still can (`withdrawal_open`). The versions a site can show, and their last
@@ -141,17 +153,17 @@ log could not replay it ends `abandoned`, whatever the rules said.
 
 ## 7. Trying it
 
-Locally: start the database and the server ([setup.md](setup.md)), ask for a link with
-`curl -X POST localhost:8000/auth/link -H 'content-type: application/json' -d
-'{"email":"you@example.org"}'`, open the link the server prints, and press the button.
+Locally: start the database, build the client and start the server ([setup.md](setup.md)),
+open http://127.0.0.1:8000, accept the consent screen and give any address. The server prints
+the sign-in link instead of emailing it; open it and press the button.
 
 On staging, sign in in a browser with a real address, copy the `fish_session` cookie's value
 from the developer tools, and run:
 
     uv run python scripts/try_server.py https://<your-staging-host> --session <value>
 
-It checks `/health`, `/auth/me` and the socket (hello, lobby, a room made and left) and prints
-PASS.
+It checks the page, `/study`, `/health`, `/auth/me` and the socket (hello, lobby, a room made
+and left) and prints PASS.
 
 ## 8. How it is checked
 
@@ -167,3 +179,11 @@ answer the note-taking question. The export reads the game back as a corpus reco
 replays to the same end with every seat's flags and note, and leaves it out once one of them
 withdraws. A second test stops the server mid-game, as a deploy does: every connection closes
 with 1012 and the game ends `abandoned`.
+
+The website: `test_pages.py` (the pages and files served, nothing else) and `test_study.py`
+(every text the server knows is in the client, with the same last day); the client's own
+tests (`npm --prefix client test`: the texts against Consent Screen §1 and §4, every screen
+against a stand-in server); and `test_browser.py`, which `pytest -m browser` runs after the
+client is built: the real server and database, driven in Chromium at phone width. The key
+points fit on the first screen in both texts, and one person accepts, signs in by the emailed
+link, rereads the text, withdraws and signs out, with the database checked at each step.
