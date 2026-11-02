@@ -13,6 +13,12 @@ services:
     branch: main
     autoDeployTrigger: checksPass # deploy a new commit on main only once CI has passed
     healthCheckPath: /health
+    # The pilot's address (T4.1; docs/runbooks/domains.md). Its DNS record is a CNAME from
+    # fish-pilot to this service's onrender.com host. The onrender.com address is switched off,
+    # so every page, sign-in link and session cookie uses this one address.
+    domains:
+      - fish-pilot.thedefinitivesanjeevexperience.com
+    renderSubdomainPolicy: disabled
     # Runs after each build, before the new version starts: migrations, then the server's
     # own database login, then a check that the login can read but not alter (T2.1 §11).
     # If any step fails, the deploy is cancelled and the running version is left alone.
@@ -24,7 +30,9 @@ services:
           property: connectionString
       - key: FISH_APP_DB_PASSWORD # the fish_server login's password; Render generates it
         generateValue: true
-      # Sign-in by emailed link (T3.1). Links point at RENDER_EXTERNAL_URL, which Render sets.
+      # Sign-in by emailed link (T3.1). Links point at the pilot's address (T4.1).
+      - key: FISH_PUBLIC_URL
+        value: https://fish-pilot.thedefinitivesanjeevexperience.com
       - key: FISH_EMAIL
         value: resend
       - key: FISH_EMAIL_FROM

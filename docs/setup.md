@@ -118,7 +118,7 @@ The test suite creates and drops its own throwaway databases and its own login
 | `FISH_RESEND_API_KEY` | the server, with `resend` | Resend key with sending access to the sending domain only; set in Render, never in a file |
 | `FISH_EMAIL_FROM` | the server | sender of sign-in emails; defaults to `Fish <signin@mail.thedefinitivesanjeevexperience.com>` |
 | `FISH_COHORT_SEED` | the server | 64-bit seed of the held-out cohort draw (corpus.md §2.1); never changed once anyone has signed up |
-| `FISH_PUBLIC_URL` | the server | where sign-in links point; defaults to `RENDER_EXTERNAL_URL` (Render sets it), else `http://127.0.0.1:8000` |
+| `FISH_PUBLIC_URL` | the server | where sign-in links point: the site's own address, set in `render.yaml`; defaults to `RENDER_EXTERNAL_URL` (Render sets it), else `http://127.0.0.1:8000` |
 | `FISH_CONSENT_VERSION` | the server | the study information shown and accepted: `v1.0` (default) or `v1.0-pilot` (staging) |
 | `FISH_SIGNIN_DAILY_LIMIT` | the server | most sign-in emails sent in 24 hours; default 90, under Resend's free 100 a day |
 
@@ -147,8 +147,10 @@ rights only. Tables that must never change once written get
 
 ## 7. Staging on Render
 
-- Server: `fish-staging` (Virginia). Database: `fish-staging-db` (PostgreSQL 17, private
-  network only). Configuration: `render.yaml`.
+- Server: `fish-staging` (Virginia), at https://fish-pilot.thedefinitivesanjeevexperience.com,
+  where the pilot is played; its `onrender.com` address is switched off
+  ([runbooks/domains.md](runbooks/domains.md)). Database: `fish-staging-db` (PostgreSQL 17,
+  private network only). Configuration: `render.yaml`.
 - `GET /health` — is the server up, and which versions it runs.
 - `GET /health/db` — can it reach its database, and at which migration.
 - Sign-in: `POST /auth/link` with `{"email": …}` emails a link, which opens `/sign-in` with
