@@ -87,9 +87,10 @@ message goes at 9:00 am Eastern on its day:
 | M6, Tue 9 Feb | `M6 --segment "Gov School" ...`, then `--segment Pool` |
 | M7, Mon 15 Feb | `M7 --segment "Players: group 1" ...`, then `"Players: group 2"` |
 
-M3's `<minutes>` is the pilot's median game length, rounded to five minutes. Before each M4,
-copy the players into their segments (§4) and check the week's pace
-([recruitment.md](../recruitment.md) §3).
+M3's `<minutes>` is the pilot's median game length, rounded to five minutes ("minutes a game
+takes" from `python -m fish_server.stats` in the pilot service's Shell). Before each M4, copy
+the players into their segments (§4) and check the week's pace with `python -m
+fish_server.stats` ([recruitment.md](../recruitment.md) §3).
 
 The script takes the words from `docs/recruitment.md` and nowhere else, and refuses a
 message for a list its heading does not name, a placeholder left unfilled, a `--week` that is
