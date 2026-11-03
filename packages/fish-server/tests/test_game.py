@@ -264,6 +264,23 @@ def test_r8_8_a_bot_does_not_declare_in_a_window_someone_else_opened() -> None:
     assert any(r["seat"] == seat for r in dropped)
 
 
+def test_a_game_whose_people_have_all_gone_ends_abandoned_at_once() -> None:
+    game = Game(uuid.uuid4(), 1, [uuid.uuid4() for _ in SEATS])
+    game.handle(Connected(5), 1)  # one person comes; the other five never do
+    outs = game.wake(RECONNECT_US + 1)  # five handed over; one person is still there
+    assert not game.ended
+    assert all(not isinstance(o, End) for o in outs)
+    game.handle(Disconnected(5), RECONNECT_US + 2)
+    actions = len(game.table.entries)
+    outs = game.wake(2 * RECONNECT_US + 2)  # the last person gone: nobody to play with
+    assert End("abandoned") in outs
+    assert game.ended
+    assert game.next_wake() is None  # no bot waits on, and no pings
+    assert game.table.state.outcome is None  # the rules did not end it
+    assert game.wake(3 * RECONNECT_US) == []
+    assert len(game.table.entries) == actions
+
+
 def test_the_same_seed_and_inputs_give_the_same_bot_play() -> None:
     first = Game(uuid.uuid4(), 9, [uuid.uuid4() for _ in SEATS])
     second = Game(uuid.uuid4(), 9, [uuid.uuid4() for _ in SEATS])
@@ -313,7 +330,10 @@ def test_whole_games_end_and_their_rows_are_the_log(game_seed: int, policy_seed:
     game = Game(uuid.uuid4(), game_seed, [uuid.uuid4() for _ in SEATS])
     outs = play(SplitMix64(policy_seed), game, 3_000)
     assert game.ended
-    assert [o for o in outs if isinstance(o, End)] == [End(str(game.table.state.outcome))]
+    outcome = game.table.state.outcome
+    ending = End(str(outcome)) if outcome is not None else End("abandoned")
+    assert [o for o in outs if isinstance(o, End)] == [ending]
+    assert (outcome is None) == (not game.table.people)  # abandoned only when nobody is left
     assert game.next_wake() is None
     actions, log = game.rows()
     assert [a["seq"] for a in actions] == list(range(len(game.table.entries)))

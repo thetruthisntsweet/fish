@@ -91,8 +91,9 @@ class OneStep:
     """A game that ends at its first input: it sends a ping to seat 0, a bot takes seat 1,
     and the rules end it."""
 
-    def __init__(self, seat: int | None = 0) -> None:
+    def __init__(self, seat: int | None = 0, ending: str = "finished") -> None:
         self.seat = seat
+        self.ending = ending
         self.gone: set[uuid.UUID] = set()  # players a bot replaced
         self.game_id = uuid.uuid4()
         self.table = Table()
@@ -111,7 +112,7 @@ class OneStep:
             return []
         self.ended = True
         ping = Ping(type="ping", nonce=1)
-        return [Send(0, ping), Send(2, ping), Release(1), End("finished")]
+        return [Send(0, ping), Send(2, ping), Release(1), End(self.ending)]
 
     def wake(self, now: int) -> list[object]:  # pragma: no cover - never due
         return []
@@ -158,6 +159,25 @@ def test_a_game_that_ends_is_written_and_its_players_return_to_the_lobby() -> No
         assert [m["type"] for m in first] == ["lobby", "ping", "note_question", "lobby"]
         assert [m["type"] for m in second] == ["lobby", "lobby"]  # released: not asked
         assert hub.notes == {six[0].id: (game.game_id, 0)}
+
+    asyncio.run(scenario())
+
+
+def test_a_game_nobody_is_left_in_is_written_abandoned_and_asks_nothing() -> None:
+    async def scenario() -> None:
+        hub, six = Writes(), players(6)
+        connection, far = attach(hub, six[0])
+        game = OneStep(ending="abandoned")
+        running = Running(hub, game, six, 0)  # pyright: ignore[reportArgumentType]
+        for p in six:
+            hub.games[p.id] = running
+        hub.lobby.seated |= {p.id for p in six}
+        running.inputs.put_nowait(Acted(0, 0))
+        await running.run()
+        assert hub.done == [("rows", 1), ("ending", "abandoned")]
+        assert hub.games == {}
+        await drain(connection)
+        assert "note_question" not in [m["type"] for m in far.sent]
 
     asyncio.run(scenario())
 

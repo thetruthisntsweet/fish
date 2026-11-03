@@ -23,6 +23,8 @@ it on the real one and does the sending and the writing.
   otherwise the decision is dropped. A newer event replaces a decision still waiting, so a
   bot never declares in a window someone else opened. A bot whose turn offers no ask holds
   only whole sets (R.3.2), so it can always prove a call and presses one (R.9).
+- A game whose last person a bot replaced ends at once, ``abandoned``: nobody is left to play
+  with, and a game of bots never enters the corpus (D97; docs/corpus.md §3).
 - ``rows`` hands over the actions (once sent) and log rows not yet written.
 """
 
@@ -44,6 +46,9 @@ from fish_server.bots import DelayStreams
 from fish_server.protocol import Message, Ping, Rejected, update
 from fish_server.table import SECOND_US, Controller, Entry, Table
 from fish_server.table import Rejected as TableRejected
+
+ABANDONED: Final = "abandoned"
+"""How a game ends when it stops before the rules end it (docs/corpus.md §3)."""
 
 PING_US: Final = 5 * SECOND_US
 """R.8.7: every connected person's round trip is measured every 5 seconds."""
@@ -214,6 +219,9 @@ class Game:
         version = len(table.entries)
         connected = {seat for seat in SEATS if table.connected(seat)}
         table.advance(now)
+        if not table.people:  # the last person has just gone: the game ends, nobody acts
+            changed = len(table.entries) != version
+            return outs + self._after(now, changed=changed, connected=connected)
         for seat, waiting in sorted(self._bot_due.items()):
             if waiting.due > now or waiting.version != len(table.entries):
                 continue
@@ -323,12 +331,12 @@ class Game:
             if seat not in table.people and not over and table.actions(seat):
                 delay = self._delays.delay(seat, table.state.events)
                 self._bot_due[seat] = Waiting(now + delay, version, delay)
-        if over and not self.ended:
+        if (over or not table.people) and not self.ended:
             self.ended = True
             self._next_ping.clear()
             self._bot_due.clear()
             self._press_due.clear()
-            outs.append(End(str(table.state.outcome)))
+            outs.append(End(str(table.state.outcome) if over else ABANDONED))
         return outs
 
     def _decide(self, seat: Seat) -> Action:

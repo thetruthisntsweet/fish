@@ -70,7 +70,9 @@ The age gate is the screen's first confirmation; nothing else about age is kept.
 | `completion` | `finished` (R.7.1), `unfinished` (1,000 asks, R.8.2) or `abandoned` (the server stopped the game) | analysis sets |
 
 `finished` and `unfinished` are *completed* games: the rules ended them. An abandoned game
-stops part-way and is kept in the log but never enters the corpus.
+stops part-way and is kept in the log but never enters the corpus. The server abandons a game
+when it restarts, when it cannot write the game's log, and when a bot has replaced every
+person in it, since nobody is left to play with (D97).
 
 ## 4. Seats
 

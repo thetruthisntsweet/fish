@@ -34,6 +34,8 @@ players are told why:
   written, and its ending written as ``abandoned``.
 - *A write keeps failing*: it is retried for about a minute (``RETRY_S``), then the game is
   stopped and nothing more of it is written, since a log with a gap cannot replay it.
+- *Nobody is left*: a bot has replaced every person (R.8.4), so the game stops at once and
+  is written ``abandoned`` (D97); there is no one to tell.
 - *The server crashed*, or the database was down when it stopped: the game has no ending.
   Every minute, and at start, the server marks ``abandoned`` each game without an ending that
   is not running here and has written nothing for five minutes (``games.abandon_quiet``). A

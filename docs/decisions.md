@@ -1017,3 +1017,13 @@ website: a turn offers only asks, and a player with no ask holds only whole sets
 always proves. Every call a bot pressed for in the random server games is right. Alternative:
 pressing for calls B1 thinks likely. That is not the B1 frozen in D85, and a wrong call by a
 bot scores a set for the other team in a game people are playing.
+
+**D97 · 2026-11-03 · A game nobody is left in ends abandoned.**
+When a bot replaces the last person at a table (R.8.4), the game stops in that instant, no bot
+acting after, and is written `abandoned`, like a game a restart stopped (corpus.md §3). Nobody
+is watching it; six B1s with last-8 memory reach 1,000 asks in a third to a half of their games
+(D85, D86), which would hold a game open for an hour; and it could not enter RQ2's set, which
+has no handovers. No rule changes: R.8.4 hands the seat to a bot, and stopping a game is the
+server's, not the rules'. Alternative: playing it out at bot speed, for RQ1's sensitivity set.
+Its last part would be bots alone, whose actions are not scored, at the cost of a game's worth
+of server time.
