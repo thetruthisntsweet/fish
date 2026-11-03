@@ -1,6 +1,7 @@
 // The website (T3.3): the front page with the consent screen (screens/Home.tsx), "Study
 // information" and the account page, with the footer that links them (Consent Screen §2).
-// The client holds no rules logic of its own (Plan §3): the game screens arrive in T3.4.
+// Signed in, the front page is the game (screens/Play.tsx). The client holds no rules logic of
+// its own (Plan §3): it shows what the server sends and offers what the server allows.
 import { useEffect, useState } from "react";
 import { AccountPage } from "./screens/AccountPage.tsx";
 import { Home } from "./screens/Home.tsx";

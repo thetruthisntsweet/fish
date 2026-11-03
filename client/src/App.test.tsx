@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "./App.tsx";
 import { fakeServer, type FakeServer } from "./test/server.ts";
+import { fakeSockets } from "./test/socket.ts";
 
 const ACCEPTED = {
   version: "v1.0",
@@ -17,6 +18,7 @@ let server: FakeServer;
 
 beforeEach(() => {
   server = fakeServer();
+  fakeSockets(); // signed in, the front page opens the game connection
 });
 
 afterEach(() => {
@@ -146,7 +148,7 @@ test("the pilot site shows the pilot text and sends its version", async () => {
 test("a signed-in player who accepted the text shown is not asked again", async () => {
   server.standing = { accepted: "v1.0", withdrawn: false };
   render(<App />);
-  expect(await screen.findByRole("heading", { name: "You are signed in" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Play Fish" })).toBeInTheDocument();
   expect(screen.queryByRole("checkbox")).toBeNull();
 });
 
@@ -157,7 +159,7 @@ test("a new version is read and accepted again before the next game", async () =
   expect(screen.getByRole("status")).toHaveTextContent("The study information has changed.");
   tickAll();
   fireEvent.click(button("Continue"));
-  expect(await screen.findByRole("heading", { name: "You are signed in" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Play Fish" })).toBeInTheDocument();
   expect(server.posts()).toEqual([
     { method: "POST", path: "/consent", body: { ...ACCEPTED, version: "v1.0-pilot" } },
   ]);
