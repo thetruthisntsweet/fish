@@ -990,3 +990,17 @@ it ends: not dropped if the bot then acted, dropped if the game moved on first (
 a window, a timer fired), and the bot then waits afresh for the new state. Alternative: a
 wait drawn from the operating system. The bots' timing could then not be reproduced, and
 RQ1's sensitivity set includes games with bot seats.
+
+**D95 · 2026-11-03 · The website's bot is B1 remembering the latest 8 events, from the moment
+it takes the seat.**
+A person who is away for 30 seconds or lets the turn timer run out is replaced by `b1-v1`
+with last-8 memory (R.8.4; T3.5), and the handover row records exactly that. Bots only ever
+replace people: a table still needs six to start (Research Plan §5). Eight events is about a
+round of the table; in T5.2's evaluation B1 at last-8 beat B0 in every game and lost every
+game to full-memory B1. The bot is shown every view its seat is shown from the moment it
+takes it, as a player sitting down would be, not the events before. It chooses among the
+actions the website allows, passed to B1 as the view's legal actions, so on a turn it asks
+(a call starts with a press, R.4.3), and its random choices come from the game's
+`bot_policy` stream (`fish_agents.PolicyStreams`), so a game replays from its seed with the
+bots' play in it. Alternatives: full memory, which no person playing without notes has;
+and handing the bot the person's last views, which no player taking a seat would get.

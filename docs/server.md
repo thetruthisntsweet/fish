@@ -11,7 +11,7 @@ The rules are the Canonical Ruleset v1.1 ([rules.md](rules.md)); what is recorde
 | Module | Does | Touches |
 |---|---|---|
 | `table` | one game under website mechanics: presses, windows, the timers, people and bots | nothing: times are passed in |
-| `game` | one game in progress: who is sent what, pings, the stand-in bot, rows to write | nothing: times are passed in |
+| `game` | one game in progress: who is sent what, pings, the bots, rows to write | nothing: times are passed in |
 | `lobby` | the solo queue and group rooms | nothing |
 | `protocol` | every message, as Pydantic models (the client's types are generated from them) | nothing |
 | `signin`, `auth`, `mailer` | signing in with an emailed link | the database, Resend |
@@ -106,8 +106,11 @@ outcome itself (D23):
   out, is replaced by a bot for the rest of the game and released to the lobby. A bot waits
   before every action (R.8.8): 1.5 to 4 seconds, drawn from the game's seed
   (`fish_server.bots`; determinism.md §2), each wait a `bot_delay` row, marked dropped when
-  the game moved on before it ended, after which a new one is drawn. Until B1 (T3.5), the bot
-  is a stand-in (`b0-v1`) that chooses among the actions the website allows.
+  the game moved on before it ended, after which a new one is drawn. The bot is B1 (`b1-v1`)
+  remembering the latest 8 events (D95): shown every view its seat is shown from the moment
+  it takes the seat, choosing among the actions the website allows (on a turn, only asks),
+  with its random choices from the game's `bot_policy` stream, so bots play the same from
+  the same seed.
 - On a turn the current player may only ask: a call starts with a press, like anyone's (R.4.3).
 
 ## 5. Messages
