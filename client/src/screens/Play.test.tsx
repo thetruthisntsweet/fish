@@ -235,3 +235,46 @@ describe("after a game", () => {
     expect(screen.queryByRole("alert")).toBeNull(); // not repeated by the lobby
   });
 });
+
+describe("coming back", () => {
+  const took = "A bot took over your seat while you were away, and that game goes on without you.";
+
+  test("after a drop, the table as it now stands", () => {
+    vi.useFakeTimers();
+    inLobby();
+    server(update());
+    act(() => {
+      latest().drop();
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("The connection was lost. Reconnecting…");
+    act(() => {
+      vi.advanceTimersByTime(1000);
+      latest().hello();
+    });
+    server(update({ current: 1 }, { timers: [{ name: "turn", ms_left: 41_000 }] }));
+    expect(screen.getByRole("timer", { name: "Turn" })).toHaveTextContent("41s");
+  });
+
+  test("too late, the server's word that a bot took the seat", () => {
+    vi.useFakeTimers();
+    inLobby();
+    server(update());
+    act(() => {
+      latest().drop();
+      vi.advanceTimersByTime(1000);
+      latest().hello();
+    });
+    server({ type: "error", code: "not_now", message: took });
+    server(AWAY);
+    expect(screen.getByRole("region", { name: "Your last game" })).toHaveTextContent(took);
+  });
+
+  test("on a fresh page, the same word above the lobby", () => {
+    act(() => {
+      latest().hello();
+    });
+    server({ type: "error", code: "not_now", message: took });
+    server(AWAY);
+    expect(screen.getByRole("alert")).toHaveTextContent(took);
+  });
+});

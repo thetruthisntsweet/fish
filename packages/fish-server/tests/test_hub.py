@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 
 from fish_server.game import Acted, Connected, End, Malformed, Ponged, Release, Send
-from fish_server.hub import Connection, Hub, Running
+from fish_server.hub import BOT_TOOK_SEAT, ENDED_AWAY, Connection, Hub, Running
 from fish_server.lobby import Formed, Player
 from fish_server.protocol import Ping
 
@@ -271,6 +271,39 @@ def test_a_player_whose_seat_a_bot_took_reconnects_to_the_lobby() -> None:
     asyncio.run(scenario())
 
 
+def test_a_player_away_when_a_bot_took_their_seat_is_told_on_coming_back() -> None:
+    async def scenario() -> None:
+        hub, six = Writes(), players(6)
+        running = Running(hub, OneStep(seat=None), six, 0)  # pyright: ignore[reportArgumentType]
+        hub.games[six[1].id] = running
+        hub.release(running, six[1])  # handed over while away: nobody to tell yet
+        connection, far = attach(hub, six[1])
+        await drain(connection)
+        assert [m["type"] for m in far.sent] == ["error", "lobby"]
+        assert far.sent[0]["message"] == BOT_TOOK_SEAT
+        again, later = attach(hub, six[1])
+        await drain(again)
+        assert [m["type"] for m in later.sent] == ["lobby"]  # told once
+
+    asyncio.run(scenario())
+
+
+def test_a_player_away_when_their_game_ended_is_told_on_coming_back() -> None:
+    async def scenario() -> None:
+        hub, six = Writes(), players(6)
+        running = Running(hub, OneStep(seat=2), six, 0)  # pyright: ignore[reportArgumentType]
+        hub.games[six[2].id] = running
+        hub.release(running, six[2])  # the game ended with them still seated, but away
+        connection, far = attach(hub, six[2])
+        await drain(connection)
+        assert [(m["type"], m.get("message")) for m in far.sent] == [
+            ("error", ENDED_AWAY),
+            ("lobby", None),
+        ]
+
+    asyncio.run(scenario())
+
+
 def test_a_released_player_is_shown_the_lobby() -> None:
     async def scenario() -> None:
         hub, six = Writes(), players(6)
@@ -280,7 +313,7 @@ def test_a_released_player_is_shown_the_lobby() -> None:
         hub.release(running, six[2])  # once only
         connection, far = attach(hub, six[2])
         await drain(connection)
-        assert [m["type"] for m in far.sent] == ["lobby"]
+        assert [m["type"] for m in far.sent] == ["error", "lobby"]  # told once, then the lobby
 
     asyncio.run(scenario())
 

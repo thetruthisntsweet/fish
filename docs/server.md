@@ -112,6 +112,12 @@ outcome itself (D23):
   it takes the seat, choosing among the actions the website allows (on a turn, only asks),
   with its random choices from the game's `bot_policy` stream, so bots play the same from
   the same seed.
+- **Coming back** (R.8.4). A person who reconnects within 30 seconds is sent their seat's
+  update at once: the game where it stands, what they may do, and the timers, the turn timer
+  having kept running while they were away. One who comes back later, or after their game
+  ended without them, is told once ("A bot took over your seat while you were away…", "Your
+  game ended while you were away.") and shown the lobby. Opening Fish in a second tab moves
+  the game there and closes the first.
 - **Bots press Call** (R.8.8). After every event, and when it takes a seat, each bot decides
   whether to press: B1 presses for a call it can prove. Once its wait has passed it presses,
   if no window, assignment, choice or run-out is in progress; otherwise the decision is
@@ -190,7 +196,8 @@ records), `test_protocol.py` (the view mirrors `fish-view-v1` exactly; strict pa
 B1, its waits and presses, a game nobody is left in, and random whole games with every bot
 action after a wait and every bot-pressed call right), `test_hub.py` (retries, stopping, the
 sweep, the note-taking question), `test_endings.py` (endings only on a whole log; the sweep never touching a live
-game), `test_ws.py` (real WebSockets, a real database), and `test_end_to_end.py`: the real
+game), `test_ws.py` (real WebSockets, a real database: coming back on one's turn, mid-call
+and mid-vote, and after a bot took the seat), and `test_end_to_end.py`: the real
 server on a real port, and six people who accept the consent screen, ask for a link over
 HTTP, use it, connect with the cookie, are matched by the solo queue, play a whole game and
 answer the note-taking question. The export reads the game back as a corpus record that
