@@ -968,3 +968,15 @@ answered, so a player who goes on playing has always been asked (docs/corpus.md 
 ending stays above the lobby until the player asks for a table. Alternative: a lobby button
 beside the question. A player leaving would then go unasked, and `unanswered` is meant for
 people who close the page.
+
+**D93 · 2026-11-03 · A room has a link as well as a code; T3.4 close-out.**
+The consent text says the study records "whether you joined a game through a link shared
+with friends", so a room shows a link, `/?room=CODE`, beside its code, with *Copy link*. The
+link opens the front page; once signed in, the lobby has the code filled in and the player
+presses *Join*, after which the code leaves the address so a reload does not use it again.
+Someone signing in for the first time arrives from the emailed link on a fresh page, without
+the code, and opens the room link again or types it. A group game is flagged the same however its players joined. T3.4 is complete: the lobby, the
+table, every action, the end of a game and the connection (D88 to D92), described in
+`docs/client.md`, and played end to end by six people in a browser on every CI run.
+Alternative: joining as soon as the link opens. A link sent to the wrong person would seat
+them at once; one tap on *Join* costs little.

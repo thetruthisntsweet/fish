@@ -487,3 +487,11 @@ button .card {
 .ending h2 {
   margin-top: 0;
 }
+
+.room-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  overflow-wrap: anywhere;
+}

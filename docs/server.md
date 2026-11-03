@@ -80,7 +80,8 @@ withdrawn, whether they may play); `POST /auth/sign-out` ends the session.
   cohort players meet only each other. The six who have waited longest form a table; one
   from the cohort queue is a *cohort table*.
 - **Group:** `create_room` returns a six-character code (no I, O, 0 or 1); five more join
-  with `join_room`. A group table is never a cohort table.
+  with `join_room`. The client shows the code and a link that carries it, `/?room=CODE`
+  ([client.md](client.md) §3). A group table is never a cohort table.
 - `leave` stops waiting. A player waits in one place at a time, and not while seated.
 - Seats are drawn with the operating system's randomness, and so is each game's seed.
 

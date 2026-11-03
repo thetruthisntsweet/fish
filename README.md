@@ -100,6 +100,8 @@ the [changelog](CHANGELOG.md).
   fails
 - [Server](docs/server.md): the website's game server: signing in, matchmaking, the
   website's rules, the messages, and what is written as a game is played
+- [Client](docs/client.md): the website players use: the lobby, the table, taking actions,
+  and the game connection
 - [Corpus](docs/corpus.md): what every website game records, who is in the corpus, and what
   is released
 - [Datasheet plan](docs/datasheet-plan.md): how each question of the corpus datasheet will

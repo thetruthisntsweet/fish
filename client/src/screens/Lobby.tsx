@@ -5,7 +5,13 @@ import { useState, type SyntheticEvent } from "react";
 import type { Lobby as LobbyMessage } from "../generated/Lobby.ts";
 import type { ServerError } from "../generated/ServerError.ts";
 import type { ClientMessage, Notice } from "../game/connection.ts";
-import { ROOM_CODE_PATTERN, asCode } from "../game/rooms.ts";
+import {
+  ROOM_CODE_PATTERN,
+  asCode,
+  forgetRoomLink,
+  roomFromLink,
+  roomLink,
+} from "../game/rooms.ts";
 
 const SEATS = 6;
 
@@ -18,7 +24,9 @@ interface Props {
 }
 
 export function Lobby({ lobby, error, send }: Props) {
-  const [typed, setTyped] = useState("");
+  // A shared link fills its room code in; the player still presses Join.
+  const [typed, setTyped] = useState(() => roomFromLink() ?? "");
+  const [copied, setCopied] = useState(false);
   // Errors from before this screen, or before the player's last request, are not shown.
   const [errorsFrom, setErrorsFrom] = useState(error?.n ?? 0);
   // The lobby message current when the player last asked for something: until a new one
@@ -42,6 +50,7 @@ export function Lobby({ lobby, error, send }: Props) {
   function join(event: SyntheticEvent) {
     event.preventDefault();
     if (valid) {
+      forgetRoomLink();
       ask({ type: "join_room", code });
     }
   }
@@ -68,9 +77,24 @@ export function Lobby({ lobby, error, send }: Props) {
         ) : (
           <>
             <h2>Your room</h2>
-            <p>Share this code with the people you want to play with:</p>
+            <p>Share this code, or the link, with the people you want to play with:</p>
             <p className="room-code" aria-label="Room code">
               {lobby.code}
+            </p>
+            <p className="room-link">
+              <span aria-label="Room link">{roomLink(lobby.code ?? "")}</span>
+              {"clipboard" in navigator && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(roomLink(lobby.code ?? "")).then(() => {
+                      setCopied(true);
+                    });
+                  }}
+                >
+                  {copied ? "Copied" : "Copy link"}
+                </button>
+              )}
             </p>
             <p role="status">{here} The game starts when six are here.</p>
           </>
