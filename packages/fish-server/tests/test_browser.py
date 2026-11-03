@@ -6,9 +6,9 @@ schemes, with nothing wider than the screen. Then one person goes all the way: t
 screen with nothing stored before Continue, the email field, the emailed link and its
 button, signed in with the acceptance recorded, a room made and left in the lobby, the text
 they accepted reread, the account page, a confirmed withdrawal recorded once, and signing
-out. And six people sign up, sit together through a room, and play a whole game (T3.4):
-an ask, Calls pressed and assigned, choices and votes, the result, and the note-taking
-question answered and written.
+out. And six people sign up, sit together through a room (its link or its code), and play a
+whole game (T3.4): an ask, Calls pressed and assigned, choices and votes, the result, and
+the note-taking question answered and written.
 
 Marked ``browser``: the ordinary test run leaves these out, because they need the client
 built first. ``scripts/check.sh`` and CI run them after the build with ``pytest -m browser``.
@@ -261,11 +261,17 @@ def test_six_people_play_a_whole_game(site: Site, browser: Browser) -> None:
     base, mail, engine = site
     pages = [sign_up(browser, base, mail, f"player{i}@example.org") for i in range(6)]
 
-    # A room, its code typed by the other five: the game starts when the sixth joins.
+    # A room: two open its shared link, three type its code; the game starts with the sixth.
     pages[0].get_by_role("button", name="Make a room for friends").click()
     code = pages[0].get_by_label("Room code").inner_text()
-    for page in pages[1:]:
-        page.get_by_placeholder("Room code").fill(code.lower())
+    link = pages[0].get_by_label("Room link").inner_text()
+    assert link == f"{base}/?room={code}"
+    for i, page in enumerate(pages[1:]):
+        if i < 2:
+            page.goto(link)
+            expect(page.get_by_placeholder("Room code")).to_have_value(code)
+        else:
+            page.get_by_placeholder("Room code").fill(code.lower())
         page.get_by_role("button", name="Join").click()
     for page in pages:
         expect(page.get_by_role("region", name="Your hand")).to_be_visible()
