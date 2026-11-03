@@ -162,7 +162,7 @@ that run them small.
 | CI: *Install from the built packages* | fish-rules, fish-env and fish-agents built, installed into an empty environment with their dependencies from PyPI, and every README code block and example run there (`scripts/check_install.py`) |
 | CI: *Performance smoke* | 1,000 B0 games and 20 B1 games, timings kept as an artifact |
 | Release (version tags) | the tag is on main and matches the versions, changelog and citation; the install check; then PyPI and the GitHub release ([runbook](runbooks/release.md)) |
-| Nightly: *Hypothesis* | fish-rules at the `nightly` profile; fish-env and fish-agents in a second job |
+| Nightly: *Hypothesis* | fish-rules at the `nightly` profile; fish-env and fish-agents in a second job; the website's table and games (people leaving, B1 taking over) in a third |
 | Nightly: *Soak* | 100,000 B0 games with every R.9 check |
 | Nightly: *Soak, Layer 1* | Layer 1 at every event of 3,000 B0 games, checked against the truth and by replaying other deals |
 | Nightly: *Evaluation and soak, B1* | B1 at four memory settings against B0, against full-memory B1 and against itself, 200 seeds each; every R.9 check, and every call B1 proved right ([agents.md](agents.md)) |
