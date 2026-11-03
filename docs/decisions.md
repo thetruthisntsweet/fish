@@ -898,3 +898,12 @@ shares count finished games only, since R.8.2 excludes the rest. In 40 seeds, B1
 game against B0 at every setting and lost every game to full-memory B1 at every lower one, and
 every proved call was right. Alternative: a separate soak of B1 self-play. It would check
 fewer kinds of game than the evaluation already plays.
+
+**D87 · 2026-11-02 · T5.2 close-out: B1 is ready for the website's bots.**
+B1 (`b1-v1`) decides from Layer 1 alone (D85), is pinned by five games, presses Call on the
+website through `would_call`, takes about 1.2 ms a decision (the performance smoke), and is
+evaluated and checked every night (D86). What T3.5 takes from it: `b1(MemorySetting.last_k(k))`
+as the bot, shown every view; `would_call` after every event, with the decision dropped if a
+window, assignment or choice has begun when its delay ends (R.8.8); and the draws of both from
+the seat's `bot_policy` generator, so a website game's bots replay from its seed. The value of
+k, and what happens to a game with no people left, are T3.5's to settle.

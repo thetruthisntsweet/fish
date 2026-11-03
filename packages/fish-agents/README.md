@@ -51,6 +51,18 @@ games = [play_game([Remembering(Sure(), FULL)] * 3 + [B0()] * 3, seed) for seed 
 print("Sure won", sum(game["winner"] == 0 for game in games), "of 20 games against B0")
 ```
 
+B1 remembering the latest 8 events, against three B0s:
+
+```python
+from fish_agents.b0 import B0
+from fish_agents.b1 import b1
+from fish_agents.memory import MemorySetting
+from fish_agents.play import play_game
+
+games = [play_game([b1(MemorySetting.last_k(8))] * 3 + [B0()] * 3, seed) for seed in range(10)]
+print("B1 won", sum(game["winner"] == 0 for game in games), "of 10 games against B0")
+```
+
 Install with `pip install "fish-agents[env]"` (Python 3.14 or later), or `pip install
 fish-agents` for the interface and agents alone. Stronger baselines (B2 and B3) come in
 later releases. Documentation is in the
