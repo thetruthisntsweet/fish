@@ -157,7 +157,7 @@ that run them small.
 |---|---|
 | Pre-commit (every commit) | Ruff, Pyright, package boundaries, rule citations, generated types, client lint |
 | CI: *Python tests + coverage + migrations* | every test at the `ci` profile with Postgres; 100% coverage of fish_rules, fish_env and fish_agents |
-| CI: *The website in a browser* | the built client served by the real server with Postgres, driven in Chromium at phone width (`pytest -m browser`) |
+| CI: *The website in a browser* | the built client served by the real server with Postgres, driven in Chromium at phone width (`pytest -m browser`): the consent screen, signing in and withdrawing, and six people playing a whole game |
 | CI: *Determinism* | RNG vectors in JavaScript; golden replays; fish-rules, fish-env and fish-agents tests under two hash seeds; the replay digest under both, checked and compared |
 | CI: *Install from the built packages* | fish-rules, fish-env and fish-agents built, installed into an empty environment with their dependencies from PyPI, and every README code block and example run there (`scripts/check_install.py`) |
 | CI: *Performance smoke* | 1,000 B0 games and 20 B1 games, timings kept as an artifact |

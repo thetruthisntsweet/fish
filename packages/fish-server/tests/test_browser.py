@@ -6,7 +6,9 @@ schemes, with nothing wider than the screen. Then one person goes all the way: t
 screen with nothing stored before Continue, the email field, the emailed link and its
 button, signed in with the acceptance recorded, a room made and left in the lobby, the text
 they accepted reread, the account page, a confirmed withdrawal recorded once, and signing
-out.
+out. And six people sign up, sit together through a room, and play a whole game (T3.4):
+an ask, Calls pressed and assigned, choices and votes, the result, and the note-taking
+question answered and written.
 
 Marked ``browser``: the ordinary test run leaves these out, because they need the client
 built first. ``scripts/check.sh`` and CI run them after the build with ``pytest -m browser``.
@@ -185,3 +187,126 @@ def test_a_person_joins_rereads_withdraws_and_signs_out(site: Site, browser: Bro
     )
     assert page.context.cookies() == []
     page.close()
+
+
+# ---------------------------------------------------------------- a whole game (T3.4)
+
+GAME_S: Final = 180
+"""The longest a game may take here: a few seconds a call, and 15 for a vote nobody finishes."""
+
+
+def sign_up(browser: Browser, base: str, mail: MemoryMailer, email: str) -> Page:
+    """A new person, in a browser of their own, through the consent screen and the emailed
+    link, at the lobby."""
+    page = browser.new_context(viewport=PHONE).new_page()
+    page.goto(base + "/")
+    expect(page.get_by_role("checkbox")).to_have_count(3)
+    for box in page.get_by_role("checkbox").all():
+        box.check()
+    page.get_by_role("button", name="Continue").click()
+    page.get_by_label("Email address").fill(email)
+    page.get_by_role("button", name="Send sign-in link").click()
+    expect(page.get_by_role("heading", name="Check your email")).to_be_visible()
+    token = re.search(r"token=([A-Za-z0-9_\-]+)", mail.sent[-1]["text"])
+    assert token is not None
+    page.goto(f"{base}/sign-in?token={token.group(1)}")
+    page.get_by_role("button", name="Sign in").click()
+    expect(page.get_by_role("button", name="Find a table")).to_be_enabled()
+    return page
+
+
+def shown(page: Page, role: Literal["region", "heading", "button"], name: str) -> bool:
+    """Whether ``page`` shows it now, without waiting."""
+    return page.get_by_role(role, name=name, exact=True).count() > 0
+
+
+def play_a_move(pages: list[Page], pressed: list[int]) -> None:
+    """One step of play, by whoever the screens show can act: a choice or a vote, a call's
+    assignment (every card put with the caller, so most calls are wrong and end the game
+    fast), run-out's next set, or else Call pressed on the first set offered."""
+    for page in pages:
+        for name in ("Choose", "Vote"):
+            choosing = page.get_by_role("region", name=name, exact=True)
+            if choosing.count() > 0 and "You voted for" not in choosing.inner_text():
+                choosing.get_by_role("button").first.click()
+                return
+        if shown(page, "region", "Assign your call"):
+            call = page.get_by_role("region", name="Assign your call")
+            for row in call.get_by_role("group").all():
+                row.get_by_role("button", name="You").click()
+            call.get_by_role("button", name="Make the call").click()
+            return
+        if shown(page, "region", "Name the set to call"):
+            sets = page.get_by_role("region", name="Name the set to call")
+            sets.get_by_role("button").first.click()
+            sets.get_by_role("button", name=re.compile("^Call ")).click()
+            return
+    for i, page in enumerate(pages):
+        if (
+            shown(page, "button", "Call a set")
+            and page.get_by_role("button", name="Call a set").is_enabled()
+        ):
+            page.get_by_role("button", name="Call a set").click()
+            sets = page.get_by_role("region", name="Call a set")
+            sets.get_by_role("button").first.click()
+            sets.get_by_role("button", name=re.compile("^Call ")).click()
+            pressed.append(i)
+            return
+
+
+def test_six_people_play_a_whole_game(site: Site, browser: Browser) -> None:
+    """Six people sign up, sit together through a room, and play a game to its end at phone
+    width: an ask, Call pressed and every call assigned, choices and votes, until a team has
+    five sets; then each sees the result and answers the note-taking question."""
+    base, mail, engine = site
+    pages = [sign_up(browser, base, mail, f"player{i}@example.org") for i in range(6)]
+
+    # A room, its code typed by the other five: the game starts when the sixth joins.
+    pages[0].get_by_role("button", name="Make a room for friends").click()
+    code = pages[0].get_by_label("Room code").inner_text()
+    for page in pages[1:]:
+        page.get_by_placeholder("Room code").fill(code.lower())
+        page.get_by_role("button", name="Join").click()
+    for page in pages:
+        expect(page.get_by_role("region", name="Your hand")).to_be_visible()
+        expect(page.locator(".seat")).to_have_count(6)
+        expect(page.get_by_text("bot", exact=True)).to_have_count(0)  # six people
+        expect(page.locator(".seat.you")).to_have_count(1)
+        assert page.evaluate("document.documentElement.scrollWidth") <= PHONE["width"]
+
+    # The player whose turn it is asks; everyone sees the ask and its answer.
+    asker = next(p for p in pages if p.get_by_role("status").inner_text().startswith("Your turn"))
+    asking = asker.get_by_role("region", name="Ask for a card")
+    asking.get_by_role("button").first.click()
+    asking.get_by_role("group").first.get_by_role("button").first.click()
+    asking.get_by_role("button", name=re.compile("^Ask ")).click()
+    for page in pages:
+        expect(page.get_by_text(re.compile(r" asked .* for the "))).to_be_visible()
+
+    # Calls until the game ends: each pressed, assigned, scored, and the turn chosen.
+    pressed: list[int] = []
+    deadline = time.monotonic() + GAME_S
+    while not shown(pages[0], "region", "Your last game"):
+        assert time.monotonic() < deadline, "the game did not end"
+        play_a_move(pages, pressed)
+        pages[0].wait_for_timeout(150)
+    assert pressed, "no Call was pressed"
+
+    # The result, the question, and the lobby, for all six.
+    for page in pages:
+        ending = page.get_by_role("region", name="Your last game")
+        expect(ending).to_contain_text(re.compile(r"team won, 5 sets to [0-4]\."))
+        expect(
+            page.get_by_role("heading", name="Did you take notes during this game?")
+        ).to_be_visible()
+        page.get_by_role("button", name="No", exact=True).click()
+        expect(page.get_by_role("button", name="Find a table")).to_be_enabled()
+    deadline = time.monotonic() + 10
+    while rows(engine, db.note_answers) != [6]:
+        assert time.monotonic() < deadline, "the answers were not written"
+        time.sleep(0.1)
+    with engine.connect() as conn:
+        assert conn.execute(select(db.game_endings.c.completion)).scalars().all() == ["finished"]
+        assert set(conn.execute(select(db.note_answers.c.answer)).scalars()) == {"no"}
+    for page in pages:
+        page.context.close()
