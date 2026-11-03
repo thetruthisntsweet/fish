@@ -111,6 +111,12 @@ outcome itself (D23):
   it takes the seat, choosing among the actions the website allows (on a turn, only asks),
   with its random choices from the game's `bot_policy` stream, so bots play the same from
   the same seed.
+- **Bots press Call** (R.8.8). After every event, and when it takes a seat, each bot decides
+  whether to press: B1 presses for a call it can prove. Once its wait has passed it presses,
+  if no window, assignment, choice or run-out is in progress; otherwise the decision is
+  dropped (a dropped `bot_delay` row). An event before then replaces the decision, so a bot
+  never declares in someone else's window. A bot whose turn offers no ask holds only whole
+  sets (R.3.2), so it can always prove one, and presses it (R.9).
 - On a turn the current player may only ask: a call starts with a press, like anyone's (R.4.3).
 
 ## 5. Messages

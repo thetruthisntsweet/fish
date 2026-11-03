@@ -4,6 +4,7 @@ the end of the game, and the
 rows handed to the database. Whole random games played through ``Game`` give rows that make a
 corpus record that reads back."""
 
+import dataclasses
 import uuid
 from collections.abc import Sequence
 
@@ -12,11 +13,11 @@ from hypothesis import strategies as st
 
 from fish_agents.memory import MemorySetting
 from fish_rules.action_index import encode
-from fish_rules.cards import SEATS
+from fish_rules.cards import SEATS, set_cards
 from fish_rules.corpus import read_corpus_record
-from fish_rules.events import Ask, Declare, OpenWindow
+from fish_rules.events import Ask, CallEvent, Declare, OpenWindow
 from fish_rules.rng import SplitMix64
-from fish_rules.state import Phase
+from fish_rules.state import CallSource, Phase
 from fish_server.bots import BOT_DELAY_MAX_US, BOT_DELAY_MIN_US, DelayStreams
 from fish_server.game import (
     BOT,
@@ -208,6 +209,61 @@ def test_on_its_turn_b1_asks_as_the_website_allows_and_remembers_what_follows() 
     assert 0 < len(memory.events) <= 8
 
 
+def holding_a_whole_set(seed: int = 1) -> tuple[Game, int]:
+    """A game whose current player holds all of set 0, so B1 can prove that call, and is
+    about to be handed over for letting the turn timer run out."""
+    game = new_game(seed)
+    seat = current(game)
+    state = game.table.state
+    whole = set(set_cards(0))
+    rest = [c for hand in state.hands for c in hand if c not in whole]
+    hand = sorted(whole | set(rest[:3]))
+    rest = rest[3:]
+    hands = []
+    for s in SEATS:
+        if s == seat:
+            hands.append(tuple(hand))
+        else:
+            hands.append(tuple(sorted(rest[:9])))
+            rest = rest[9:]
+    game.table.state = dataclasses.replace(state, hands=tuple(hands))
+    return game, seat
+
+
+def test_r8_8_a_bot_that_can_prove_a_call_presses_after_its_wait_and_makes_it() -> None:
+    game, seat = holding_a_whole_set()
+    game.wake(TURN_US)  # handed over: it decides at once
+    due = game.next_wake()
+    assert due is not None
+    while not any(isinstance(e.action, Declare) for e in game.table.entries):
+        due = game.next_wake()
+        assert due is not None
+        game.wake(due)
+    declared = next(e for e in game.table.entries if isinstance(e.action, Declare))
+    assert declared.action == Declare(seat, 0)
+    waits = [r for r in game.table.log if r["type"] == "bot_delay" and not r["dropped"]]
+    assert any(r["at_us"] == declared.received_us for r in waits)  # it waited first
+    while not any(isinstance(r, CallEvent) for e in game.table.entries for r in e.records):
+        due = game.next_wake()
+        assert due is not None
+        game.wake(due)
+    (call,) = [r for e in game.table.entries for r in e.records if isinstance(r, CallEvent)]
+    assert (call.caller, call.set_id, call.correct) == (seat, 0, True)
+
+
+def test_r8_8_a_bot_does_not_declare_in_a_window_someone_else_opened() -> None:
+    game, seat = holding_a_whole_set()
+    game.wake(TURN_US)
+    other = next(s for s in SEATS if s != seat)
+    game.handle(Pressed(other, 1, None), TURN_US + 1)  # a person presses first
+    for _ in range(3):
+        if (due := game.next_wake()) is not None and due < TURN_US + 5 * SECOND_US:
+            game.wake(due)
+    assert Declare(seat, 0) not in [e.action for e in game.table.entries]
+    dropped = [r for r in game.table.log if r["type"] == "bot_delay" and r["dropped"]]
+    assert any(r["seat"] == seat for r in dropped)
+
+
 def test_the_same_seed_and_inputs_give_the_same_bot_play() -> None:
     first = Game(uuid.uuid4(), 9, [uuid.uuid4() for _ in SEATS])
     second = Game(uuid.uuid4(), 9, [uuid.uuid4() for _ in SEATS])
@@ -221,8 +277,8 @@ def test_the_same_seed_and_inputs_give_the_same_bot_play() -> None:
 
 
 def play(rng: SplitMix64, game: Game, steps: int) -> list[object]:
-    """Random inputs from the people, the clock moving on, until the game ends. Presses come
-    from any seat, so that tables bots hold still end (bots press Call in T3.5's next step)."""
+    """Random inputs from the people, the clock moving on, until the game ends: presses and
+    actions only from seats people hold, as the hub sees to; the bots do the rest."""
     outs: list[object] = []
     now = 0
     for _ in range(steps):
@@ -232,7 +288,7 @@ def play(rng: SplitMix64, game: Game, steps: int) -> list[object]:
         if (due := game.next_wake()) is not None and due <= now:
             outs += game.wake(now)
         seat = rng.choice(SEATS)
-        if rng.below(10) == 0 and game.table.pressable(seat):
+        if rng.below(10) == 0 and seat in game.table.people and game.table.pressable(seat):
             seen = game.table.state.events - 1 if game.table.state.events else None
             outs += game.handle(Pressed(seat, rng.choice(game.table.pressable(seat)), seen), now)
         elif acting := [s for s in game.table.people if game.table.actions(s)]:
@@ -282,16 +338,31 @@ def check_bot_waits(game: Game) -> None:
     for seq, entry in enumerate(table.entries):
         seat = entry.cause.get("seat")
         start = bot_from.get(seat)
-        if start is None or seq < int(str(start)) or isinstance(entry.action, OpenWindow | Declare):
-            continue  # a person's action, a timer's, or a press made for a bot
+        if start is None or seq < int(str(start)):
+            continue  # a person's action, or a timer's
+        if isinstance(entry.action, Declare) and seq and table.entries[seq - 1].action == OPEN:
+            continue  # the second half of a press: its wait came before the OpenWindow
         taken = [r for r in waits if r["after"] == seq and r["seat"] == seat and not r["dropped"]]
         assert [r["at_us"] for r in taken] == [entry.received_us], (seq, seat)
+    for seq, entry in enumerate(table.entries):
+        for record in entry.records:
+            if not isinstance(record, CallEvent) or record.source is CallSource.RUNOUT:
+                continue
+            start = bot_from.get(record.caller)
+            declared = max(
+                (n for n in range(seq) if table.entries[n].action == Declare(record.caller,
+                                                                              record.set_id)),
+                default=-1,
+            )  # fmt: skip
+            if start is not None and declared >= int(str(start)):
+                assert record.correct, record  # a bot presses only what it can prove (D85)
     completion = "abandoned" if table.state.outcome is None else str(table.state.outcome)
     seats = [person(s) if s in table.seated else bot() for s in SEATS]
     record = table.record(game=GAME | {"completion": completion}, seats=seats)
     read_corpus_record(record)
 
 
+OPEN = OpenWindow()
 GAME = {"id": "g-test", "month": "2026-12", "matchmaking": "solo", "cohort_table": False,
         "server_commit": "test", "protocol_version": 1}  # fmt: skip
 CONSENT = {"version": "v1.0", "us_resident_adult": True, "agrees": True,
