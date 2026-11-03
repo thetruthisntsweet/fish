@@ -85,7 +85,8 @@ withdrawn, whether they may play); `POST /auth/sign-out` ends the session.
 - `leave` stops waiting. A player waits in one place at a time, and not while seated.
 - Seats are drawn with the operating system's randomness, and so is each game's seed.
 
-Until T3.5 a table needs six people; bots then fill empty seats.
+A table needs six people. Bots never fill an empty seat: they only replace a person who has
+left (R.8.4; Research Plan §5; D95).
 
 ## 4. The website's rules
 
@@ -185,15 +186,18 @@ and left) and prints PASS.
 `test_table.py` (every website rule, on a fake clock, and random games that must be corpus
 records), `test_protocol.py` (the view mirrors `fish-view-v1` exactly; strict parsing),
 `test_signin.py`, `test_consent.py` (acceptances, new versions, withdrawals, who may play),
-`test_lobby.py`, `test_game.py`, `test_hub.py` (retries, stopping, the sweep, the note-taking
-question), `test_endings.py` (endings only on a whole log; the sweep never touching a live
+`test_lobby.py`, `test_bots.py` (bot waits from the seed, R.8.8), `test_game.py` (handovers to
+B1, its waits and presses, a game nobody is left in, and random whole games with every bot
+action after a wait and every bot-pressed call right), `test_hub.py` (retries, stopping, the
+sweep, the note-taking question), `test_endings.py` (endings only on a whole log; the sweep never touching a live
 game), `test_ws.py` (real WebSockets, a real database), and `test_end_to_end.py`: the real
 server on a real port, and six people who accept the consent screen, ask for a link over
 HTTP, use it, connect with the cookie, are matched by the solo queue, play a whole game and
 answer the note-taking question. The export reads the game back as a corpus record that
 replays to the same end with every seat's flags and note, and leaves it out once one of them
 withdraws. A second test stops the server mid-game, as a deploy does: every connection closes
-with 1012 and the game ends `abandoned`.
+with 1012 and the game ends `abandoned`. A third has one person leave early: B1 takes their
+seat, the other five finish, and the record has the handover, the bot's waits and actions.
 
 The website: `test_pages.py` (the pages and files served, nothing else) and `test_study.py`
 (every text the server knows is in the client, with the same last day); the client's own

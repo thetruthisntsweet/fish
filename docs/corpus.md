@@ -81,7 +81,7 @@ person in it, since nobody is left to play with (D97).
 | `seat` | 0–5 | |
 | controller | a person (`player_id`) or a bot (`agent`, its version, e.g. `b1-v1`) | matchmaking |
 | `memory` | `human` for a person; `full`, `last-k` with its k, or `none` for a bot (T2.8) | matchmaking |
-| `bot_filled` | a bot held the seat from the start; derived from the controller, not stored | matchmaking (T3.5) |
+| `bot_filled` | a bot held the seat from the start; derived from the controller, not stored. Never on the website, where bots only replace people (D95) | matchmaking |
 
 **4.1 Handovers.** Under R.8.4 a person who does not act within the 60-second turn timer,
 or does not reconnect within 30 seconds, is replaced by a B1 bot for the rest of the game
@@ -170,7 +170,7 @@ reader gets the same sets without trusting a stored copy.
   matchmaking, had no bot in any seat at any point, and in which nobody answered `yes` to
   the note-taking question.
 - **Sensitivity sets:** group-joined games; games with a `yes` note answer; games with a
-  bot-filled seat or a handover (RQ1 only, bot actions not scored). Games where some answers
+  handover to a bot (RQ1 only, bot actions not scored; no website seat is bot-filled). Games where some answers
   are `unanswered` or `declined` are counted and reported, and a second sensitivity run
   excludes them.
 - **Cohort test set:** corpus games in which every person was in the held-out cohort. Games
@@ -224,7 +224,7 @@ or one played under another ruleset, stops the export with an error instead.
 | T3.1 | writing players, games, seats, actions and server log rows; cohort matchmaking |
 | T3.2 | consent, seat flags and withdrawals (§2.2); the logging pipeline and completion status |
 | T3.3 | the consent screen, whose first confirmation is the age gate |
-| T3.5 | bot seats, memory settings, handovers |
+| T3.5 | handovers to B1 (`b1-v1`, last-8 memory), bot waits (`bot_delay`) |
 | T4.4 | weekly integrity checks and the handover share |
 | T4.5 | the freeze, the split seed, anonymisation |
 | T7.1 | the release datasheet, following [datasheet-plan.md](datasheet-plan.md) |
