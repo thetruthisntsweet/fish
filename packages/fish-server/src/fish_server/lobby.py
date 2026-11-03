@@ -1,7 +1,8 @@
 """Matchmaking: the solo queue and group rooms (T3.1).
 
 Players wait in exactly one place at a time: the solo queue or one room. A table forms the
-moment six are waiting together; T3.5 will fill seats with bots when people are short.
+moment six are waiting together. Bots never fill a seat: they only replace a person who has
+left a game (R.8.4; Research Plan §5).
 
 **Solo matchmaking** keeps two queues, one for the held-out cohort and one for everyone else,
 so cohort players are matched only with each other (docs/corpus.md §2.1). A table formed from

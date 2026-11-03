@@ -46,7 +46,7 @@ agent = Remembering(Mine(), MemorySetting.last_k(8))  # or FULL, or NONE
 `Remembering` turns it into an ordinary agent for `play_game`, keeping a separate `Memory`
 for each seat it plays. It is also an `Observer`: `play_game` shows it its seat's view after
 every action, whoever acted, so it sees every event as a player at the table would. The
-server's bots will be shown views the same way (T3.5). Being shown views draws nothing from
+server's bots are shown views the same way (`fish_server.game`, T3.5). Being shown views draws nothing from
 the game's random generators, so an agent that ignores its memory plays the same game under
 every setting.
 

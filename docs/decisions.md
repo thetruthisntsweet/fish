@@ -1027,3 +1027,13 @@ has no handovers. No rule changes: R.8.4 hands the seat to a bot, and stopping a
 server's, not the rules'. Alternative: playing it out at bot speed, for RQ1's sensitivity set.
 Its last part would be bots alone, whose actions are not scored, at the cost of a game's worth
 of server time.
+
+**D98 · 2026-11-03 · T3.5 close-out: B1 replaces people on the website.**
+A person away for 30 seconds or out of turn time is replaced by `b1-v1` with last-8 memory
+(D95), which waits 1.5 to 4 seconds from the seed before each action and press (D94),
+presses Call only for calls it can prove (D96), and a game it is left alone in ends
+`abandoned` (D97). Bots never fill an empty seat: a table needs six people (Research Plan
+§5), so the corpus's `bot_filled` is never true for a website game, and RQ1's bot-seat
+sensitivity set is the games with a handover. Checked by `test_bots.py`, `test_game.py`
+(and nightly, 1,250 whole games), and end to end over real sockets with a person who leaves.
+The pilot's response times (T4.2) will replace the uniform waits; only `draw_delay` changes.
