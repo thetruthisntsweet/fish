@@ -251,3 +251,158 @@ button.danger {
   font-variant-numeric: tabular-nums;
   margin: 0.25rem 0 0.75rem;
 }
+
+/* The table (T3.4): the other team above, the player's team below, then what is happening
+   now, the player's hand and the sets scored. Three seats to a row fit a phone. */
+.table h2 {
+  margin-top: 1.25rem;
+}
+
+.score {
+  margin: 0 0 0.75rem;
+}
+
+.seats {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.seats li + li {
+  margin-top: 0;
+}
+
+.seat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--paper);
+  font-size: 0.9rem;
+}
+
+.seat.opponent {
+  border-style: dashed;
+}
+
+.seat.you .seat-name {
+  font-weight: 700;
+}
+
+.seat.current {
+  border: 2px solid var(--accent);
+  padding: calc(0.45rem - 1px) calc(0.5rem - 1px);
+}
+
+.seat-name {
+  font-weight: 600;
+}
+
+.seat .countdown {
+  margin-left: 0;
+}
+
+.badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 0.35rem;
+  border-radius: 0.25rem;
+  background: var(--line);
+}
+
+.now {
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.5rem;
+  background: var(--notice);
+}
+
+.now p:last-child {
+  margin-bottom: 0;
+}
+
+.phase {
+  font-weight: 600;
+}
+
+.countdown {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.countdown.low {
+  color: var(--problem);
+}
+
+.holders {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.9rem;
+}
+
+.holders li + li {
+  margin-top: 0;
+}
+
+.hand {
+  list-style: none;
+  padding: 0;
+}
+
+.hand li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.set-name {
+  flex: 0 0 9.5rem;
+  color: var(--quiet);
+  font-size: 0.9rem;
+}
+
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.card {
+  display: inline-block;
+  min-width: 2.4rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  background: var(--panel);
+  text-align: center;
+  font-weight: 700;
+}
+
+.card.red {
+  color: #c0262d;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card.red {
+    color: #ff8a80;
+  }
+}
+
+.scored {
+  font-size: 0.95rem;
+}

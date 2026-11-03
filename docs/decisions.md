@@ -932,3 +932,16 @@ again when the server refused it (1008: signed out, or an older page, which must
 closed it because Fish was opened elsewhere (1000), so two tabs never take a game back and
 forth. A restart (1012) says so. Alternative: retrying forever. A player whose seat has gone
 to a bot gains nothing from it, and an idle tab would keep reconnecting.
+
+**D90 · 2026-11-03 · The table shows seats 1 to 6, from the player's side, and only the latest
+event.**
+On screen, seats are numbered 1 to 6 (seat 0 in the data is "1") and named from the player's
+side: "You", "Teammate 3", "Opponent 5", so no one needs to know the data's numbering, and
+the study collects no names to show instead. The other team's three seats sit above the
+player's team, each with its hand size, a "bot" label where a bot plays it (never which
+kind), and, at the current player's seat, the turn timer (R.2.6). Below them is the most
+recent event in one sentence, with a call's six true holders (R.2.3), and nothing older
+(R.2.2); then what the game waits for, where a window says only that a call was declared
+(R.8.3). Timers count down on the device's clock from the `ms_left` of the latest update,
+so each update corrects any drift. Alternative: seats drawn around an oval table. It does not
+fit a phone's width with six names, hand sizes and a timer.
