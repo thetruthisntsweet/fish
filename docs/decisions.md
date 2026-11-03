@@ -873,3 +873,16 @@ Wednesday nights. `scripts/broadcast.py` sends a message only to its heading's l
 are invited in all, chosen from the willing pool, so the free plan's 1,000 contacts also hold
 every invitation and every player. Alternative: the paid marketing plan, for more segments
 and the whole pool of about 5,000 (more invitations than the study needs to manage).
+
+**D85 · 2026-11-02 · B1 (b1-v1) calls only what it can prove, at every memory setting.**
+B1 calls a set exactly when Layer 1 shows all six cards with its team, asks the likeliest ask
+with each card's possible holders weighted equally, and breaks only ties with its generator;
+on the website, `would_call` presses Call for the same certain calls (R.8.8). With little
+memory such calls are rare, so six B1s often reach 1,000 asks: in 10 games each, all
+finished at full memory, 5 at last-8, 4 at last-2 and none with no memory, while against three
+B0s B1 finished and won every game at every setting. T6.7 reports the finished share at each
+setting, and the website should end a game once only bots are left (T3.5), so no B1-only table
+plays on to 1,000 asks. The definition is frozen as `b1-v1`, pinned by five games. Alternative:
+also calling when the chance of being right (equal weights) clears a fixed bar. Games then
+finished more often, but at 1/16 and 1/64 full-memory B1 beat B0 only 5 and 4 times in 10,
+every call could be wrong, and the bar would be a free parameter of the baseline.
