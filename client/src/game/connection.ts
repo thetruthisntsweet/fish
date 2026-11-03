@@ -66,6 +66,16 @@ export interface GameState {
   readonly rejected: Notice<Rejected> | null;
   /** The latest error the server sent, in its own words. */
   readonly error: Notice<ServerError> | null;
+  /** The game the player just left, to say how it ended, until they move on. */
+  readonly ended: Ended | null;
+  /** An error the server sent while the player was at the table: why a game had to stop. */
+  readonly tableError: ServerError | null;
+}
+
+/** A game the player has left: its last update, and the error that ended it, if one did. */
+export interface Ended {
+  readonly update: Update;
+  readonly error: ServerError | null;
 }
 
 export const INITIAL: GameState = {
@@ -76,6 +86,8 @@ export const INITIAL: GameState = {
   question: null,
   rejected: null,
   error: null,
+  ended: null,
+  tableError: null,
 };
 
 /** The state after the server sent `message`. */
@@ -83,16 +95,21 @@ export function receive(state: GameState, message: ServerMessage): GameState {
   switch (message.type) {
     case "server_hello":
       return { ...state, status: { kind: "open" } };
-    case "lobby":
-      return { ...state, lobby: message, atTable: false };
+    case "lobby": {
+      const left = state.atTable && state.update !== null;
+      const ended = left ? { update: state.update, error: state.tableError } : state.ended;
+      return { ...state, lobby: message, atTable: false, ended, tableError: null };
+    }
     case "update":
-      return { ...state, update: message, atTable: true, question: null };
+      return { ...state, update: message, atTable: true, question: null, ended: null };
     case "note_question":
       return { ...state, question: message };
     case "rejected":
       return { ...state, rejected: { message, n: (state.rejected?.n ?? 0) + 1 } };
-    case "error":
-      return { ...state, error: { message, n: (state.error?.n ?? 0) + 1 } };
+    case "error": {
+      const error = { message, n: (state.error?.n ?? 0) + 1 };
+      return { ...state, error, tableError: state.atTable ? message : state.tableError };
+    }
     case "ping":
       return state; // answered by the connection itself
   }
@@ -180,9 +197,16 @@ export class Connection {
     return true;
   }
 
-  /** Forget the note-taking question once answered, and other one-off things shown. */
+  /** Forget the note-taking question once answered. */
   answered(): void {
     this.set({ ...this.state, question: null });
+  }
+
+  /** Forget how the last game ended: the player has moved on. */
+  movedOn(): void {
+    if (this.state.ended !== null) {
+      this.set({ ...this.state, ended: null });
+    }
   }
 
   private set(state: GameState): void {

@@ -2,6 +2,7 @@
 // event (the only one shown, R.2.2) and what the game is waiting for. Nothing here decides a
 // rule; it only says what the server's view already holds.
 import type { Rejected } from "../generated/Rejected.ts";
+import type { Ended } from "./connection.ts";
 import type { Update } from "../generated/Update.ts";
 import { cardLabel, relation, setCards, setLabel, teamOf, type Seat } from "./cards.ts";
 
@@ -156,4 +157,25 @@ export function rejection(rejected: Rejected): string {
   return rejected.discarded
     ? "A call was declared before your action arrived, so it was not made."
     : REJECTED[rejected.reason];
+}
+
+/** How the game the player just left ended: a result (R.7.1, R.8.2), their seat handed to a
+ * bot (R.8.4), or the game stopped (docs/server.md §6), in the server's words if it gave
+ * them. */
+export function endingSentence(ended: Ended): string {
+  const view = ended.update.view;
+  if (view.phase === "over") {
+    const [ours, theirs] = score(view);
+    const sets = `${String(ours)} sets to ${String(theirs)}`;
+    if (view.outcome === "unfinished" || view.winner === null) {
+      return `${phaseSentence(view)} (${sets}.)`;
+    }
+    return view.winner === teamOf(view.seat)
+      ? `Your team won, ${sets}.`
+      : `The other team won, ${String(theirs)} sets to ${String(ours)}.`;
+  }
+  if (ended.update.bots.includes(view.seat)) {
+    return "A bot took over your seat, because you were away for 30 seconds or your turn ran out. That game goes on without you.";
+  }
+  return ended.error?.message ?? "The game had to stop.";
 }

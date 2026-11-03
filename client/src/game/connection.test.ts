@@ -213,3 +213,36 @@ test("stopped, it closes the socket, tries nothing more and hears nothing more",
   connection.stop();
   expect(latest().closedWith).toBe(1000);
 });
+
+describe("leaving a table", () => {
+  const error = { type: "error", code: "not_now", message: "The game had to stop." } as const;
+
+  test("the last update, and any error sent at the table, are kept to say how it ended", () => {
+    const seated = receive(receive(INITIAL, LOBBY), UPDATE);
+    expect(seated.ended).toBeNull();
+    const stopped = receive(receive(seated, error), AWAY);
+    expect(stopped.ended).toEqual({ update: UPDATE, error });
+    expect(stopped.tableError).toBeNull();
+    expect(receive(stopped, UPDATE).ended).toBeNull(); // a new game
+    expect(receive(stopped, LOBBY).ended).toEqual({ update: UPDATE, error }); // still waiting
+  });
+
+  test("an error in the lobby is no reason a game ended", () => {
+    const waiting = receive(receive(INITIAL, LOBBY), error);
+    expect(waiting.tableError).toBeNull();
+    const finished = receive(receive(receive(waiting, UPDATE), AWAY), AWAY);
+    expect(finished.ended).toEqual({ update: UPDATE, error: null });
+  });
+
+  test("moving on forgets it", () => {
+    latest().hello();
+    latest().push(UPDATE);
+    latest().push(AWAY);
+    expect(now().ended).not.toBeNull();
+    connection.movedOn();
+    expect(now().ended).toBeNull();
+    const before = states.length;
+    connection.movedOn(); // nothing to forget: nothing changes
+    expect(states.length).toBe(before);
+  });
+});

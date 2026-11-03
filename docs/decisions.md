@@ -957,3 +957,14 @@ teammate, with the player's own cards already theirs, and "Make the call" waits 
 double tap sends it once; a rejection says why in plain words, and a discarded action says a
 call was declared first (R.8.3). Alternative: acting on the first tap. A mistaken ask passes
 the turn and a mistaken call scores the set for the other team, so one more tap is worth it.
+
+**D92 · 2026-11-03 · After a game: how it ended, then the question, then the lobby.**
+When the server sends a player back to the lobby, the client keeps the game's last update to
+say how it ended: the result and the sets each team scored; that a bot took over their seat
+(their seat among the update's bots, R.8.4); or that the game had to stop, in the words of the
+error the server sent at the table. The note-taking question comes next, in the server's own
+text, with "Yes", "No" and "Prefer not to say" (`declined`), and the lobby waits until it is
+answered, so a player who goes on playing has always been asked (docs/corpus.md §4.2). The
+ending stays above the lobby until the player asks for a table. Alternative: a lobby button
+beside the question. A player leaving would then go unasked, and `unanswered` is meant for
+people who close the page.

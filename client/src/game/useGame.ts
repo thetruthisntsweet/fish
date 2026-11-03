@@ -11,6 +11,8 @@ export interface Game {
   readonly send: (message: ClientMessage) => boolean;
   /** The note-taking question was answered: stop showing it. */
   readonly answered: () => void;
+  /** The player has moved on from the last game's ending. */
+  readonly movedOn: () => void;
   /** Try again after the connection closed for good. */
   readonly retry: () => void;
 }
@@ -38,6 +40,7 @@ export function useGame(url?: string): Game {
     state,
     send: (message) => connection.current?.send(message) ?? false,
     answered: () => connection.current?.answered(),
+    movedOn: () => connection.current?.movedOn(),
     retry: () => connection.current?.start(),
   };
 }

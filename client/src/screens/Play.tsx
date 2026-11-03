@@ -2,6 +2,7 @@
 // the table, or what happened to the connection.
 import { useGame } from "../game/useGame.ts";
 import type { Closed, Status } from "../game/connection.ts";
+import { Ending, Question } from "./AfterGame.tsx";
 import { Lobby } from "./Lobby.tsx";
 import { Table } from "./Table.tsx";
 
@@ -28,7 +29,30 @@ export function Play({ onSignedOut }: Props) {
             <Table update={game.state.update} rejected={game.state.rejected} send={game.send} />
           );
         }
-        return <Lobby lobby={game.state.lobby} error={game.state.error} send={game.send} />;
+        return (
+          <>
+            {game.state.ended !== null && <Ending ended={game.state.ended} />}
+            {game.state.question !== null ? (
+              <Question
+                question={game.state.question}
+                onAnswer={(answer) => {
+                  if (game.send({ type: "note_answer", answer })) {
+                    game.answered();
+                  }
+                }}
+              />
+            ) : (
+              <Lobby
+                lobby={game.state.lobby}
+                error={game.state.error}
+                send={(message) => {
+                  game.movedOn();
+                  return game.send(message);
+                }}
+              />
+            )}
+          </>
+        );
     }
   }
 
