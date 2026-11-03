@@ -70,6 +70,14 @@ def test_server_hello_reports_the_versions_this_server_runs() -> None:
     assert hello.rng_algorithm == RNG_ALGORITHM
 
 
+def test_the_web_client_speaks_this_protocol() -> None:
+    """The client says hello with its own PROTOCOL_VERSION (client/src/game/connection.ts),
+    so a change here must change it there, or every player is told to reload."""
+    root = Path(__file__).resolve().parents[3]
+    source = (root / "client" / "src" / "game" / "connection.ts").read_text(encoding="utf-8")
+    assert f"export const PROTOCOL_VERSION = {PROTOCOL_VERSION};" in source
+
+
 def test_server_hello_round_trips_through_json() -> None:
     hello = server_hello()
     assert ServerHello.model_validate_json(hello.model_dump_json()) == hello

@@ -918,3 +918,17 @@ the server. Its tests read `action_index_v1.json` and `deal_v1.json` from fish-r
 needs them) and check all 913 numbers for a seat on each team, both ways. Alternative: the
 server sending each action already described. It would make every update several times
 larger, for what a hundred lines of client code and a frozen layout give.
+
+**D89 · 2026-11-03 · One game connection per page, drawn a message at a time, retried for
+30 seconds.**
+`client/src/game/connection.ts` holds the page's one WebSocket to `/ws`: it sends
+`client_hello` with its own `PROTOCOL_VERSION` (a server test checks it matches), answers each
+`ping` before anything is drawn, and keeps the latest lobby, update, question, rejection and
+error. `useGame` draws each message with `flushSync`, so two messages that arrive back to back
+are both shown rather than batched into one render (R.2.6; T3.7 checks the client adds no
+delay). A connection that drops is tried again after 1, 2, 4, 8 and 15 seconds, 30 in all, the
+time a seat is held (R.8.4); the server then sends the game where it stands. It is not tried
+again when the server refused it (1008: signed out, or an older page, which must reload) or
+closed it because Fish was opened elsewhere (1000), so two tabs never take a game back and
+forth. A restart (1012) says so. Alternative: retrying forever. A player whose seat has gone
+to a bot gains nothing from it, and an idle tab would keep reconnecting.
