@@ -1,7 +1,7 @@
 """Tests for the rules the engine owes the environment beyond single actions: asks resolved
 automatically (R.2.4), no timers (R.8.6), and every agent asked in every window (R.8.9). The
-rules only the website or client can show are owed by T3.1, T3.4 and T3.5; OWED in
-scripts/check_rule_citations.py lists them."""
+rules only the website or client can show are tested by the server's and the client's own
+tests."""
 
 import ast
 from pathlib import Path

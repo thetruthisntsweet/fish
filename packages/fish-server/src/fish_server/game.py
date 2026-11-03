@@ -10,9 +10,10 @@ it on the real one and does the sending and the writing.
   rejected input is answered with ``rejected`` and an update (R.8.3, R.8.7).
 - Every connected person is pinged when they connect and every 5 seconds after; the round
   trip is recorded (R.8.7).
-- A seat a bot holds acts once the stand-in delay has passed, if it may act and nothing has
-  happened since. Until B1 and its delays (T3.5, R.8.8), the bot is a stand-in that chooses
-  uniformly among the actions the website allows, and never presses Call.
+- A seat a bot holds acts once its wait has passed (R.8.8, ``fish_server.bots``), if it may
+  act and nothing has happened since; a wait the game overtook is recorded as dropped, and a
+  new one is drawn. Until B1 (T3.5), the bot is a stand-in that chooses uniformly among the
+  actions the website allows, and never presses Call.
 - ``rows`` hands over the actions (once sent) and log rows not yet written.
 """
 
@@ -27,6 +28,7 @@ from fish_rules.action_index import decode
 from fish_rules.cards import SEATS, Seat
 from fish_rules.codec import action_to_data
 from fish_rules.state import Phase
+from fish_server.bots import DelayStreams
 from fish_server.protocol import Message, Ping, Rejected, update
 from fish_server.table import SECOND_US, Controller, Entry, Table
 from fish_server.table import Rejected as TableRejected
@@ -37,8 +39,15 @@ PING_US: Final = 5 * SECOND_US
 STAND_IN: Final = Controller("b0-v1", NONE)
 """The bot that takes over a person's seat until T3.5 brings B1."""
 
-STAND_IN_DELAY_US: Final = 2 * SECOND_US
-"""How long the stand-in waits before acting; T3.5 replaces it with R.8.8's drawn delays."""
+
+@dataclass(frozen=True, slots=True)
+class Waiting:
+    """A bot's decision waiting for its delay: due ``due``, drawn when the table had
+    ``version`` entries, after a wait of ``delay_us``."""
+
+    due: int
+    version: int
+    delay_us: int
 
 
 # ---------------------------------------------------------------- events
@@ -127,7 +136,8 @@ class Game:
         self._next_ping: dict[Seat, int] = {}
         self._pings: dict[int, tuple[Seat, int]] = {}  # nonce -> seat, when sent
         self._nonce = 0
-        self._bot_due: dict[Seat, tuple[int, int]] = {}  # seat -> when, at which version
+        self._delays = DelayStreams(seed)
+        self._bot_due: dict[Seat, Waiting] = {}
         self._choose = secrets.SystemRandom().choice
         self._saved_entries = 0
         self._saved_log = 0
@@ -179,10 +189,12 @@ class Game:
         version = len(table.entries)
         connected = {seat for seat in SEATS if table.connected(seat)}
         table.advance(now)
-        for seat, (due, at) in sorted(self._bot_due.items()):
-            if due <= now and at == len(table.entries) and (actions := table.actions(seat)):
-                del self._bot_due[seat]
-                table.act(seat, self._choose(actions), now)
+        for seat, waiting in sorted(self._bot_due.items()):
+            if waiting.due > now or waiting.version != len(table.entries):
+                continue
+            del self._bot_due[seat]  # the state it was drawn for: it may still act
+            table.bot_waited(seat, waiting.delay_us, dropped=False, now=now)
+            table.act(seat, self._choose(table.actions(seat)), now)
         for seat, due in sorted(self._next_ping.items()):
             if due <= now:
                 self._nonce += 1
@@ -196,7 +208,7 @@ class Game:
         """When ``wake`` next has something to do, or None."""
         if self.ended:
             return None
-        due = [self.table.deadline(), *(d for d, _ in self._bot_due.values()),
+        due = [self.table.deadline(), *(w.due for w in self._bot_due.values()),
                *self._next_ping.values()]  # fmt: skip
         return min((d for d in due if d is not None), default=None)
 
@@ -260,12 +272,19 @@ class Game:
             self._next_ping.pop(seat, None)
             outs.append(Release(seat))
         version = len(table.entries)
+        over = table.state.phase is Phase.OVER
         for seat in SEATS:
-            if seat in table.people or not table.actions(seat):
-                self._bot_due.pop(seat, None)
-            elif self._bot_due.get(seat, (0, -1))[1] != version:
-                self._bot_due[seat] = (now + STAND_IN_DELAY_US, version)
-        if table.state.phase is Phase.OVER and not self.ended:
+            waiting = self._bot_due.get(seat)
+            if waiting is not None and waiting.version == version:
+                continue  # still waiting for this state
+            if waiting is not None:
+                del self._bot_due[seat]
+                if not over:  # the game moved on before the wait was over
+                    table.bot_waited(seat, waiting.delay_us, dropped=True, now=now)
+            if seat not in table.people and not over and table.actions(seat):
+                delay = self._delays.delay(seat, table.state.events)
+                self._bot_due[seat] = Waiting(now + delay, version, delay)
+        if over and not self.ended:
             self.ended = True
             self._next_ping.clear()
             self._bot_due.clear()

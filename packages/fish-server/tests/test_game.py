@@ -1,5 +1,6 @@
 """One game in progress (T3.1), on a fake clock: who is sent what after each change, pings and
-round trips, handovers releasing their person, the stand-in bot, the end of the game, and the
+round trips, handovers releasing their person, the stand-in bot and its waits (R.8.8), the end
+of the game, and the
 rows handed to the database. Whole random games played through ``Game`` give rows that make a
 corpus record that reads back."""
 
@@ -11,11 +12,13 @@ from hypothesis import strategies as st
 
 from fish_rules.action_index import encode
 from fish_rules.cards import SEATS
+from fish_rules.corpus import read_corpus_record
+from fish_rules.events import Declare, OpenWindow
 from fish_rules.rng import SplitMix64
 from fish_rules.state import Phase
+from fish_server.bots import BOT_DELAY_MAX_US, BOT_DELAY_MIN_US, DelayStreams
 from fish_server.game import (
     PING_US,
-    STAND_IN_DELAY_US,
     Acted,
     Connected,
     Disconnected,
@@ -130,11 +133,22 @@ def test_r8_4_a_handover_releases_its_person_and_a_bot_plays_on() -> None:
     assert sends(outs, Update)[seat].bots == [seat]  # told, once
     assert game.seat_of(player) is None
     assert game.seat_of(uuid.uuid4()) is None
-    assert game.next_wake() == TURN_US + STAND_IN_DELAY_US - TURN_US + TURN_US
+    due = game.next_wake()
+    assert due is not None
+    wait = due - TURN_US
+    assert BOT_DELAY_MIN_US <= wait <= BOT_DELAY_MAX_US  # R.8.8
+    assert wait == DelayStreams(1).delay(seat, game.table.state.events)  # from the seed
     events = len(game.table.entries)
-    game.wake(TURN_US + STAND_IN_DELAY_US)
+    game.wake(due - 1)
+    assert len(game.table.entries) == events  # not yet
+    game.wake(due)
     assert len(game.table.entries) == events + 1  # the stand-in asked
     assert game.table.entries[-1].cause == {"seat": seat}
+    waited = [row for row in game.table.log if row["type"] == "bot_delay"]
+    assert waited == [
+        {"type": "bot_delay", "after": events, "at_us": due, "seat": seat, "delay_us": wait,
+         "dropped": False}
+    ]  # fmt: skip
 
 
 def test_r8_4_a_person_who_stays_away_is_released() -> None:
@@ -149,9 +163,16 @@ def test_r8_4_a_person_who_stays_away_is_released() -> None:
 def test_the_stand_in_waits_and_never_acts_on_a_changed_game() -> None:
     game = new_game()
     seat = current(game)
-    game.wake(TURN_US)  # handed over; the stand-in will act in 2 seconds
-    game.handle(Pressed((seat + 1) % 6, game.table.state.sets_in_play()[0], None), TURN_US + 1)
-    game.wake(TURN_US + STAND_IN_DELAY_US)  # a window is open: the stand-in may not act
+    game.wake(TURN_US)  # handed over; the stand-in will act after its wait
+    due = game.next_wake()
+    assert due is not None
+    pressed = (seat + 1) % 6
+    game.handle(Pressed(pressed, game.table.state.sets_in_play()[0], None), TURN_US + 1)
+    dropped = [row for row in game.table.log if row["type"] == "bot_delay"]
+    assert [(row["seat"], row["dropped"], row["at_us"]) for row in dropped] == [
+        (seat, True, TURN_US + 1)  # the game moved on: the decision is dropped (R.8.8)
+    ]
+    game.wake(due)  # a window is open: the stand-in may not act
     assert game.table.entries[-1].cause.get("seat") != seat
 
 
@@ -159,7 +180,8 @@ def test_the_stand_in_waits_and_never_acts_on_a_changed_game() -> None:
 
 
 def play(rng: SplitMix64, game: Game, steps: int) -> list[object]:
-    """Random inputs from the people, the clock moving on, until the game ends."""
+    """Random inputs from the people, the clock moving on, until the game ends. Presses come
+    from any seat, so that tables the stand-in holds, which never presses, still end."""
     outs: list[object] = []
     now = 0
     for _ in range(steps):
@@ -203,6 +225,46 @@ def test_whole_games_end_and_their_rows_are_the_log(game_seed: int, policy_seed:
     for row, entry in zip(actions, game.table.entries, strict=True):
         assert (row["received_us"], row["sent_us"]) == (entry.received_us, entry.sent_us)
         assert row["game_id"] == game.game_id
+    check_bot_waits(game)
+
+
+def check_bot_waits(game: Game) -> None:
+    """R.8.8: each action a bot took came straight after a wait of 1.5 to 4 seconds that was
+    not dropped, and every wait is recorded for a bot's seat; the game reads back as a corpus
+    record."""
+    table = game.table
+    waits = [row for row in table.log if row["type"] == "bot_delay"]
+    bot_from = {row["seat"]: row["after"] for row in table.log if row["type"] == "handover"}
+    for row in waits:
+        assert row["seat"] in bot_from
+        assert BOT_DELAY_MIN_US <= int(str(row["delay_us"])) <= BOT_DELAY_MAX_US
+    for seq, entry in enumerate(table.entries):
+        seat = entry.cause.get("seat")
+        start = bot_from.get(seat)
+        if start is None or seq < int(str(start)) or isinstance(entry.action, OpenWindow | Declare):
+            continue  # a person's action, a timer's, or a press made for the stand-in
+        taken = [r for r in waits if r["after"] == seq and r["seat"] == seat and not r["dropped"]]
+        assert [r["at_us"] for r in taken] == [entry.received_us], (seq, seat)
+    completion = "abandoned" if table.state.outcome is None else str(table.state.outcome)
+    seats = [person(s) if s in table.seated else bot() for s in SEATS]
+    record = table.record(game=GAME | {"completion": completion}, seats=seats)
+    read_corpus_record(record)
+
+
+GAME = {"id": "g-test", "month": "2026-12", "matchmaking": "solo", "cohort_table": False,
+        "server_commit": "test", "protocol_version": 1}  # fmt: skip
+CONSENT = {"version": "v1.0", "us_resident_adult": True, "agrees": True,
+           "no_outside_communication": True}  # fmt: skip
+
+
+def person(seat: int) -> dict[str, object]:
+    return {"person": f"p{seat}", "cohort": False, "agent": None, "memory": "human", "k": None,
+            "note": "no", "consent": CONSENT}  # fmt: skip
+
+
+def bot() -> dict[str, object]:
+    return {"person": None, "cohort": None, "agent": "b0-v1", "memory": "none", "k": None,
+            "note": None, "consent": None}  # fmt: skip
 
 
 def test_actions_are_handed_over_only_once_sent() -> None:

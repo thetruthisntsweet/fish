@@ -15,6 +15,7 @@ built first. ``scripts/check.sh`` and CI run them after the build with ``pytest 
 Chromium comes from ``uv run playwright install chromium`` (once). Skipped without
 FISH_TEST_DATABASE_URL."""
 
+import contextlib
 import re
 import socket
 import threading
@@ -26,6 +27,7 @@ from typing import Final, Literal
 import pytest
 import uvicorn
 from playwright.sync_api import Browser, Page, ViewportSize, expect, sync_playwright
+from playwright.sync_api import Error as PlaywrightError
 from sqlalchemy import Engine, Table, create_engine, func, pool, select
 
 from fish_server import db
@@ -199,6 +201,7 @@ def sign_up(browser: Browser, base: str, mail: MemoryMailer, email: str) -> Page
     """A new person, in a browser of their own, through the consent screen and the emailed
     link, at the lobby."""
     page = browser.new_context(viewport=PHONE).new_page()
+    page.set_default_timeout(5_000)  # a click on a screen that changed fails fast, and is retried
     page.goto(base + "/")
     expect(page.get_by_role("checkbox")).to_have_count(3)
     for box in page.get_by_role("checkbox").all():
@@ -294,7 +297,8 @@ def test_six_people_play_a_whole_game(site: Site, browser: Browser) -> None:
     deadline = time.monotonic() + GAME_S
     while not shown(pages[0], "region", "Your last game"):
         assert time.monotonic() < deadline, "the game did not end"
-        play_a_move(pages, pressed)
+        with contextlib.suppress(PlaywrightError):  # the screen changed under a click: again
+            play_a_move(pages, pressed)
         pages[0].wait_for_timeout(150)
     assert pressed, "no Call was pressed"
 

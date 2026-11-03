@@ -45,6 +45,11 @@ shifts another. A stream is identified by the game seed, a name and an index.
 
 Run-out (R.6.2) uses `priority` with the run-out window's index; it has no stream of its own.
 
+A website bot's wait (R.8.8) is `1_500_000 + below(2_500_001)` microseconds, 1.5 to 4
+seconds, from `bot_delay` (`fish_server.bots`). A seat that waits more than once before the
+next event, for example after a wait the game overtook, keeps drawing from the same
+generator. Pilot data (T4.2) will replace the uniform draw; the stream and its index stay.
+
 `fish_rules.cohort` (`fish-cohort-v1`) takes the first 3 entries of `shuffled(range(20))`
 from stream `cohort` with the block number as the index, sorted: those positions of the block
 of sign-ups `20 × block` onward are in the held-out cohort. `tests/vectors/cohort_v1.json`

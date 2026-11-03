@@ -2,8 +2,9 @@
 is cited by at least one test, or is listed below as owed by a later task.
 
 A test cites a rule by naming it in its docstring or comments ("R.4.3", or a range such as
-"R.4.4-R.4.5") or in its name ("test_r4_3_..."). The script scans the tests of every package,
-so a rule owed by the server (T3.1) stops being owed once a server test cites it.
+"R.4.4-R.4.5") or in its name ("test_r4_3_..."). The script scans the tests of every package
+and the web client's tests (``client/src/**/*.test.ts`` and ``.tsx``), so a rule owed by the
+server (T3.1) or the client (T3.4) stops being owed once one of their tests cites it.
 
 It fails if a rule is neither cited nor owed, if an owed rule is now cited (remove it from
 OWED, so the list stays true), if a test cites a rule that does not exist, or if the ruleset
@@ -39,11 +40,7 @@ RULES: Final[tuple[str, ...]] = (
 )
 """Every rule of Canonical Ruleset v1.1. R.9's bullets are unnumbered, so R.9 is one rule."""
 
-OWED: Final[dict[str, str]] = {
-    "R.2.5": "T3.4: the client never redisplays past events (notes are T1.5's attestation)",
-    "R.2.6": "T3.4: events shown the moment they arrive, and a visible turn timer",
-    "R.8.8": "T3.5: website bot delays and when bots press Call",
-}
+OWED: Final[dict[str, str]] = {}
 """Rules about the website or the client, which no engine test can check, and the task that
 owes a test for each. Remove an entry when that task's test cites the rule."""
 
@@ -74,7 +71,12 @@ def main() -> int:
         return 1
 
     cited_by: dict[str, set[str]] = {}
-    for path in sorted(ROOT.glob("packages/*/tests/**/*.py")):
+    tests = [
+        *ROOT.glob("packages/*/tests/**/*.py"),
+        *ROOT.glob("client/src/**/*.test.ts"),
+        *ROOT.glob("client/src/**/*.test.tsx"),
+    ]
+    for path in sorted(tests):
         for rule in citations(path.read_text(encoding="utf-8")):
             cited_by.setdefault(rule, set()).add(path.relative_to(ROOT).as_posix())
 
