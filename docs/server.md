@@ -153,6 +153,9 @@ Games are held in the one server process's memory, so a game that cannot go on e
   restart), which the client shows as the server restarting; the server then stops every
   game, writes what it has, and ends it `abandoned`. Deploying during real games cuts them
   off, so deploy between game nights.
+- **Nobody left:** once a bot has replaced every person (R.8.4), the game stops at once
+  and ends `abandoned`. A table of bots would play on unwatched, and with last-8 memory often
+  to 1,000 asks (D85); it would never enter the corpus.
 - **The database unreachable:** each write is retried for about a minute; if it never
   succeeds, the game is stopped and nothing more of it is written.
 - **A crash**, or a stop the server could not write: the game has no ending. At start and
