@@ -10,23 +10,29 @@ it on the real one and does the sending and the writing.
   rejected input is answered with ``rejected`` and an update (R.8.3, R.8.7).
 - Every connected person is pinged when they connect and every 5 seconds after; the round
   trip is recorded (R.8.7).
-- A seat a bot holds acts once its wait has passed (R.8.8, ``fish_server.bots``), if it may
-  act and nothing has happened since; a wait the game overtook is recorded as dropped, and a
-  new one is drawn. Until B1 (T3.5), the bot is a stand-in that chooses uniformly among the
-  actions the website allows, and never presses Call.
+- A seat a bot holds is played by B1 (``b1-v1``) remembering the latest 8 events (T3.5;
+  Research Plan §5). It is shown every view its seat is shown from the moment it takes the
+  seat, and acts once its wait has passed (R.8.8, ``fish_server.bots``), if it may act and
+  nothing has happened since; a wait the game overtook is recorded as dropped, and a new one
+  is drawn. It chooses among the actions the website allows, so on a turn only an ask, with
+  its random choices from the game's ``bot_policy`` stream (``fish_agents.PolicyStreams``):
+  a game's bots play the same from the same seed.
 - ``rows`` hands over the actions (once sent) and log rows not yet written.
 """
 
-import secrets
+import dataclasses
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
 
-from fish_agents.memory import NONE
-from fish_rules.action_index import decode
+from fish_agents.b1 import B1_VERSION, b1
+from fish_agents.base import PolicyStreams
+from fish_agents.memory import MemorySetting
+from fish_rules.action_index import decode, encode
 from fish_rules.cards import SEATS, Seat
 from fish_rules.codec import action_to_data
+from fish_rules.events import Action
 from fish_rules.state import Phase
 from fish_server.bots import DelayStreams
 from fish_server.protocol import Message, Ping, Rejected, update
@@ -36,8 +42,9 @@ from fish_server.table import Rejected as TableRejected
 PING_US: Final = 5 * SECOND_US
 """R.8.7: every connected person's round trip is measured every 5 seconds."""
 
-STAND_IN: Final = Controller("b0-v1", NONE)
-"""The bot that takes over a person's seat until T3.5 brings B1."""
+BOT: Final = Controller(B1_VERSION, MemorySetting.last_k(8))
+"""The bot that takes over a person's seat (R.8.4): B1 remembering the latest 8 events (T3.5;
+D95)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,12 +132,10 @@ class Game:
         game_id: uuid.UUID,
         seed: int,
         seats: Sequence[uuid.UUID],
-        *,
-        replacement: Controller = STAND_IN,
     ) -> None:
         self.game_id = game_id
         self.seats = tuple(seats)
-        self.table = Table(seed, people=SEATS, replacement=replacement)
+        self.table = Table(seed, people=SEATS, replacement=BOT)
         self.ended = False
         self._people = self.table.people
         self._next_ping: dict[Seat, int] = {}
@@ -138,7 +143,8 @@ class Game:
         self._nonce = 0
         self._delays = DelayStreams(seed)
         self._bot_due: dict[Seat, Waiting] = {}
-        self._choose = secrets.SystemRandom().choice
+        self._bot = b1(BOT.memory)
+        self._policy = PolicyStreams(seed)
         self._saved_entries = 0
         self._saved_log = 0
 
@@ -194,7 +200,7 @@ class Game:
                 continue
             del self._bot_due[seat]  # the state it was drawn for: it may still act
             table.bot_waited(seat, waiting.delay_us, dropped=False, now=now)
-            table.act(seat, self._choose(table.actions(seat)), now)
+            table.act(seat, self._decide(seat), now)
         for seat, due in sorted(self._next_ping.items()):
             if due <= now:
                 self._nonce += 1
@@ -271,6 +277,9 @@ class Game:
         for seat in sorted(handed):
             self._next_ping.pop(seat, None)
             outs.append(Release(seat))
+        for seat in SEATS:
+            if seat not in table.people and (everyone or seat in handed):
+                self._bot.observe(table.view(seat))  # every view its seat is shown
         version = len(table.entries)
         over = table.state.phase is Phase.OVER
         for seat in SEATS:
@@ -290,3 +299,12 @@ class Game:
             self._bot_due.clear()
             outs.append(End(str(table.state.outcome)))
         return outs
+
+    def _decide(self, seat: Seat) -> Action:
+        """B1's action for ``seat``, among those the website allows it now."""
+        table = self.table
+        allowed = table.actions(seat)
+        view = table.view(seat)
+        offered = dataclasses.replace(view, legal=tuple(sorted(encode(a) for a in allowed)))
+        rng = self._policy.for_decision(seat, table.state.events)
+        return decode(seat, self._bot.act(offered, rng), table.state.phase)

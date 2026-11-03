@@ -1,6 +1,6 @@
 """One game in progress (T3.1), on a fake clock: who is sent what after each change, pings and
-round trips, handovers releasing their person, the stand-in bot and its waits (R.8.8), the end
-of the game, and the
+round trips, handovers releasing their person, B1 taking over their seat and its waits (R.8.8),
+the end of the game, and the
 rows handed to the database. Whole random games played through ``Game`` give rows that make a
 corpus record that reads back."""
 
@@ -10,14 +10,16 @@ from collections.abc import Sequence
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from fish_agents.memory import MemorySetting
 from fish_rules.action_index import encode
 from fish_rules.cards import SEATS
 from fish_rules.corpus import read_corpus_record
-from fish_rules.events import Declare, OpenWindow
+from fish_rules.events import Ask, Declare, OpenWindow
 from fish_rules.rng import SplitMix64
 from fish_rules.state import Phase
 from fish_server.bots import BOT_DELAY_MAX_US, BOT_DELAY_MIN_US, DelayStreams
 from fish_server.game import (
+    BOT,
     PING_US,
     Acted,
     Connected,
@@ -31,7 +33,7 @@ from fish_server.game import (
     Send,
 )
 from fish_server.protocol import Ping, Rejected, Update
-from fish_server.table import RECONNECT_US, SECOND_US, TURN_US
+from fish_server.table import RECONNECT_US, SECOND_US, TURN_US, Controller
 
 U64 = st.integers(min_value=0, max_value=2**64 - 1)
 GAMES: int = max(10, int(settings().max_examples) // 40)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
@@ -120,7 +122,7 @@ def test_r8_7_a_reconnection_is_pinged_at_once() -> None:
     assert list(sends(game.wake(2 * SECOND_US), Ping)) == [1]
 
 
-# ---------------------------------------------------------------- handovers and the stand-in
+# ---------------------------------------------------------------- handovers and B1
 
 
 def test_r8_4_a_handover_releases_its_person_and_a_bot_plays_on() -> None:
@@ -142,7 +144,7 @@ def test_r8_4_a_handover_releases_its_person_and_a_bot_plays_on() -> None:
     game.wake(due - 1)
     assert len(game.table.entries) == events  # not yet
     game.wake(due)
-    assert len(game.table.entries) == events + 1  # the stand-in asked
+    assert len(game.table.entries) == events + 1  # the bot asked
     assert game.table.entries[-1].cause == {"seat": seat}
     waited = [row for row in game.table.log if row["type"] == "bot_delay"]
     assert waited == [
@@ -160,10 +162,10 @@ def test_r8_4_a_person_who_stays_away_is_released() -> None:
     assert seat not in sends(outs, Update)  # away: nothing to send to
 
 
-def test_the_stand_in_waits_and_never_acts_on_a_changed_game() -> None:
+def test_the_bot_waits_and_never_acts_on_a_changed_game() -> None:
     game = new_game()
     seat = current(game)
-    game.wake(TURN_US)  # handed over; the stand-in will act after its wait
+    game.wake(TURN_US)  # handed over; the bot will act after its wait
     due = game.next_wake()
     assert due is not None
     pressed = (seat + 1) % 6
@@ -172,8 +174,47 @@ def test_the_stand_in_waits_and_never_acts_on_a_changed_game() -> None:
     assert [(row["seat"], row["dropped"], row["at_us"]) for row in dropped] == [
         (seat, True, TURN_US + 1)  # the game moved on: the decision is dropped (R.8.8)
     ]
-    game.wake(due)  # a window is open: the stand-in may not act
+    game.wake(due)  # a window is open: the bot may not act
     assert game.table.entries[-1].cause.get("seat") != seat
+
+
+def test_b1_remembering_8_events_takes_the_seat_and_is_recorded_so() -> None:
+    game = new_game()
+    seat = current(game)
+    game.wake(TURN_US)
+    (handover,) = [row for row in game.table.log if row["type"] == "handover"]
+    assert (handover["agent"], handover["memory"], handover["k"]) == ("b1-v1", "last-k", 8)
+    assert Controller("b1-v1", MemorySetting.last_k(8)) == BOT
+    memory = game._bot.memory(seat)  # pyright: ignore[reportPrivateUsage]
+    assert memory.view.seat == seat  # shown its seat's view from the moment it took it
+
+
+def test_on_its_turn_b1_asks_as_the_website_allows_and_remembers_what_follows() -> None:
+    game = new_game(seed=3)
+    seat = current(game)
+    game.wake(TURN_US)
+    now = TURN_US
+    asked = 0
+    while asked < 3 and (due := game.next_wake()) is not None and due < 4 * TURN_US:
+        before = len(game.table.entries)
+        now = max(now, due)
+        game.wake(now)
+        for entry in game.table.entries[before:]:
+            if entry.cause == {"seat": seat}:
+                assert isinstance(entry.action, Ask)  # on a turn, only asks (R.4.3)
+                asked += 1
+    assert asked > 0
+    memory = game._bot.memory(seat)  # pyright: ignore[reportPrivateUsage]
+    assert 0 < len(memory.events) <= 8
+
+
+def test_the_same_seed_and_inputs_give_the_same_bot_play() -> None:
+    first = Game(uuid.uuid4(), 9, [uuid.uuid4() for _ in SEATS])
+    second = Game(uuid.uuid4(), 9, [uuid.uuid4() for _ in SEATS])
+    play(SplitMix64(4), first, 3_000)
+    play(SplitMix64(4), second, 3_000)
+    assert [e.action for e in first.table.entries] == [e.action for e in second.table.entries]
+    assert any(row["type"] == "handover" for row in first.table.log)
 
 
 # ---------------------------------------------------------------- the end and the rows
@@ -181,7 +222,7 @@ def test_the_stand_in_waits_and_never_acts_on_a_changed_game() -> None:
 
 def play(rng: SplitMix64, game: Game, steps: int) -> list[object]:
     """Random inputs from the people, the clock moving on, until the game ends. Presses come
-    from any seat, so that tables the stand-in holds, which never presses, still end."""
+    from any seat, so that tables bots hold still end (bots press Call in T3.5's next step)."""
     outs: list[object] = []
     now = 0
     for _ in range(steps):
@@ -242,7 +283,7 @@ def check_bot_waits(game: Game) -> None:
         seat = entry.cause.get("seat")
         start = bot_from.get(seat)
         if start is None or seq < int(str(start)) or isinstance(entry.action, OpenWindow | Declare):
-            continue  # a person's action, a timer's, or a press made for the stand-in
+            continue  # a person's action, a timer's, or a press made for a bot
         taken = [r for r in waits if r["after"] == seq and r["seat"] == seat and not r["dropped"]]
         assert [r["at_us"] for r in taken] == [entry.received_us], (seq, seat)
     completion = "abandoned" if table.state.outcome is None else str(table.state.outcome)
@@ -263,7 +304,7 @@ def person(seat: int) -> dict[str, object]:
 
 
 def bot() -> dict[str, object]:
-    return {"person": None, "cohort": None, "agent": "b0-v1", "memory": "none", "k": None,
+    return {"person": None, "cohort": None, "agent": "b1-v1", "memory": "last-k", "k": 8,
             "note": None, "consent": None}  # fmt: skip
 
 
