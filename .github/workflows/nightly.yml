@@ -35,6 +35,20 @@ jobs:
       - run: uv run pytest packages/fish-env packages/fish-agents
         env:
           HYPOTHESIS_PROFILE: nightly
+  # The website's games at the nightly profile (T3.5): 1,250 whole games each of the table
+  # (every website rule) and of the game in progress (people leaving, B1 taking their seats,
+  # its waits and presses), each checked and read back as a corpus record. No database.
+  hypothesis-server-games:
+    name: Hypothesis, nightly profile, website games with handovers to B1
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0 # setup-uv publishes no short major tag (v10)
+      - run: uv sync --locked --all-packages
+      - run: uv run pytest packages/fish-server/tests/test_table.py packages/fish-server/tests/test_game.py
+        env:
+          HYPOTHESIS_PROFILE: nightly
   # 100,000 B0-vs-B0 games (T5.1), every R.9 invariant checked at every state of every game,
   # on as many processes as the runner has cores (about 17 games a second each). A failure
   # names the first failing seed; rerun it with --first-seed SEED --games 1.

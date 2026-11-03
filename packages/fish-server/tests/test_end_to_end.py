@@ -7,8 +7,10 @@ database as a ``fish-corpus-v2`` record that replays to the same end, with every
 consent flags and note. Then one of them withdraws on the website, and the next export leaves
 the game out. A second test stops the server in the middle of a game, as a deploy does, and
 each player's connection closes with 1012 (service restart), and the game ends
-``abandoned``. Takes about fifteen seconds of real time,
-mostly declaration windows. Skipped without FISH_TEST_DATABASE_URL."""
+``abandoned``. A third has one person leave early: B1 takes their seat and the game is
+recorded with the handover, the bot's waits and actions. Each takes a few tens of seconds
+of real time, mostly declaration windows and bot waits. Skipped without
+FISH_TEST_DATABASE_URL."""
 
 import asyncio
 import json
@@ -29,7 +31,8 @@ import websockets
 from sqlalchemy import Engine, create_engine, func, pool, select
 
 from fish_rules.corpus import SeatConsent, analysis_flags, read_corpus_record, response_times
-from fish_server import db
+from fish_rules.events import Declare
+from fish_server import db, table
 from fish_server.app import app as server
 from fish_server.auth import COOKIE, limiter
 from fish_server.corpus_export import export
@@ -213,6 +216,30 @@ async def player(
     raise AssertionError("the connection closed first")
 
 
+async def leaver(where: str, token: str, rng: random.Random, moves: int) -> dict[str, Any]:
+    """Play like everyone else for ``moves`` updates, then close the connection and never come
+    back: after 30 seconds, B1 takes the seat (R.8.4). Returns the last view seen."""
+    url = f"ws://{where}/ws"
+    last: dict[str, Any] = {}
+    async with websockets.connect(url, additional_headers={"Cookie": f"{COOKIE}={token}"}) as ws:
+        await ws.send(json.dumps({"type": "client_hello", "protocol_version": PROTOCOL_VERSION}))
+        await ws.send(json.dumps({"type": "join_queue"}))
+        updates = 0
+        async for raw in ws:
+            message = json.loads(raw)
+            if message["type"] == "ping":
+                await ws.send(json.dumps({"type": "pong", "nonce": message["nonce"]}))
+            elif message["type"] == "update":
+                last = message["view"]
+                updates += 1
+                if updates > moves:
+                    return last
+                if message["actions"]:
+                    act = {"type": "act", "index": rng.choice(message["actions"])}
+                    await ws.send(json.dumps(act))
+    raise AssertionError("the connection closed first")
+
+
 def wait_for(
     app: Engine, table: Any, count: int, *, at_least: bool = False, **where: object
 ) -> None:
@@ -295,3 +322,51 @@ def test_a_restart_in_the_middle_of_a_game_abandons_it(app: Engine, site: Site) 
         records, summary = export(conn)
     assert completion == "abandoned"
     assert (records, summary.abandoned) == ([], 1)
+
+
+def test_a_person_who_leaves_is_replaced_by_b1_and_the_game_is_recorded_so(
+    app: Engine, site: Site, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R.8.4, R.8.8: one person leaves early; after the reconnection time B1, remembering the
+    latest 8 events, plays their seat with its waits, and the other five finish the game. The
+    export has the handover, the bot's waits and its actions, and the five notes."""
+    monkeypatch.setattr(table, "RECONNECT_US", 2 * table.SECOND_US)  # 30 seconds, made 2 here
+    where = site[0]
+    people = sign_up(app, site, 6)
+
+    async def everyone() -> list[dict[str, Any]]:
+        stay = [player(where, token, random.Random(n)) for n, (_, token) in enumerate(people[1:])]
+        leave = leaver(where, people[0][1], random.Random(99), moves=6)
+        return await asyncio.wait_for(asyncio.gather(leave, *stay), timeout=240)
+
+    left, *views = asyncio.run(everyone())
+    assert len({(v["outcome"], v["winner"]) for v in views}) == 1
+    wait_for(app, db.game_endings, 1)
+    wait_for(app, db.note_answers, 5)  # the person who left is not asked
+
+    with app.connect() as conn:
+        records, summary = export(conn)
+    assert (summary.games, summary.exported) == (1, 1)
+    game = read_corpus_record(records[0])
+    seat = left["seat"]
+    assert game.game.completion in ("finished", "unfinished")
+    (handover,) = [row for row in game.log if row.type == "handover"]
+    assert handover.seat == seat
+    assert handover.fields == {"reason": "disconnect", "agent": "b1-v1", "memory": "last-k",
+                               "k": 8}  # fmt: skip
+    after = game.handover_after(seat)
+    assert after is not None
+    bot_steps = [i for i, step in enumerate(game.steps) if i >= after and step.seat == seat]
+    assert bot_steps, "B1 never acted"
+    waits = [row for row in game.log if row.type == "bot_delay"]
+    assert {row.seat for row in waits} == {seat}
+    taken = {row.after for row in waits if not row.fields["dropped"]}
+    for i in bot_steps:  # each came after a wait: a press's Declare follows its OpenWindow
+        assert i in taken or (isinstance(game.steps[i].action, Declare) and i - 1 in taken), i
+    assert all(1_500_000 <= int(str(row.fields["delay_us"])) <= 4_000_000 for row in waits)
+    assert game.seats[seat].note == "unanswered"  # a bot had the seat: not asked
+    assert sum(s.note in ("no", "declined") for s in game.seats) == 5
+    flags = analysis_flags(game)
+    assert flags.completed
+    assert flags.bot_seat  # in RQ1's sensitivity set only (corpus.md §6)
+    assert not flags.primary
