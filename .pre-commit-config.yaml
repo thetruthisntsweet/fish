@@ -62,7 +62,7 @@ repos:
         name: every rule cited by a test or owed (check_rule_citations)
         entry: uv run python scripts/check_rule_citations.py
         language: system
-        files: ^(packages/[^/]+/tests/.*\.py|packages/fish-rules/src/fish_rules/version\.py|scripts/check_rule_citations\.py)$
+        files: ^(packages/[^/]+/tests/.*\.py|client/src/.*\.test\.tsx?|packages/fish-rules/src/fish_rules/version\.py|scripts/check_rule_citations\.py)$
         pass_filenames: false
 
       # ------------------------------------------------------------ generated types

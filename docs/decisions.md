@@ -980,3 +980,13 @@ table, every action, the end of a game and the connection (D88 to D92), describe
 `docs/client.md`, and played end to end by six people in a browser on every CI run.
 Alternative: joining as soon as the link opens. A link sent to the wrong person would seat
 them at once; one tap on *Join* costs little.
+
+**D94 · 2026-11-03 · Bot waits come from the seed, and every one is recorded.**
+R.8.8 has bots wait 1.5 to 4 seconds before every action and every Call press until pilot
+data exists. `fish_server.bots` draws each wait uniformly, in whole microseconds, from the
+game's `bot_delay` stream at event number x 6 + seat (determinism.md §2), so a game's bot
+timing follows from its seed like everything else in it. Each wait is a `bot_delay` row when
+it ends: not dropped if the bot then acted, dropped if the game moved on first (a press opened
+a window, a timer fired), and the bot then waits afresh for the new state. Alternative: a
+wait drawn from the operating system. The bots' timing could then not be reproduced, and
+RQ1's sensitivity set includes games with bot seats.

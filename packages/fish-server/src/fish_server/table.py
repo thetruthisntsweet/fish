@@ -324,6 +324,14 @@ class Table:
         self._apply(action, {"seat": seat}, now)
         return Accepted(1)
 
+    def bot_waited(self, seat: Seat, delay_us: int, *, dropped: bool, now: int) -> None:
+        """Record a bot's wait before an action or a press, and whether the decision was
+        dropped because the game moved on before it was due (R.8.8; docs/corpus.md §5.2)."""
+        if seat in self.people:
+            raise ValueError(f"seat {seat} is a person's, not a bot's")
+        self._tick(now)
+        self._row("bot_delay", seat, now, delay_us=delay_us, dropped=dropped)
+
     def reject(self, seat: Seat, data: object, reason: str, now: int) -> Rejected:
         """Record an input the transport could not even read (``malformed``)."""
         self.advance(now)

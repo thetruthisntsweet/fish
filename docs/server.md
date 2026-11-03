@@ -103,9 +103,11 @@ outcome itself (D23):
   every timer due by its arrival fire. The turn timer stops for a window, an assignment or a
   choice, and every new turn starts a fresh one.
 - **People and bots** (R.8.4). A person away for 30 seconds, or who lets the turn timer run
-  out, is replaced by a bot for the rest of the game and released to the lobby. Until T3.5
-  brings B1 (R.8.8), the bot is a stand-in (`b0-v1`) that waits 2 seconds and chooses among
-  the actions the website allows.
+  out, is replaced by a bot for the rest of the game and released to the lobby. A bot waits
+  before every action (R.8.8): 1.5 to 4 seconds, drawn from the game's seed
+  (`fish_server.bots`; determinism.md §2), each wait a `bot_delay` row, marked dropped when
+  the game moved on before it ended, after which a new one is drawn. Until B1 (T3.5), the bot
+  is a stand-in (`b0-v1`) that chooses among the actions the website allows.
 - On a turn the current player may only ask: a call starts with a press, like anyone's (R.4.3).
 
 ## 5. Messages

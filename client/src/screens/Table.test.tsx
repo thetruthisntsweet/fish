@@ -1,6 +1,7 @@
 // The table (T3.4): every seat with its hand size, bots labelled as bots and nothing more, the
-// player's hand by set, only the most recent event (R.2.2), a window that hides who declared
-// (R.8.3), and the timers, the turn timer at the current player's seat (R.2.6).
+// player's hand by set, only the most recent event and no earlier one redisplayed (R.2.2,
+// R.2.5), a window that hides who declared (R.8.3), and the timers, the turn timer at the
+// current player's seat (R.2.6).
 import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { update } from "../test/updates.ts";
@@ -54,7 +55,7 @@ test("the player's hand, set by set, red cards marked", () => {
   expect(hand.getByText("Red joker")).toHaveClass("red");
 });
 
-test("only the most recent event is shown, never an earlier one (R.2.2)", () => {
+test("only the most recent event is shown, never an earlier one (R.2.2, R.2.5)", () => {
   const first = update({
     last_event: { type: "AskEvent", number: 0, asker: 4, target: 1, card: 0, success: true },
   });
