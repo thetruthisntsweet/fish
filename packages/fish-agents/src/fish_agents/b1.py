@@ -20,6 +20,18 @@ Ties are broken by the generator it is given, and only ties: with one best optio
 drawn. Options are always considered in ascending action-index order, so a B1 game is
 reproduced from its seed (``fish_agents.play``).
 
+On the website a call starts with a press of Call, not with an answer in a window (R.8.3):
+after every event each bot decides whether to press (R.8.8), and ``would_call`` is B1's
+decision. It names a certain call's set when one is open to it on a turn, the same set B1
+would call in the environment from the same generator, and otherwise nothing. B1 does not
+declare in a window someone else opened.
+
+With little memory B1 can rarely prove a call, so six B1s often reach 1,000 asks (R.8.2)
+without finishing; against other players it finishes (D85).
+
+FROZEN: the evaluation (T6.7), the website's bots (T3.5) and the performance numbers depend on
+this definition. It is named ``b1-v1``; a different B1 needs a new name.
+
 This module needs only fish-rules, so the server can run B1 as its bot (T3.5).
 """
 
@@ -27,7 +39,7 @@ from collections.abc import Iterable, Sequence
 from fractions import Fraction
 from typing import Final
 
-from fish_agents.memory import Memory
+from fish_agents.memory import Memory, MemorySetting, Remembering
 from fish_rules.action_index import (
     CALL_BASE,
     DECLARE_BASE,
@@ -43,6 +55,9 @@ from fish_rules.events import Ask, Assign
 from fish_rules.rng import SplitMix64
 from fish_rules.state import Phase
 from fish_rules.view import PlayerView
+
+B1_VERSION: Final = "b1-v1"
+"""Names this definition of B1."""
 
 NEVER: Final = Fraction(0)
 
@@ -180,6 +195,15 @@ def _decision(
             raise IllegalChoiceError(f"B1 has no decision to make in {view.phase}")
 
 
+def would_call(view: PlayerView, deduction: Deduction, rng: SplitMix64) -> SetId | None:
+    """Whether B1 presses Call now, on the website (R.8.8): the set of a certain call when it
+    is a turn (no window, assignment, choice or run-out in progress), otherwise None."""
+    if view.phase is not Phase.TURN:
+        return None
+    sets = certain_calls(view.seat, deduction, view.scored_by)
+    return _pick(sets, rng) if sets else None
+
+
 def _chance(seat: Seat, index: int, deduction: Deduction) -> Fraction:
     ask = decode(seat, index, Phase.TURN)
     assert isinstance(ask, Ask)
@@ -202,9 +226,15 @@ def _forced_call(seat: Seat, deduction: Deduction, rng: SplitMix64, legal: froze
 
 class B1:
     """The exact-inference agent, a ``fish_agents.memory.MemoryAgent``: give it memory with
-    ``Remembering(B1(), setting)``. It holds no state of its own, so one instance can play
-    every seat."""
+    ``Remembering(B1(), setting)``, or use ``b1(setting)``. It holds no state of its own, so
+    one instance can play every seat."""
 
     def act(self, view: PlayerView, memory: Memory, rng: SplitMix64) -> int:
         """B1's action, from what this seat sees and remembers."""
         return decide(view, memory.deduction, rng)
+
+
+def b1(setting: MemorySetting) -> Remembering:
+    """B1 with memory ``setting``, ready to play: an ``Agent`` and an ``Observer``, with one
+    memory for each seat it plays."""
+    return Remembering(B1(), setting)

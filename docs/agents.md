@@ -1,6 +1,6 @@
 # Agents
 
-`fish_agents` holds the baseline agents (B0 now; B1–B3 in T5.2–T5.5) and the interface they
+`fish_agents` holds the baseline agents (B0 and B1 now; B2 and B3 later) and the interface they
 share. An agent plays one seat, sees only what that seat may know, and returns an action.
 
 ## The interface
@@ -71,11 +71,47 @@ almost nothing over the B2 sampler, but not exactly nothing.
 The definition is frozen as `b0-v1`, pinned by five games in `test_b0.py`. A different B0
 needs a new name (D37).
 
-## Checks that use B0
+## B1, the exact-inference agent (`b1-v1`)
+
+`fish_agents.b1.b1(setting)` is B1 with full, last-k or no memory (`Remembering(B1(),
+setting)`). Every decision reads Layer 1's exact deduction from what it remembers
+([deduction.md](deduction.md)):
+
+- **Calls.** B1 calls a set, in any window or on its turn, exactly when it knows where all six
+  cards are and all six are with its team. Layer 1 never rules out the truth, so every call
+  B1 chooses is right, at every memory setting.
+- **Asks.** An ask certain to succeed if it has one; otherwise the likeliest, each card's
+  possible holders weighted equally (RQ1's floor model). It never makes an ask certain to
+  miss while another is legal.
+- **The after-call choice and the vote.** The teammate with the most asks B1 can tell are
+  certain to succeed, then the one with the most cards.
+- **Calls it must make** (run-out, R.6.2): the set with the most cards it knows are with the
+  team, each card it does not know assigned as a deal that fits everything it has seen has it.
+
+The generator breaks ties and only ties, so a B1 game is fixed by its seed.
+
+**On the website** a call starts with a press of Call (R.8.3). After every event each bot
+decides whether to press (R.8.8): `would_call(view, deduction, rng)` is B1's decision, the
+set of a certain call when no window, assignment, choice or run-out is in progress, and
+otherwise none. It names the set B1 would call on its turn in the environment, drawn the
+same way. B1 never declares in a window someone else opened.
+
+**Memory decides whether its games end.** With little memory B1 can rarely prove a call, so
+six B1s often reach 1,000 asks (R.8.2) and the game is unfinished: in 10 games at each
+setting, all finished at full memory, 5 at last-8, 4 at last-2 and none with no memory.
+Against three B0s it finished and won all 10 at every setting. B1 is frozen as it is (D85):
+it is the agent whose every call is right.
+
+A B1 decision takes about 1.2 ms (one Layer 1 deduction and a little arithmetic; the
+performance smoke reports it). The definition is frozen as `b1-v1`, pinned by five games in
+`test_b1_frozen.py`. A different B1 needs a new name.
+
+## Checks that use B0 and B1
 
 - **Performance smoke (every CI run).** `scripts/bench_b0.py` plays 1,000 B0 games and
   reports games per second, microseconds per legal-mask computation and per Layer 1
-  deduction, and the games' mean actions, asks and calls. The numbers are kept as the
+  deduction, and the games' mean actions, asks and calls; then 20 full-memory B1 games, with
+  games per second and microseconds per B1 decision (mean and 99th percentile). The numbers are kept as the
   `performance` artifact. Run it locally with `uv run python scripts/bench_b0.py --games 1000`.
 - **Nightly soak.** `scripts/soak_b0.py` plays 100,000 B0 games across the runner's cores and
   checks every state of every game: the rules' consistency checks, every R.9 invariant, event

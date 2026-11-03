@@ -159,7 +159,7 @@ small.
 | CI: *The website in a browser* | the built client served by the real server with Postgres, driven in Chromium at phone width (`pytest -m browser`) |
 | CI: *Determinism* | RNG vectors in JavaScript; golden replays; fish-rules, fish-env and fish-agents tests under two hash seeds; the replay digest under both, checked and compared |
 | CI: *Install from the built packages* | fish-rules, fish-env and fish-agents built, installed into an empty environment with their dependencies from PyPI, and every README code block and example run there (`scripts/check_install.py`) |
-| CI: *Performance smoke* | 1,000 B0 games, timings kept as an artifact |
+| CI: *Performance smoke* | 1,000 B0 games and 20 B1 games, timings kept as an artifact |
 | Release (version tags) | the tag is on main and matches the versions, changelog and citation; the install check; then PyPI and the GitHub release ([runbook](runbooks/release.md)) |
 | Nightly: *Hypothesis* | fish-rules at the `nightly` profile; fish-env and fish-agents in a second job |
 | Nightly: *Soak* | 100,000 B0 games with every R.9 check |
