@@ -16,6 +16,16 @@ name: a change to one is never silent, and is always listed here.
   `no_outside_communication`, all true), and a bot's seat has none; `SeatInfo.consent` reads
   it as a `SeatConsent`. `fish-corpus-v1` is retired: no game was ever recorded in it.
 
+### fish-agents
+
+- B1 (`b1-v1`, `fish_agents.b1`, [docs/agents.md](docs/agents.md)), the exact-inference
+  baseline: `b1(setting)` plays with full, last-k or no memory, calls a set only when Layer 1
+  proves the call right, and otherwise asks the likeliest ask with each card's possible holders
+  weighted equally. `would_call(view, deduction, rng)` is its decision to press Call on the
+  website (R.8.8). Its building blocks (`certain_calls`, `hit_chance`, `certain_asks`,
+  `assignment`, `known_on_team`) and `decide` are public. With little memory six B1s often
+  stop at 1,000 asks without a result (D85).
+
 ## 0.2.0 (2026-10-27)
 
 Exact deduction of where every card can be, and agent memory. No frozen encoding changed:
