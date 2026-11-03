@@ -1037,3 +1037,15 @@ presses Call only for calls it can prove (D96), and a game it is left alone in e
 sensitivity set is the games with a handover. Checked by `test_bots.py`, `test_game.py`
 (and nightly, 1,250 whole games), and end to end over real sockets with a person who leaves.
 The pilot's response times (T4.2) will replace the uniform waits; only `draw_delay` changes.
+
+**D99 · 2026-11-03 · Coming back: the game as it stands, or a word on what happened.**
+A person who reconnects within the 30 seconds of R.8.4 is sent their seat's update at once,
+the same as anyone's after a change: the view, the actions and presses open to them, and the
+timers, the turn timer not restarted, so being away never buys time. The view holds only the
+latest event (R.2.2), so nothing they missed is replayed. A person released while away, by a
+handover or by their game ending, has no connection to be told on, so the hub keeps one line
+for them ("A bot took over your seat while you were away…", "Your game ended while you were
+away.") and sends it once when they next connect, before the lobby; the page shows it where
+it shows how a game ended. Tested over real WebSockets on a turn, mid-assignment and
+mid-vote. Alternative: saying nothing, which left a returning player at the lobby with the
+page guessing that the game "had to stop".

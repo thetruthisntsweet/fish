@@ -16,10 +16,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, func, pool, select
 from starlette.testclient import WebSocketTestSession
 
-from fish_server import db
+from fish_server import db, table
 from fish_server.app import app as server
 from fish_server.auth import COOKIE
 from fish_server.consent import accept, withdraw
+from fish_server.hub import BOT_TOOK_SEAT
 from fish_server.protocol import PROTOCOL_VERSION
 from fish_server.settings import database_url
 from fish_server.signin import player_for, start_session
@@ -261,3 +262,123 @@ def test_an_ending_is_written_once(app: Engine) -> None:
         game_id = start_game(conn, table, seed=5, server_commit="t", started_at=datetime.now(UTC))
     Hub(lambda: app, "t").write_ending(Game(game_id, 5, seated), "abandoned", 0)
     assert count(app, db.game_endings, game_id=game_id, completion="abandoned") == 1
+
+
+# ---------------------------------------------------------------- reconnecting (T3.6)
+
+
+def seated(
+    http: TestClient, app: Engine
+) -> tuple[dict[int, Socket], dict[int, str], dict[int, Any]]:
+    """Six players of one cohort side, matched by the solo queue: each seat's socket, session
+    token and first update."""
+    tokens, sockets = [], []
+    n = 0
+    while len(sockets) < 6:
+        player, token = session(app, f"r{n}@example.org")
+        n += 1
+        if cohort_of(app, player):
+            continue  # keep to one queue
+        tokens.append(token)
+        sockets.append(connect(http, token))
+        until(sockets[-1], "lobby")
+    for socket in sockets:
+        socket.send_json({"type": "join_queue"})
+    updates = [until(s, "update") for s in sockets]
+    seat = [u["view"]["seat"] for u in updates]
+    return (
+        dict(zip(seat, sockets, strict=True)),
+        dict(zip(seat, tokens, strict=True)),
+        dict(zip(seat, updates, strict=True)),
+    )
+
+
+def away_and_back(
+    http: TestClient, app: Engine, socket: Socket, token: str
+) -> tuple[Socket, dict[str, Any]]:
+    """Drop ``socket``, wait until the server has recorded it, and connect again with the same
+    session: the new socket, and the first update the server sends on it."""
+    (game_id,) = _games(app)
+    before = count(app, db.server_log, game_id=game_id, type="connection")
+    socket.close()
+    wait_for(lambda: count(app, db.server_log, game_id=game_id, type="connection") > before)
+    again = connect(http, token)
+    return again, until(again, "update")
+
+
+def test_a_player_who_drops_on_their_turn_comes_back_to_it_with_its_timer_running(
+    http: TestClient, app: Engine
+) -> None:
+    """R.8.4: back within 30 seconds, the player resumes their seat. The server resends the
+    game where it stands: the same view and actions, and the turn timer, which kept running
+    while they were away."""
+    sockets, tokens, first = seated(http, app)
+    turn = first[0]["view"]["current"]
+    before = first[turn]
+    _, back = away_and_back(http, app, sockets[turn], tokens[turn])
+    assert back["view"] == before["view"]
+    assert back["actions"] == before["actions"]
+    (timer,) = back["timers"]
+    assert timer["name"] == "turn"
+    assert 0 < timer["ms_left"] < before["timers"][0]["ms_left"]  # running, not restarted
+    with app.connect() as conn:
+        states = conn.execute(
+            select(db.server_log.c.data)
+            .where(db.server_log.c.type == "connection")
+            .order_by(db.server_log.c.at_us)
+        ).scalars()
+        assert [d["state"] for d in states][-2:] == ["disconnected", "reconnected"]
+
+
+def test_a_caller_and_a_voter_who_drop_come_back_to_what_they_must_do(
+    http: TestClient, app: Engine
+) -> None:
+    """Back in the middle of assigning their call (R.4.3) or of the after-call choice
+    (R.5.2), a player is shown it with its timer, and can finish it."""
+    sockets, tokens, first = seated(http, app)
+    caller = (first[0]["view"]["current"] + 1) % 6
+    sockets[caller].send_json({"type": "press", "set_id": 0, "seen": None})
+    for socket in sockets.values():
+        until(socket, "update")  # the window opens
+    assigning = {seat: until(socket, "update") for seat, socket in sockets.items()}  # it closes
+    assert assigning[caller]["view"]["phase"] == "assign"
+
+    sockets[caller], back = away_and_back(http, app, sockets[caller], tokens[caller])
+    assert back["view"]["phase"] == "assign"
+    assert back["view"]["call"] == {"caller": caller, "set_id": 0}
+    assert back["actions"] == assigning[caller]["actions"]
+    (timer,) = back["timers"]
+    assert timer["name"] == "assignment"
+    assert 0 < timer["ms_left"] < 30_000
+    sockets[caller].send_json({"type": "act", "index": back["actions"][0]})  # it can finish
+    after = {seat: until(socket, "update") for seat, socket in sockets.items()}
+    assert {u["view"]["last_event"]["type"] for u in after.values()} == {"CallEvent"}
+
+    choosing = [seat for seat, u in after.items() if u["actions"]]
+    assert choosing  # the first call never ends the game, so a choice or a vote follows
+    seat = choosing[0]
+    sockets[seat], back = away_and_back(http, app, sockets[seat], tokens[seat])
+    assert back["view"]["phase"] in ("choose", "vote")
+    assert back["actions"] == after[seat]["actions"]
+    (timer,) = back["timers"]
+    assert timer["name"] == "choice"
+    assert 0 < timer["ms_left"] < 15_000
+
+
+def test_a_player_away_too_long_is_told_a_bot_took_their_seat(
+    http: TestClient, app: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R.8.4: away longer than the reconnection time (30 seconds, made 1 here), the player
+    comes back to the lobby, told first that a bot took their seat; the others see a bot."""
+    monkeypatch.setattr(table, "RECONNECT_US", table.SECOND_US)
+    sockets, tokens, first = seated(http, app)
+    seat = (first[0]["view"]["current"] + 2) % 6
+    (game_id,) = _games(app)
+    sockets[seat].close()
+    wait_for(lambda: count(app, db.server_log, game_id=game_id, type="handover") == 1)
+    other = sockets[(seat + 1) % 6]
+    assert seat in until(other, "update")["bots"]
+    again = connect(http, tokens[seat])
+    told = until(again, "error")
+    assert told["message"] == BOT_TOOK_SEAT
+    assert until(again, "lobby")["waiting"] is None

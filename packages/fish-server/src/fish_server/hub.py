@@ -126,6 +126,12 @@ def lobby_message(lobby: Lobby, player: Player) -> LobbyMessage:
     return LobbyMessage(type="lobby", **data)  # pyright: ignore[reportArgumentType]
 
 
+BOT_TOOK_SEAT: Final = (
+    "A bot took over your seat while you were away, and that game goes on without you."
+)
+ENDED_AWAY: Final = "Your game ended while you were away."
+"""What a player is told on coming back after their game went on, or ended, without them."""
+
 SWEEP_S: Final = 60.0
 """How often the server looks for games a crash or a restart left without an ending."""
 
@@ -278,6 +284,7 @@ class Hub:
         self.games: dict[uuid.UUID, Running] = {}  # player -> the game they are in
         self.running: set[Running] = set()  # every game in progress here, bots' too
         self.notes: dict[uuid.UUID, tuple[uuid.UUID, int]] = {}  # player -> game, seat asked
+        self.missed: dict[uuid.UUID, str] = {}  # player -> what happened to their game while away
         self.tasks: set[asyncio.Task[None]] = set()  # the games' tasks
         self.sweep_s = sweep_s
         self.sweeper: asyncio.Task[None] | None = None
@@ -287,7 +294,8 @@ class Hub:
 
     def connect(self, connection: Connection) -> None:
         """A signed-in player said hello: replace any older connection, then show them their
-        game if they are in one, else the lobby."""
+        game if they are in one, else the lobby, first saying what became of their game if
+        it ended, or a bot took their seat, while they were away."""
         player = connection.player
         old = self.connections.get(player.id)
         if old is not None:
@@ -300,6 +308,8 @@ class Hub:
             if seat is not None:
                 running.inputs.put_nowait(Connected(seat))
                 return
+        if (missed := self.missed.pop(player.id, None)) is not None:
+            connection.send(error("not_now", missed))
         connection.send(lobby_message(self.lobby, player))
 
     def disconnect(self, connection: Connection) -> None:
@@ -436,12 +446,17 @@ class Hub:
         task.add_done_callback(finished)
 
     def release(self, running: Running, player: Player) -> None:
-        """``player`` is no longer at ``running``'s table: free them for the lobby."""
+        """``player`` is no longer at ``running``'s table: free them for the lobby. One who is
+        away is told what happened when they come back."""
         if self.games.get(player.id) is running:
             del self.games[player.id]
             self.lobby.left_table([player])
             if (connection := self.connections.get(player.id)) is not None:
                 connection.send(lobby_message(self.lobby, player))
+            elif running.game.seat_of(player.id) is None:
+                self.missed[player.id] = BOT_TOOK_SEAT
+            else:
+                self.missed[player.id] = ENDED_AWAY
 
     # ------------------------------------------------------------ writing (in a thread)
 

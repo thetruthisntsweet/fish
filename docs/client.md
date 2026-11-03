@@ -84,7 +84,9 @@ back to back are both shown (R.2.6). If the connection drops, it tries again aft
 and 15 seconds, 30 in all, the time a seat is held (R.8.4); the server then shows the game
 where it stands. It does not try again when the server refused it (signed out, or a page
 older than the server, which says to reload) or when Fish was opened somewhere else, which
-says so and offers *Play here*. A restart says "Fish is restarting".
+says so and offers *Play here*. A restart says "Fish is restarting". Back in time, the table
+is drawn from the server's update as the game now stands; too late, the server says a bot took
+the seat, and the page shows it above the lobby.
 
 ## 5. How it is checked
 
