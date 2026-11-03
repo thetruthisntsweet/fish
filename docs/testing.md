@@ -144,11 +144,12 @@ pages) and every script in `examples/`. A README example that stops working fail
 and that the changelog and citation name that version. `scripts/check_release.py` checks a
 release tag against the same files before anything is published (`test_check_release.py`).
 
-**Scale.** `scripts/bench_b0.py` plays 1,000 B0 games in CI and records games per second and
-microseconds per legal mask and per Layer 1 deduction as an artifact. `scripts/soak_b0.py`
-plays 100,000 B0 games every night and checks every R.9 invariant at every state, and
-`scripts/soak_deduce.py` checks Layer 1 at every event of 3,000. All have tests that run them
-small.
+**Scale.** `scripts/bench_b0.py` plays 1,000 B0 games and 20 B1 games in CI and records games
+per second and microseconds per legal mask, per Layer 1 deduction and per B1 decision as an
+artifact. `scripts/soak_b0.py` plays 100,000 B0 games every night and checks every R.9
+invariant at every state, `scripts/soak_deduce.py` checks Layer 1 at every event of 3,000,
+and `scripts/eval_b1.py` plays B1's evaluation games with the same R.9 checks. All have tests
+that run them small.
 
 ## 4. Where tests run
 
@@ -164,6 +165,7 @@ small.
 | Nightly: *Hypothesis* | fish-rules at the `nightly` profile; fish-env and fish-agents in a second job |
 | Nightly: *Soak* | 100,000 B0 games with every R.9 check |
 | Nightly: *Soak, Layer 1* | Layer 1 at every event of 3,000 B0 games, checked against the truth and by replaying other deals |
+| Nightly: *Evaluation and soak, B1* | B1 at four memory settings against B0, against full-memory B1 and against itself, 200 seeds each; every R.9 check, and every call B1 proved right ([agents.md](agents.md)) |
 
 ## 5. When a test fails
 
@@ -179,6 +181,10 @@ small.
   weakly.
 - **The soak.** It prints the first failing seed; rerun that game with
   `uv run python scripts/soak_b0.py --first-seed SEED --games 1`.
+- **B1's evaluation.** It prints the first failing game: its matchup, B1's memory, its team
+  and seed. Rerun that seed with `uv run python scripts/eval_b1.py --first-seed SEED --games
+  1 --memories MEMORY`. "proved set ..., wrongly" means B1 called a set Layer 1 did not in
+  fact prove, so Layer 1 or `certain_calls` is wrong.
 - **A frozen vector, golden replay or the replay digest.** The code now behaves differently
   from what was frozen. If that was not intended, it is a bug. If it was (a rule changed),
   it needs a new ruleset version or a new encoding name, the files regenerated with their

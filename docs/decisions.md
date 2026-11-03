@@ -886,3 +886,15 @@ plays on to 1,000 asks. The definition is frozen as `b1-v1`, pinned by five game
 also calling when the chance of being right (equal weights) clears a fixed bar. Games then
 finished more often, but at 1/16 and 1/64 full-memory B1 beat B0 only 5 and 4 times in 10,
 every call could be wrong, and the bar would be a free parameter of the baseline.
+
+**D86 · 2026-11-02 · B1 is evaluated nightly, at four memory settings, against three opponents.**
+`scripts/eval_b1.py` plays B1 with full, last-8, last-2 and no memory against three B0s,
+against three full-memory B1s (each seed played with B1 as either team, so seat and first
+player cancel out) and against itself, 200 seeds each, and reports finished games, B1's win
+share of the finished ones with a 95% Wilson interval, asks, and its proved and forced calls.
+The same run is the soak: every game gets the B0 soak's R.9 checks (`check_record`, now
+shared) and a replayed record, and a call B1 proved that was wrong fails the night. Win
+shares count finished games only, since R.8.2 excludes the rest. In 40 seeds, B1 won every
+game against B0 at every setting and lost every game to full-memory B1 at every lower one, and
+every proved call was right. Alternative: a separate soak of B1 self-play. It would check
+fewer kinds of game than the evaluation already plays.

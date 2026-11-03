@@ -50,7 +50,12 @@ def require(condition: bool, why: str) -> None:
 def check_game(seed: int) -> tuple[int, int, bool]:
     """Play and check the B0 game from ``seed``. Returns (asks, calls, finished); raises
     ``InvariantError`` (or the engine's own error) on any broken invariant."""
-    record = play_game([B0()] * 6, seed)
+    return check_record(seed, play_game([B0()] * 6, seed))
+
+
+def check_record(seed: int, record: dict[str, object]) -> tuple[int, int, bool]:
+    """Check the game ``record`` played from ``seed``, by any agents (``scripts/eval_b1.py``
+    checks B1's games with it too). Returns (asks, calls, finished)."""
     recorded = record["actions"]
     assert isinstance(recorded, list)
     actions = [action_from_data(data) for data in recorded]

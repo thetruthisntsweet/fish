@@ -102,6 +102,28 @@ setting, all finished at full memory, 5 at last-8, 4 at last-2 and none with no 
 Against three B0s it finished and won all 10 at every setting. B1 is frozen as it is (D85):
 it is the agent whose every call is right.
 
+**How B1 plays** (`scripts/eval_b1.py`, 40 seeds per matchup, each seed with B1 as either
+team; every night with 200):
+
+| Against | B1 memory | Finished | B1 won (of finished) | Mean asks | Calls B1 proved |
+|---|---|---|---|---|---|
+| three B0s | full | 80 of 80 | 80 | 44 | 107 |
+| three B0s | last-8 | 80 of 80 | 80 | 49 | 18 |
+| three B0s | last-2 | 80 of 80 | 80 | 49 | 9 |
+| three B0s | none | 80 of 80 | 80 | 51 | 0 |
+| three full-memory B1s | last-8 | 80 of 80 | 0 | 125 | 57 |
+| three full-memory B1s | last-2 | 80 of 80 | 0 | 105 | 7 |
+| three full-memory B1s | none | 80 of 80 | 0 | 89 | 1 |
+| itself | full | 40 of 40 | | 125 | 278 |
+| itself | last-8 | 26 of 40 | | 532 | 238 |
+| itself | last-2 | 17 of 40 | | 744 | 176 |
+| itself | none | 1 of 40 | | 1,000 | 122 |
+
+Every call B1 proved was right. Against B0 with no memory, B1 won every game without making
+a call: every set it scored came from a wrong call by B0. Against full-memory B1 any less memory loses every
+game, so memory is what the website's bots (T3.5) and T6.7 vary. A game stopped at 1,000 asks
+(R.8.2) has no result and counts in no win share.
+
 A B1 decision takes about 1.2 ms (one Layer 1 deduction and a little arithmetic; the
 performance smoke reports it). The definition is frozen as `b1-v1`, pinned by five games in
 `test_b1_frozen.py`. A different B1 needs a new name.
@@ -117,6 +139,10 @@ performance smoke reports it). The definition is frozen as `b1-v1`, pinned by fi
   checks every state of every game: the rules' consistency checks, every R.9 invariant, event
   numbering, a proper end, and that the record replays. A failure names its seed. Rerun one
   game with `uv run python scripts/soak_b0.py --first-seed SEED --games 1`.
+- **Nightly B1 evaluation.** `scripts/eval_b1.py` plays the table above with 200 seeds:
+  every game gets the soak's R.9 checks and a replayed record, and every call B1 proved must
+  be right. The numbers are kept as the `eval-b1` artifact. Rerun a failing game with `uv run
+  python scripts/eval_b1.py --first-seed SEED --games 1 --memories MEMORY`.
 - **Nightly Layer 1 soak.** `scripts/soak_deduce.py` deduces at every event of 3,000 B0
   games, for every seat and the public view, and checks the answer against the truth and,
   at one point in 20, by replaying another deal through the engine (`docs/deduction.md`).
