@@ -24,7 +24,9 @@ export function Play({ onSignedOut }: Props) {
         return <ClosedMessage why={status.why} onRetry={game.retry} onSignedOut={onSignedOut} />;
       case "open":
         if (game.state.atTable && game.state.update !== null) {
-          return <Table update={game.state.update} />;
+          return (
+            <Table update={game.state.update} rejected={game.state.rejected} send={game.send} />
+          );
         }
         return <Lobby lobby={game.state.lobby} error={game.state.error} send={game.send} />;
     }

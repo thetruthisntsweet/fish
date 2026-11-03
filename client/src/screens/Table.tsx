@@ -6,8 +6,6 @@
 import type { Update } from "../generated/Update.ts";
 import {
   NUM_SETS,
-  cardLabel,
-  isRed,
   opponents,
   relation,
   setLabel,
@@ -18,6 +16,10 @@ import {
 } from "../game/cards.ts";
 import { callHolders, eventSentence, phaseSentence, score, seatName } from "../game/describe.ts";
 import { keyFor } from "../game/keys.ts";
+import type { Rejected } from "../generated/Rejected.ts";
+import type { ClientMessage, Notice } from "../game/connection.ts";
+import { Actions } from "./Actions.tsx";
+import { CardFace } from "./CardFace.tsx";
 import { Countdown } from "./Countdown.tsx";
 
 type Timer = Update["timers"][number];
@@ -29,7 +31,13 @@ const TIMER_NAMES: Record<Timer["name"], string> = {
   choice: "Time to choose",
 };
 
-export function Table({ update }: { update: Update }) {
+interface Props {
+  update: Update;
+  rejected?: Notice<Rejected> | null;
+  send?: (message: ClientMessage) => boolean;
+}
+
+export function Table({ update, rejected = null, send = () => false }: Props) {
   const view = update.view;
   const own = view.seat;
   const [ours, theirs] = score(view);
@@ -88,6 +96,7 @@ export function Table({ update }: { update: Update }) {
         )}
       </section>
 
+      <Actions update={update} rejected={rejected} send={send} />
       <Hand cards={view.hand} />
       <Scored view={view} />
     </div>
@@ -116,10 +125,6 @@ function LatestEvent({
       )}
     </div>
   );
-}
-
-export function CardFace({ card }: { card: Card }) {
-  return <span className={isRed(card) ? "card red" : "card"}>{cardLabel(card)}</span>;
 }
 
 function Hand({ cards }: { cards: readonly Card[] }) {
