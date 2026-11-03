@@ -406,3 +406,79 @@ button.danger {
 .scored {
   font-size: 0.95rem;
 }
+
+/* Taking actions: choices are rows of buttons; the one chosen is filled in. */
+.move {
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.9rem 0.1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+
+.move h2 {
+  margin-top: 0.25rem;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.35rem 0 0.6rem;
+}
+
+.choices button {
+  padding: 0.4rem 0.8rem;
+}
+
+.choices button[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+button.card-button {
+  padding: 0.2rem;
+  min-width: 2.75rem;
+}
+
+button.card-button .card {
+  border: none;
+  background: none;
+}
+
+button .card {
+  border: none;
+  padding: 0;
+  min-width: 0;
+  background: none;
+}
+
+.assign {
+  margin: 0.5rem 0;
+}
+
+.assign-row {
+  display: grid;
+  grid-template-columns: 3rem repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.assign-head {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--quiet);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.assign-row button {
+  min-height: 2.5rem;
+  padding: 0;
+  color: var(--accent);
+}
+
+.assign-row button[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}

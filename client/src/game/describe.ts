@@ -1,6 +1,7 @@
 // What the table shows, in words (T3.4), from the seat's own view: seat names, the most recent
 // event (the only one shown, R.2.2) and what the game is waiting for. Nothing here decides a
 // rule; it only says what the server's view already holds.
+import type { Rejected } from "../generated/Rejected.ts";
 import type { Update } from "../generated/Update.ts";
 import { cardLabel, relation, setCards, setLabel, teamOf, type Seat } from "./cards.ts";
 
@@ -142,4 +143,17 @@ export function score(view: View): [number, number] {
     }
   }
   return [ours, theirs];
+}
+
+const REJECTED: Record<Rejected["reason"], string> = {
+  illegal: "That is not allowed now. Choose again.",
+  stale: "That set changed before your call arrived. Choose again.",
+  malformed: "That could not be sent. Choose again.",
+};
+
+/** Why the server did not apply what the player sent. */
+export function rejection(rejected: Rejected): string {
+  return rejected.discarded
+    ? "A call was declared before your action arrived, so it was not made."
+    : REJECTED[rejected.reason];
 }

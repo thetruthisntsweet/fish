@@ -945,3 +945,15 @@ recent event in one sentence, with a call's six true holders (R.2.3), and nothin
 (R.8.3). Timers count down on the device's clock from the `ms_left` of the latest update,
 so each update corrects any drift. Alternative: seats drawn around an oval table. It does not
 fit a phone's width with six names, hand sizes and a timer.
+
+**D91 · 2026-11-03 · Every action is chosen, then confirmed, from what the server offers.**
+The table offers exactly `update.actions` and `update.pressable` (`client/src/game/offers.ts`),
+sorted into asks by opponent, a call to assign, teammates to choose or vote for, and sets to
+name in run-out or to press Call on. An ask is a target, then a card, then "Ask Opponent 4 for
+the 5♣"; Call is a set, then "Call Low clubs (2–7)", and the press carries the last event the
+player saw (R.8.7). A call's six cards are a grid, one row per card and one column per
+teammate, with the player's own cards already theirs, and "Make the call" waits for all six
+(R.4.3). Once something is sent, the buttons wait for the next update or a rejection, so a
+double tap sends it once; a rejection says why in plain words, and a discarded action says a
+call was declared first (R.8.3). Alternative: acting on the first tap. A mistaken ask passes
+the turn and a mistaken call scores the set for the other team, so one more tap is worth it.

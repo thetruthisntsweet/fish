@@ -9,6 +9,7 @@ import {
   score,
   seatName,
   teamName,
+  rejection,
   type LastEvent,
 } from "./describe.ts";
 
@@ -141,4 +142,15 @@ test("the score counts each team's sets, the player's team first", () => {
   expect(
     score(view({ seat: 4, scored_by: [0, 0, 1, null, null, null, null, null, null] })),
   ).toEqual([1, 2]);
+});
+
+test("a refusal says why the action was not made", () => {
+  const rejected = (reason: "illegal" | "stale" | "malformed", discarded = false) =>
+    rejection({ type: "rejected", reason, discarded });
+  expect(rejected("illegal")).toBe("That is not allowed now. Choose again.");
+  expect(rejected("stale")).toBe("That set changed before your call arrived. Choose again.");
+  expect(rejected("malformed")).toBe("That could not be sent. Choose again.");
+  expect(rejected("illegal", true)).toBe(
+    "A call was declared before your action arrived, so it was not made.",
+  );
 });
