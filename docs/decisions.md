@@ -1004,3 +1004,16 @@ actions the website allows, passed to B1 as the view's legal actions, so on a tu
 `bot_policy` stream (`fish_agents.PolicyStreams`), so a game replays from its seed with the
 bots' play in it. Alternatives: full memory, which no person playing without notes has;
 and handing the bot the person's last views, which no player taking a seat would get.
+
+**D96 · 2026-11-03 · A bot presses Call only for a call it can prove, decided after every
+event.**
+R.8.8 has each bot decide after every event whether to declare. The website's B1 decides
+with `would_call`, which names a set only when what it remembers proves all six cards are
+with its team, and only on a turn; it decides too on taking a seat. The press waits its
+delay and is made only if the decision is still about the current events and no window,
+assignment, choice or run-out is in progress, so a decision another event overtook (even a
+bot's own ask in the same instant) is dropped and made afresh. This also covers R.9 on the
+website: a turn offers only asks, and a player with no ask holds only whole sets, which B1
+always proves. Every call a bot pressed for in the random server games is right. Alternative:
+pressing for calls B1 thinks likely. That is not the B1 frozen in D85, and a wrong call by a
+bot scores a set for the other team in a game people are playing.

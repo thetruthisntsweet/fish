@@ -17,6 +17,12 @@ it on the real one and does the sending and the writing.
   is drawn. It chooses among the actions the website allows, so on a turn only an ask, with
   its random choices from the game's ``bot_policy`` stream (``fish_agents.PolicyStreams``):
   a game's bots play the same from the same seed.
+- After every event, and when it takes a seat, each bot decides whether to press Call
+  (R.8.8): B1 presses for a call it can prove (``fish_agents.b1.would_call``). Once its wait
+  has passed it presses, if no window, assignment, choice or run-out is in progress then;
+  otherwise the decision is dropped. A newer event replaces a decision still waiting, so a
+  bot never declares in a window someone else opened. A bot whose turn offers no ask holds
+  only whole sets (R.3.2), so it can always prove a call and presses one (R.9).
 - ``rows`` hands over the actions (once sent) and log rows not yet written.
 """
 
@@ -26,7 +32,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
 
-from fish_agents.b1 import B1_VERSION, b1
+from fish_agents.b1 import B1_VERSION, b1, would_call
 from fish_agents.base import PolicyStreams
 from fish_agents.memory import MemorySetting
 from fish_rules.action_index import decode, encode
@@ -45,6 +51,17 @@ PING_US: Final = 5 * SECOND_US
 BOT: Final = Controller(B1_VERSION, MemorySetting.last_k(8))
 """The bot that takes over a person's seat (R.8.4): B1 remembering the latest 8 events (T3.5;
 D95)."""
+
+
+@dataclass(frozen=True, slots=True)
+class Pressing:
+    """A bot's decision to press Call on ``set_id``, waiting for its delay: due ``due``,
+    decided after ``events`` events (the press says it saw the last of them)."""
+
+    due: int
+    events: int
+    delay_us: int
+    set_id: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +160,8 @@ class Game:
         self._nonce = 0
         self._delays = DelayStreams(seed)
         self._bot_due: dict[Seat, Waiting] = {}
+        self._press_due: dict[Seat, Pressing] = {}
+        self._decided_at = 0  # the events the bots last decided their presses after
         self._bot = b1(BOT.memory)
         self._policy = PolicyStreams(seed)
         self._saved_entries = 0
@@ -201,6 +220,15 @@ class Game:
             del self._bot_due[seat]  # the state it was drawn for: it may still act
             table.bot_waited(seat, waiting.delay_us, dropped=False, now=now)
             table.act(seat, self._decide(seat), now)
+        for seat, pressing in sorted(self._press_due.items()):
+            if pressing.due > now or pressing.events != table.state.events:
+                continue  # not yet, or an event since (just now, by a bot): decided afresh
+            del self._press_due[seat]
+            live = table.state.phase is Phase.TURN and pressing.set_id in table.pressable(seat)
+            table.bot_waited(seat, pressing.delay_us, dropped=not live, now=now)
+            if live:
+                seen = pressing.events - 1 if pressing.events else None
+                table.press(seat, pressing.set_id, seen, now)
         for seat, due in sorted(self._next_ping.items()):
             if due <= now:
                 self._nonce += 1
@@ -215,7 +243,7 @@ class Game:
         if self.ended:
             return None
         due = [self.table.deadline(), *(w.due for w in self._bot_due.values()),
-               *self._next_ping.values()]  # fmt: skip
+               *(p.due for p in self._press_due.values()), *self._next_ping.values()]  # fmt: skip
         return min((d for d in due if d is not None), default=None)
 
     # ------------------------------------------------------------ writing
@@ -282,6 +310,8 @@ class Game:
                 self._bot.observe(table.view(seat))  # every view its seat is shown
         version = len(table.entries)
         over = table.state.phase is Phase.OVER
+        if not over:
+            self._decide_presses(now, handed)
         for seat in SEATS:
             waiting = self._bot_due.get(seat)
             if waiting is not None and waiting.version == version:
@@ -297,6 +327,7 @@ class Game:
             self.ended = True
             self._next_ping.clear()
             self._bot_due.clear()
+            self._press_due.clear()
             outs.append(End(str(table.state.outcome)))
         return outs
 
@@ -308,3 +339,23 @@ class Game:
         offered = dataclasses.replace(view, legal=tuple(sorted(encode(a) for a in allowed)))
         rng = self._policy.for_decision(seat, table.state.events)
         return decode(seat, self._bot.act(offered, rng), table.state.phase)
+
+    def _decide_presses(self, now: int, handed: frozenset[Seat]) -> None:
+        """After every event, each bot decides afresh whether to press Call (R.8.8), and a bot
+        that has just taken a seat decides at once. A decision a newer event overtook is
+        recorded as dropped."""
+        table = self.table
+        events = table.state.events
+        anew = events != self._decided_at
+        self._decided_at = events
+        for seat in SEATS:
+            if seat in table.people or not (anew or seat in handed):
+                continue
+            pressing = self._press_due.pop(seat, None)
+            if pressing is not None:
+                table.bot_waited(seat, pressing.delay_us, dropped=True, now=now)
+            rng = self._policy.for_decision(seat, events)
+            set_id = would_call(table.view(seat), self._bot.memory(seat).deduction, rng)
+            if set_id is not None:
+                delay = self._delays.delay(seat, events)
+                self._press_due[seat] = Pressing(now + delay, events, delay, set_id)
