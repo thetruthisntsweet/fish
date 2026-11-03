@@ -2,7 +2,7 @@
 // refusals shown in its own words, and what the player is told when the connection drops or
 // closes.
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { FakeSocket, fakeSockets } from "../test/socket.ts";
 import { update } from "../test/updates.ts";
 import { Play } from "./Play.tsx";
@@ -157,4 +157,81 @@ test.each([
   const before = FakeSocket.made.length;
   fireEvent.click(button(name));
   expect(FakeSocket.made.length).toBe(before + 1);
+});
+
+describe("after a game", () => {
+  const finished = update({
+    phase: "over",
+    current: null,
+    outcome: "finished",
+    winner: 0,
+    scored_by: [0, 0, 1, 0, 1, 0, 1, 0, 0],
+  });
+  const question = {
+    type: "note_question",
+    version: "v1",
+    text: "Did you take notes during this game?",
+  };
+
+  test("the result, then the question, then the lobby; playing again puts the result away", () => {
+    inLobby();
+    server(update());
+    server(finished);
+    expect(screen.getByRole("status")).toHaveTextContent("Your team won!");
+    server(question);
+    server(AWAY);
+    expect(screen.getByRole("region", { name: "Your last game" })).toHaveTextContent(
+      "Your team won, 6 sets to 3.",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Did you take notes during this game?" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Find a table" })).toBeNull(); // answer first
+    fireEvent.click(button("No"));
+    expect(latest().sent.at(-1)).toEqual({ type: "note_answer", answer: "no" });
+    expect(screen.queryByRole("heading", { name: /take notes/ })).toBeNull();
+    expect(screen.getByRole("region", { name: "Your last game" })).toBeInTheDocument();
+    fireEvent.click(button("Find a table"));
+    expect(screen.queryByRole("region", { name: "Your last game" })).toBeNull();
+  });
+
+  test.each([
+    ["yes", "Yes"],
+    ["declined", "Prefer not to say"],
+  ] as const)("the question can be answered %s", (answer, name) => {
+    inLobby();
+    server(update());
+    server(finished);
+    server(question);
+    server(AWAY);
+    fireEvent.click(button(name));
+    expect(latest().sent.at(-1)).toEqual({ type: "note_answer", answer });
+  });
+
+  test("a seat handed to a bot says so, and asks nothing (R.8.4)", () => {
+    inLobby();
+    server(update());
+    server(update({}, { bots: [1] }));
+    server(AWAY);
+    expect(screen.getByRole("region", { name: "Your last game" })).toHaveTextContent(
+      "A bot took over your seat",
+    );
+    expect(screen.queryByRole("heading", { name: /take notes/ })).toBeNull();
+    expect(button("Find a table")).toBeEnabled();
+  });
+
+  test("a game that had to stop says why, once", () => {
+    inLobby();
+    server(update());
+    server({
+      type: "error",
+      code: "not_now",
+      message: "The game had to stop: the server is restarting.",
+    });
+    server(AWAY);
+    expect(screen.getByRole("region", { name: "Your last game" })).toHaveTextContent(
+      "The game had to stop: the server is restarting.",
+    );
+    expect(screen.queryByRole("alert")).toBeNull(); // not repeated by the lobby
+  });
 });

@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { update } from "../test/updates.ts";
 import {
   callHolders,
+  endingSentence,
   eventSentence,
   phaseSentence,
   score,
@@ -153,4 +154,37 @@ test("a refusal says why the action was not made", () => {
   expect(rejected("illegal", true)).toBe(
     "A call was declared before your action arrived, so it was not made.",
   );
+});
+
+describe("how the last game ended", () => {
+  const over = (winner: number | null, outcome: "finished" | "unfinished" = "finished") =>
+    update({
+      phase: "over",
+      current: null,
+      outcome,
+      winner,
+      scored_by: [0, 0, 1, 0, 1, 0, 1, 0, null],
+    });
+
+  test("a result, with the sets each team scored", () => {
+    expect(endingSentence({ update: over(0), error: null })).toBe("Your team won, 5 sets to 3.");
+    expect(
+      endingSentence({ update: { ...over(0), view: { ...over(0).view, seat: 4 } }, error: null }),
+    ).toBe("The other team won, 5 sets to 3.");
+    expect(endingSentence({ update: over(null, "unfinished"), error: null })).toBe(
+      "The game stopped at 1,000 asks, with no winner. (5 sets to 3.)",
+    );
+  });
+
+  test("a seat handed to a bot (R.8.4)", () => {
+    expect(endingSentence({ update: update({}, { bots: [1] }), error: null })).toMatch(
+      /^A bot took over your seat, because you were away for 30 seconds or your turn ran out./,
+    );
+  });
+
+  test("a game stopped, in the server's words if it gave them", () => {
+    const error = { type: "error", code: "not_now", message: "The server is restarting." } as const;
+    expect(endingSentence({ update: update(), error })).toBe("The server is restarting.");
+    expect(endingSentence({ update: update(), error: null })).toBe("The game had to stop.");
+  });
 });
