@@ -4,6 +4,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { FakeSocket, fakeSockets } from "../test/socket.ts";
+import { update } from "../test/updates.ts";
 import { Play } from "./Play.tsx";
 
 let latest: () => FakeSocket;
@@ -92,16 +93,9 @@ test("a refusal is shown in the server's words, and the buttons work again", () 
 
 test("once seated, the lobby gives way to the game", () => {
   inLobby();
-  server({
-    type: "update",
-    actions: [],
-    bots: [],
-    pressable: [],
-    timers: [],
-    view: { seat: 4, phase: "turn" },
-  });
+  server(update());
   expect(screen.queryByRole("button", { name: "Find a table" })).toBeNull();
-  expect(screen.getByRole("status")).toHaveTextContent("Your game has started");
+  expect(screen.getByRole("region", { name: "Your hand" })).toBeInTheDocument();
 });
 
 test("a dropped connection says it is reconnecting, and why", () => {

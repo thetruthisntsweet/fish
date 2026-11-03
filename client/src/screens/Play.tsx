@@ -3,6 +3,7 @@
 import { useGame } from "../game/useGame.ts";
 import type { Closed, Status } from "../game/connection.ts";
 import { Lobby } from "./Lobby.tsx";
+import { Table } from "./Table.tsx";
 
 interface Props {
   /** The server no longer knows this browser: ask the site again, which shows sign-in. */
@@ -23,7 +24,7 @@ export function Play({ onSignedOut }: Props) {
         return <ClosedMessage why={status.why} onRetry={game.retry} onSignedOut={onSignedOut} />;
       case "open":
         if (game.state.atTable && game.state.update !== null) {
-          return <p role="status">Your game has started (seat {game.state.update.view.seat}).</p>;
+          return <Table update={game.state.update} />;
         }
         return <Lobby lobby={game.state.lobby} error={game.state.error} send={game.send} />;
     }
