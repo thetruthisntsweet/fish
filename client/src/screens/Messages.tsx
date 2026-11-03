@@ -1,5 +1,5 @@
-// The short screens around the consent screen: the link sent, No thanks, signed in,
-// withdrawn, and something gone wrong.
+// The short screens around the consent screen: the link sent, No thanks, withdrawn, and
+// something gone wrong.
 import { LINK_MINUTES } from "../api.ts";
 
 export function LinkSent({ email, onAgain }: { email: string; onAgain: () => void }) {
@@ -30,15 +30,6 @@ export function Declined({ onReread }: { onReread: () => void }) {
           Read the study information again
         </button>
       </div>
-    </section>
-  );
-}
-
-export function SignedIn() {
-  return (
-    <section className="panel">
-      <h1>You are signed in</h1>
-      <p>You are taking part in the study. Games open here soon.</p>
     </section>
   );
 }

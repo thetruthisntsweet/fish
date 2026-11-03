@@ -6,7 +6,8 @@ import type { Site } from "../site.ts";
 import type { StudyText } from "../study/texts.ts";
 import { ConsentScreen } from "./ConsentScreen.tsx";
 import { EmailScreen } from "./EmailScreen.tsx";
-import { Declined, LinkSent, SignedIn, Withdrawn } from "./Messages.tsx";
+import { Declined, LinkSent, Withdrawn } from "./Messages.tsx";
+import { Play } from "./Play.tsx";
 
 type View =
   | { readonly kind: "consent"; readonly renewing: boolean }
@@ -97,7 +98,7 @@ export function Home({ site, onChange }: Props) {
         />
       );
     case "signed-in":
-      return <SignedIn />;
+      return <Play onSignedOut={onChange} />;
     case "withdrawn":
       return <Withdrawn />;
   }

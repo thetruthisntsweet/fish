@@ -4,8 +4,9 @@ server on a real port with a real database, driven in Chromium at phone width.
 The key points fit on the first screen at phone width, in both texts and both colour
 schemes, with nothing wider than the screen. Then one person goes all the way: the consent
 screen with nothing stored before Continue, the email field, the emailed link and its
-button, signed in with the acceptance recorded, the text they accepted reread, the account
-page, a confirmed withdrawal recorded once, and signing out.
+button, signed in with the acceptance recorded, a room made and left in the lobby, the text
+they accepted reread, the account page, a confirmed withdrawal recorded once, and signing
+out.
 
 Marked ``browser``: the ordinary test run leaves these out, because they need the client
 built first. ``scripts/check.sh`` and CI run them after the build with ``pytest -m browser``.
@@ -139,11 +140,20 @@ def test_a_person_joins_rereads_withdraws_and_signs_out(site: Site, browser: Bro
     assert token is not None
     page.goto(f"{base}/sign-in?token={token.group(1)}")
     page.get_by_role("button", name="Sign in").click()
-    expect(page.get_by_role("heading", name="You are signed in")).to_be_visible()
+    expect(page.get_by_role("heading", name="Play Fish")).to_be_visible()
     with engine.connect() as conn:
         (accepted,) = conn.execute(select(db.consents)).mappings()
     confirmed = ("us_resident_adult", "agrees", "no_outside_communication")
     assert (accepted["version"], *(accepted[name] for name in confirmed)) == ("v1.0", *[True] * 3)
+
+    # The lobby, over the game socket (T3.4): a room made, its code shown, and left.
+    page.get_by_role("button", name="Make a room for friends").click()
+    expect(page.get_by_role("status")).to_have_text(
+        "1 of 6 players are here. The game starts when six are here."
+    )
+    expect(page.get_by_label("Room code")).to_have_text(re.compile(r"^[A-HJ-NP-Z2-9]{6}$"))
+    page.get_by_role("button", name="Leave").click()
+    expect(page.get_by_role("button", name="Find a table")).to_be_enabled()
 
     # The text they accepted, from the footer (§2.6).
     page.get_by_role("contentinfo").get_by_role("link", name="Study information").click()

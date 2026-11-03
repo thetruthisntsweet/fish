@@ -5,11 +5,13 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "./App.tsx";
 import { PAGES } from "./navigation.ts";
 import { fakeServer, type FakeServer } from "./test/server.ts";
+import { fakeSockets } from "./test/socket.ts";
 
 let server: FakeServer;
 
 beforeEach(() => {
   server = fakeServer();
+  fakeSockets(); // signed in, the front page opens the game connection
 });
 
 afterEach(() => {
@@ -41,7 +43,7 @@ test("every page's footer links to the study information; the account once signe
 test("the footer moves between pages without reloading", async () => {
   server.standing = { accepted: "v1.0", withdrawn: false };
   visit("/");
-  await screen.findByRole("heading", { name: "You are signed in" });
+  await screen.findByRole("heading", { name: "Play Fish" });
   fireEvent.click(footer().getByRole("link", { name: "Study information" }));
   expect(window.location.pathname).toBe("/information");
   expect(
