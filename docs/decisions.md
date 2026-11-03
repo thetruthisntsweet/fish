@@ -907,3 +907,14 @@ as the bot, shown every view; `would_call` after every event, with the decision 
 window, assignment or choice has begun when its delay ends (R.8.8); and the draws of both from
 the seat's `bot_policy` generator, so a website game's bots replay from its seed. The value of
 k, and what happens to a game with no people left, are T3.5's to settle.
+
+**D88 · 2026-11-03 · The client names cards and action numbers itself, checked against the
+frozen vectors.**
+The game screens (T3.4) show cards and offer the actions in `update.actions`, so the client
+reads action numbers (`fish-action-index-v1`) and card numbers (§6 of determinism.md) in
+`client/src/game`. It decides nothing: which actions a player may take still comes only from
+the server. Its tests read `action_index_v1.json` and `deal_v1.json` from fish-rules' vectors
+(through `import.meta.glob`, so the image's client build, which has only `client/`, never
+needs them) and check all 913 numbers for a seat on each team, both ways. Alternative: the
+server sending each action already described. It would make every update several times
+larger, for what a hundred lines of client code and a frozen layout give.
