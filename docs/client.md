@@ -95,4 +95,7 @@ endpoints (`test/server.ts`) and for the WebSocket (`test/socket.ts`): every scr
 action and the numbers it sends, the connection's retries and close codes, and the sentences.
 In a real browser (`pytest -m browser`, [testing.md](testing.md) §4): the consent screen
 and the account page, a room made and left, and six people playing a whole game at phone
-width, from the lobby to the note-taking question, against the real server and database.
+width, from the lobby to the note-taking question, against the real server and database;
+and a player whose connection drops (cut through Playwright's WebSocket routing, since the
+browser's offline mode leaves open sockets alone) seeing "Reconnecting…", then the table,
+or, back too late, that a bot took their seat.
