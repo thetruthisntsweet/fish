@@ -213,7 +213,12 @@ file, and prints how many games it exported and why each one left out was left o
 ended, abandoned, no person played, a person's seat without consent flags, or a person who
 withdrew. Release game ids are `g-000001`, `g-000002`, … in that
 order. Every record is read back before it is written; a stored game the log cannot reproduce,
-or one played under another ruleset, stops the export with an error instead.
+or one played under another ruleset, stops the export with an error instead. It builds and
+writes one game at a time, so it needs little memory however large the corpus is: it runs on
+the server's own instance during the study, beside games in progress. It writes under a
+temporary name and renames the file when complete, so a failed export leaves no file. A name
+ending `.gz` is gzipped. It prints the file's size and SHA-256, and `scripts/check_export.py`
+checks a copy against them ([runbooks/backups.md](runbooks/backups.md)).
 
 ## 8. Who builds what
 

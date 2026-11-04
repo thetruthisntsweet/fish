@@ -30,7 +30,12 @@ RUN npm run build
 FROM python:3.14-slim
 # A non-root user with a login shell and a ~/.ssh folder: Render's Shell page and SSH
 # need both for Docker services (used for the restore drill, docs/runbooks/restore-drill.md).
-RUN useradd --create-home --uid 10001 --shell /bin/bash fish \
+# Render's SSH also needs OpenSSH's server, and its SFTP server for `scp -s` (nothing here
+# starts either): the weekly corpus copy reaches the laptop that way (docs/runbooks/backups.md).
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends openssh-server openssh-sftp-server \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 --shell /bin/bash fish \
     && install -d -m 0700 -o fish -g fish /home/fish/.ssh
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv

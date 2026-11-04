@@ -16,6 +16,8 @@ All times below are Eastern; from 1 November to 13 March that is UTC−5, so `-0
    weeks in a row were short, add a Friday night ([recruitment.md](../recruitment.md) §3) first.
 2. In the same Shell: `python -m fish_server.audience` (§4).
 3. On your computer: M4 for `Players: group 1`, then for `Players: group 2` (§3), for 9:00 am.
+4. The weekly corpus copy ([backups.md](backups.md) §2): export in the Shell, copy it to your
+   laptop, check it, and delete last week's. It goes on one more Monday, 15 February.
 
 ## 1. Before Mon 16 Nov: the invitation domain, the lists, the key
 

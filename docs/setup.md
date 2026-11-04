@@ -71,7 +71,8 @@ All from the repository root.
 | Run the browser tests (after building the client) | `uv run --env-file .env pytest -m browser` |
 | Build the published packages, install them as a user would, and run the README examples | `uv run --no-project --python 3.14 python scripts/check_install.py` |
 | Make a release | [runbooks/release.md](runbooks/release.md) |
-| Export the corpus (docs/corpus.md §7) | `uv run --env-file .env python -m fish_server.corpus_export --out corpus.jsonl` |
+| Export the corpus (docs/corpus.md §7) | `uv run --env-file .env python -m fish_server.corpus_export --out corpus.jsonl` (`.jsonl.gz`: gzipped) |
+| Check a copy of an export | `uv run python scripts/check_export.py corpus.jsonl.gz` |
 | Regenerate client types after changing `protocol.py` | `scripts/gen_types.sh` |
 | Create a migration after changing `fish_server/db.py` | `uv run --env-file .env alembic revision --autogenerate --rev-id 0003 -m "what changed"` (next free number; read the file it writes) |
 | Apply migrations and refresh the server login | `uv run --env-file .env python -m fish_server.deploy` |
@@ -166,7 +167,8 @@ rights only. Tables that must never change once written get
 - The **Shell** page of `fish-staging` runs commands on the server, for example
   `python -m fish_server.privileges check`. The database accepts no connections from outside
   Render, so the Shell is the way in.
-- Backups and restores: `docs/runbooks/restore-drill.md`.
+- Backups and restores: [runbooks/backups.md](runbooks/backups.md) (Render's point-in-time
+  recovery, and the weekly corpus copy) and [runbooks/restore-drill.md](runbooks/restore-drill.md).
 - Uptime checks every 5 minutes on `/health` and `/health/db`, with email alerts:
   [runbooks/monitoring.md](runbooks/monitoring.md).
 

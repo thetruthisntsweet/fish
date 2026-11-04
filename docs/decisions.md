@@ -1073,3 +1073,31 @@ shows whether a deploy finished. What to do on an alert is `docs/runbooks/monito
 Alternatives: Render's notifications alone, which report failed deploys but not an outside
 view of the site or a database the server can't reach; a paid plan with 1-minute checks,
 which a study with scheduled game nights doesn't need.
+
+**D102 · 2026-11-03 · The export writes one game at a time.**
+`fish_server.corpus_export` used to build every record before writing any. A test game is
+about 18 KB of JSON and 64 KB in memory, and a real 20 to 30 minute game, with a round-trip
+row per seat every 5 seconds, is likely to be 15 to 20 times that. At the 1,000-game target,
+building the whole export at once would need about a gigabyte, on the server's 512 MB instance,
+during the study, beside games in progress. Now `records` yields one record at a time and
+`main` writes each as it comes. It writes under a temporary name, renamed when complete (a
+failed export still leaves no file), gzips a `.gz` name, and prints the file's SHA-256.
+`export` still returns a list, for tests. The restore drill builds the export the same way.
+
+**D103 · 2026-11-03 · Backups: Render's three days, and one weekly corpus copy on the laptop.**
+Render's point-in-time recovery restores the whole database, but only to the last 3 days on
+the Hobby workspace (D14). A fault noticed later would lose everything before it. So each
+Monday from 14 December to 15 February, the corpus export is copied to the researcher's
+laptop. It is made in the production Shell, copied with `scp -s` over Render's SSH (the image
+now has OpenSSH's server and SFTP server, which Render needs for SSH into a Docker service),
+and checked there with `scripts/check_export.py` (every game replays; the count and SHA-256
+match the server's). The folder is FileVault-encrypted, owner-only and excluded from Time
+Machine, and only the latest copy is kept, so a withdrawal leaves it within a week. It is
+deleted by 30 June 2027 (`docs/runbooks/backups.md`). The copy is the corpus only:
+pseudonymized, with no addresses or ids. It can't rebuild the database, and a withdrawal
+made after it can't be found in it.
+The restore drill now also checks the restored copy: at least as many rows in every
+append-only table as at the marker, and an export that builds. Alternatives: a database dump
+on the laptop, which would put email addresses there; an export download page on the site,
+which would expose the whole corpus to the web; opening the database to the laptop's address,
+which `ipAllowList: []` rules out.
