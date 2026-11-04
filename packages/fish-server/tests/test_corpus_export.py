@@ -6,11 +6,14 @@ replay to the same game; membership must follow the seats' consent flags and wit
 and nothing internal may leave. Skipped without FISH_TEST_DATABASE_URL.
 """
 
+import gzip
+import importlib.util
 import json
 import uuid
 from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 from sqlalchemy import Connection, Engine, create_engine, insert, pool, select
@@ -22,7 +25,7 @@ from fish_rules.playout import random_website_game
 from fish_rules.state import State, new_game, state_hash
 from fish_rules.version import RULESET_VERSION
 from fish_server import db
-from fish_server.corpus_export import ExportError, export, main
+from fish_server.corpus_export import ExportError, Summary, export, main, records, sha256
 from fish_server.games import latest_consent
 from fish_server.settings import database_url
 
@@ -376,3 +379,90 @@ def test_the_command_refuses_to_overwrite_and_reports_failures(
     assert main(["--out", str(out)]) == 1
     assert "FAIL game" in capsys.readouterr().err
     assert not out.exists()
+    assert list(tmp_path.iterdir()) == []  # no partial file left behind
+
+
+@pytest.mark.usefixtures("server_env")
+def test_records_are_built_one_at_a_time(app: Engine) -> None:
+    """The export never holds the whole corpus: it runs on the server's own instance."""
+    with app.begin() as conn:
+        for n in range(3):
+            add_game(conn, 5 + n, table(conn), minutes=n)
+    summary = Summary()
+    with app.connect() as conn:
+        games = records(conn, summary)
+        first = next(games)
+        assert (first["game"]["id"], summary.exported) == ("g-000001", 1)  # pyright: ignore[reportIndexIssue]
+        assert [r["game"]["id"] for r in games] == ["g-000002", "g-000003"]  # pyright: ignore[reportIndexIssue]
+    assert (summary.games, summary.exported) == (3, 3)
+
+
+# ---------------------------------------------------------------- a copy (T3.6)
+
+
+def _check_export() -> ModuleType:
+    path = Path(__file__).parents[3] / "scripts" / "check_export.py"
+    spec = importlib.util.spec_from_file_location("check_export", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.usefixtures("server_env")
+def test_a_gzipped_export_and_its_copy_check_the_same(
+    app: Engine, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with app.begin() as conn:
+        add_game(conn, 5, table(conn))
+        add_game(conn, 6, table(conn, persons=3), minutes=1)
+    out = tmp_path / "corpus-2026-12-14.jsonl.gz"
+    assert main(["--out", str(out)]) == 0
+    printed = capsys.readouterr().out.splitlines()
+    with gzip.open(out, "rt", encoding="utf-8") as file:
+        assert [read_corpus_record(json.loads(line)).seed for line in file] == [5, 6]
+    assert f"sha256: {sha256(out)}" in printed
+    assert f"file: {out} ({out.stat().st_size:,} bytes)" in printed
+
+    copy = tmp_path / "laptop" / out.name
+    copy.parent.mkdir()
+    copy.write_bytes(out.read_bytes())
+    check = _check_export()
+    assert check.main([str(copy)]) == 0
+    checked = capsys.readouterr().out.splitlines()
+    for line in ("exported: 2", "people: 9", f"sha256: {sha256(out)}"):
+        assert line in printed
+        assert line in checked
+    assert checked[-1].startswith("PASS")
+
+
+@pytest.mark.usefixtures("server_env")
+def test_a_copy_that_is_cut_short_or_altered_fails(
+    app: Engine, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with app.begin() as conn:
+        add_game(conn, 5, table(conn))
+        add_game(conn, 6, table(conn), minutes=1)
+    out = tmp_path / "corpus.jsonl.gz"
+    assert main(["--out", str(out)]) == 0
+    capsys.readouterr()
+    check = _check_export()
+    cut = tmp_path / "cut.jsonl.gz"
+    cut.write_bytes(out.read_bytes()[: out.stat().st_size // 2])
+    assert check.main([str(cut)]) == 1
+    assert capsys.readouterr().out.startswith(f"FAIL {cut}")
+
+    with gzip.open(out, "rt", encoding="utf-8") as file:
+        lines = file.readlines()
+    altered = tmp_path / "altered.jsonl"
+    record = json.loads(lines[1])
+    record["actions"] = record["actions"][:-1]
+    altered.write_text(lines[0] + json.dumps(record) + "\n", encoding="utf-8")
+    assert check.main([str(altered)]) == 1
+    assert capsys.readouterr().out.startswith(f"FAIL {altered}: line 2:")
+
+    reordered = tmp_path / "reordered.jsonl"
+    reordered.write_text(lines[1], encoding="utf-8")
+    assert check.main([str(reordered)]) == 1
+    assert "game g-000002, not g-000001" in capsys.readouterr().out

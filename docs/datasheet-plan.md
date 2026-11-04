@@ -69,7 +69,7 @@ writes a script that prints them all; the datasheet quotes its output.
 | Question | Answer | When |
 |---|---|---|
 | What preprocessing was done? | Anonymisation only (T4.5): random pseudonyms per release, dates coarsened to the month, contact data and internal ids dropped. Games are not edited, filtered by quality or relabelled; games are left out only by the membership rules. | now |
-| Is the raw data saved? | Yes, on the project's server, in append-only tables with point-in-time backups (D14), and not released. | now |
+| Is the raw data saved? | Yes, on the project's server, in append-only tables with point-in-time backups (D14), and not released. A weekly copy of the corpus export, the latest only, is kept on the researcher's encrypted laptop until 30 June 2027 (D103). | now |
 | Is the software available? | Yes: `fish_server.corpus_export` produces the release, and `fish_rules.corpus` reads, checks and replays it, both in the public repository. | now |
 
 ## 5. Uses

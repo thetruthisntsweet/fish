@@ -1,6 +1,7 @@
 """Corpus membership and export (docs/corpus.md §6, §7; T1.6, T3.2).
 
     python -m fish_server.corpus_export --out corpus.jsonl
+    python -m fish_server.corpus_export --out /tmp/corpus-2026-12-14.jsonl.gz   # gzipped
 
 Membership is computed at every export from stored flags, never decided by hand (Research
 Plan §6). A game enters when it has ended under the rules (finished, or stopped at 1,000
@@ -19,17 +20,24 @@ cannot reproduce stops the export instead of being written. Contact data, intern
 wall-clock times never appear; a game's date is kept to the month.
 
 The export only reads, so it connects as the server's own login (``FISH_DATABASE_URL``).
+It builds and writes one game at a time, so it needs little memory however large the corpus
+is: it runs on the server's own instance during the study, beside games in progress. The
+file is written under a temporary name and renamed when complete, so a failed export leaves
+no file; a name ending ``.gz`` is gzipped. It prints the summary, the file's size and its
+SHA-256, to check a copy against (``scripts/check_export.py``).
 """
 
 import argparse
+import gzip
+import hashlib
 import json
 import secrets
 import sys
 import uuid
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Final, Literal, cast
+from typing import IO, Final, Literal, cast
 
 from sqlalchemy import Connection, Engine, create_engine, pool, select, text
 
@@ -228,31 +236,37 @@ def membership(conn: Connection) -> dict[uuid.UUID, Standing]:
     return standing
 
 
-def export(conn: Connection) -> tuple[list[dict[str, object]], Summary]:
-    """Every corpus game as a record, in order of start time, and the summary (§6, §7)."""
-    summary = Summary()
+def records(conn: Connection, summary: Summary) -> Iterator[dict[str, object]]:
+    """Every corpus game as a record, in order of start time, one at a time; ``summary``
+    counts them as they go, and is complete once the last is taken (§6, §7)."""
     standing = membership(conn)
     games = conn.execute(
         select(db.games, db.game_endings.c.completion)
         .outerjoin(db.game_endings, db.games.c.game_id == db.game_endings.c.game_id)
         .order_by(db.games.c.started_at, db.games.c.game_id)
     ).mappings()
-    records: list[dict[str, object]] = []
-    for game in games:
+    for game in games.all():  # one small row a game; each record is read on its own
         summary.games += 1
         where = standing[game["game_id"]]
         if where == "exported":
-            release_id = f"g-{len(records) + 1:06d}"
-            records.append(_record(conn, dict(game), release_id, summary))
+            release_id = f"g-{summary.exported + 1:06d}"
+            record = _record(conn, dict(game), release_id, summary)
+            summary.exported += 1
+            yield record
         else:
             setattr(summary, where, getattr(summary, where) + 1)
-    summary.exported = len(records)
-    return records, summary
 
 
-def write_lines(records: Sequence[dict[str, object]]) -> Iterator[str]:
+def export(conn: Connection) -> tuple[list[dict[str, object]], Summary]:
+    """Every corpus game as a record, all at once, and the summary: for tests and small
+    corpora. ``main`` writes them one at a time instead."""
+    summary = Summary()
+    return list(records(conn, summary)), summary
+
+
+def write_lines(games: Iterable[dict[str, object]]) -> Iterator[str]:
     """JSON Lines: one compact record per line, keys sorted."""
-    for record in records:
+    for record in games:
         yield json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
 
 
@@ -260,23 +274,50 @@ def main(argv: list[str] | None = None, engine: Engine | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m fish_server.corpus_export", description="Export the corpus."
     )
-    parser.add_argument("--out", type=Path, required=True, help="a new JSON Lines file")
+    parser.add_argument(
+        "--out", type=Path, required=True, help="a new JSON Lines file (.gz: gzipped)"
+    )
     args = parser.parse_args(argv)
-    if args.out.exists():
-        parser.error(f"{args.out} exists; refusing to overwrite it")
+    out: Path = args.out
+    if out.exists():
+        parser.error(f"{out} exists; refusing to overwrite it")
+    partial = out.with_name(f"{out.name}.partial")
     engine = engine or create_engine(database_url(), poolclass=pool.NullPool)
+    summary = Summary()
     try:
-        with engine.connect() as conn:
-            records, summary = export(conn)
+        with engine.connect() as conn, _open(partial) as file:
+            for line in write_lines(records(conn, summary)):
+                file.write(line)
     except ExportError as error:
+        partial.unlink(missing_ok=True)
         print(f"FAIL {error}", file=sys.stderr)
         return 1
+    except BaseException:
+        partial.unlink(missing_ok=True)
+        raise
     finally:
         engine.dispose()
-    with args.out.open("w", encoding="utf-8") as out:
-        out.writelines(write_lines(records))
+    partial.rename(out)
     print("\n".join(summary.lines()))
+    print(f"file: {out} ({out.stat().st_size:,} bytes)")
+    print(f"sha256: {sha256(out)}")
     return 0
+
+
+def _open(path: Path) -> IO[str]:
+    """``path`` for writing text, gzipped if its name (less ``.partial``) ends ``.gz``."""
+    if path.name.removesuffix(".partial").endswith(".gz"):
+        return gzip.open(path, "wt", encoding="utf-8")
+    return path.open("w", encoding="utf-8")
+
+
+def sha256(path: Path) -> str:
+    """The SHA-256 of the file's bytes, as ``shasum -a 256`` prints it."""
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        while chunk := file.read(1 << 20):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 if __name__ == "__main__":
