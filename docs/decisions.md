@@ -1049,3 +1049,14 @@ away.") and sends it once when they next connect, before the lobby; the page sho
 it shows how a game ended. Tested over real WebSockets on a turn, mid-assignment and
 mid-vote. Alternative: saying nothing, which left a returning player at the lobby with the
 page guessing that the game "had to stop".
+
+**D100 · 2026-11-03 · Simultaneous calls are checked over real sockets.**
+Six people press Call on one set in the same instant, sent together over real WebSockets to
+the real server: the server opens one window for the first press to arrive and takes the
+rest as declarations in it (R.8.3), and when it closes the call that proceeds is the first of
+the declarers in `priority_order(seed, window)` (R.8.1), which the test computes itself from
+the game's seed. Arrival order varies from run to run and the caller is usually not the
+first to arrive, so a server that went by arrival would fail. The same test sends an ask
+inside the window (discarded, its sender told) and a press that had not seen an ask moving
+a card of its set (stale, R.8.7), and replays the recorded actions to the same call. No
+change to the server was needed.
