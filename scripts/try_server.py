@@ -1,5 +1,5 @@
-"""Check a deployed server the way a player reaches it (T3.1, T3.3): the website, health,
-sign-in, the game socket.
+"""Check a deployed server the way a player reaches it (T3.1, T3.3, T3.6): the website,
+health, its database, sign-in, the game socket.
 
 Sign in first in a browser (the emailed link, then the button), then copy the value of the
 ``fish_session`` cookie from the browser's developer tools (Application, or Storage, then
@@ -9,10 +9,12 @@ Cookies). Then:
         --session <cookie value>
 
 It checks that ``/`` serves the web client and ``/study`` names the text the site shows,
-that ``/health`` reports protocol 3, that ``/auth/me`` says signed in and allowed to play
-(the study information accepted, not withdrawn), and over ``/ws`` that the server says
-hello, shows the lobby, makes a room and leaves it. Exits 0 and prints PASS, or 1 with what
-failed. It never joins the solo queue, so it cannot start a game.
+that ``/health`` reports protocol 3, that ``/health/db`` reaches the database and finds it
+at this checkout's newest migration (so run it from an up-to-date main), that ``/auth/me``
+says signed in and allowed to play (the study information accepted, not withdrawn), and over
+``/ws`` that the server says hello, shows the lobby, makes a room and leaves it. Exits 0
+and prints PASS, or 1 with what failed. It never joins the solo queue, so it cannot start a
+game.
 """
 
 import argparse
@@ -21,11 +23,15 @@ import json
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import cast
 
 import websockets
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 PROTOCOL_VERSION = 3
+ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 
 def get(url: str, session: str | None = None) -> tuple[int, dict[str, object]]:
@@ -37,6 +43,33 @@ def get(url: str, session: str | None = None) -> tuple[int, dict[str, object]]:
             return response.status, json.loads(response.read())
     except urllib.error.HTTPError as error:
         return error.code, json.loads(error.read() or b"{}")
+
+
+def newest_migration() -> str:
+    """The newest migration in this checkout, which a finished deploy of it is at."""
+    head = ScriptDirectory.from_config(Config(str(ALEMBIC_INI))).get_current_head()
+    if head is None:
+        raise RuntimeError(f"no migrations found from {ALEMBIC_INI}")
+    return head
+
+
+def check_health(base: str) -> None:
+    """``/health`` is up and speaks this protocol; ``/health/db`` reaches the database and
+    finds it at the newest migration. Raises RuntimeError saying what is wrong."""
+    status, health = get(f"{base}/health")
+    print("health:", status, health)
+    if status != 200 or health.get("protocol_version") != PROTOCOL_VERSION:
+        raise RuntimeError(f"/health should report protocol {PROTOCOL_VERSION}")
+    status, database = get(f"{base}/health/db")
+    print("db:    ", status, database)
+    if status != 200 or database.get("database") != "ok":
+        raise RuntimeError("/health/db: the server cannot reach its database")
+    newest = newest_migration()
+    if database.get("schema_revision") != newest:
+        raise RuntimeError(
+            f"/health/db: the database is at {database.get('schema_revision')}, this checkout's "
+            f"newest migration is {newest}: has the deploy finished, and is this main?"
+        )
 
 
 def page(url: str) -> str:
@@ -92,10 +125,7 @@ def main() -> int:
         print("study: ", status, study)
         if status != 200 or not study.get("version"):
             raise RuntimeError("/study should name the text this site shows")
-        status, health = get(f"{base}/health")
-        print("health:", status, health)
-        if status != 200 or health.get("protocol_version") != PROTOCOL_VERSION:
-            raise RuntimeError(f"/health should report protocol {PROTOCOL_VERSION}")
+        check_health(base)
         status, me = get(f"{base}/auth/me", args.session)
         print("me:    ", status, me)
         if me.get("signed_in") is not True:

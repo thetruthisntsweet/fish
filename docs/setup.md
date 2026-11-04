@@ -167,6 +167,8 @@ rights only. Tables that must never change once written get
   `python -m fish_server.privileges check`. The database accepts no connections from outside
   Render, so the Shell is the way in.
 - Backups and restores: `docs/runbooks/restore-drill.md`.
+- Uptime checks every 5 minutes on `/health` and `/health/db`, with email alerts:
+  [runbooks/monitoring.md](runbooks/monitoring.md).
 
 ## 8. Troubleshooting
 
