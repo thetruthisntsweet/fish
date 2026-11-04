@@ -8,7 +8,9 @@ button, signed in with the acceptance recorded, a room made and left in the lobb
 they accepted reread, the account page, a confirmed withdrawal recorded once, and signing
 out. And six people sign up, sit together through a room (its link or its code), and play a
 whole game (T3.4): an ask, Calls pressed and assigned, choices and votes, the result, and
-the note-taking question answered and written.
+the note-taking question answered and written. And one person's connection drops at a table
+(T3.6): back at once, they see the table again; back too late, they are told a bot took
+their seat.
 
 Marked ``browser``: the ordinary test run leaves these out, because they need the client
 built first. ``scripts/check.sh`` and CI run them after the build with ``pytest -m browser``.
@@ -26,11 +28,18 @@ from typing import Final, Literal
 
 import pytest
 import uvicorn
-from playwright.sync_api import Browser, Page, ViewportSize, expect, sync_playwright
+from playwright.sync_api import (
+    Browser,
+    Page,
+    ViewportSize,
+    WebSocketRoute,
+    expect,
+    sync_playwright,
+)
 from playwright.sync_api import Error as PlaywrightError
 from sqlalchemy import Engine, Table, create_engine, func, pool, select
 
-from fish_server import db
+from fish_server import db, table
 from fish_server.app import app as server
 from fish_server.auth import limiter
 from fish_server.mailer import MemoryMailer, mailer
@@ -320,3 +329,107 @@ def test_six_people_play_a_whole_game(site: Site, browser: Browser) -> None:
         assert set(conn.execute(select(db.note_answers.c.answer)).scalars()) == {"no"}
     for page in pages:
         page.context.close()
+
+
+# ---------------------------------------------------------------- coming back (T3.6)
+
+
+class Line:
+    """A page's game connection, routed through Playwright so a test can cut it as a network
+    drop does (the browser's offline mode leaves open WebSockets alone). While it is cut, a
+    new connection reaches nothing: the page hears no hello, as with no network, until the
+    line is restored and that attempt fails, so the page tries again."""
+
+    def __init__(self, page: Page) -> None:
+        self.offline = False
+        self.routes: list[tuple[WebSocketRoute, WebSocketRoute]] = []
+        self.waiting: list[WebSocketRoute] = []  # attempts made while cut
+        page.route_web_socket(re.compile(r"/ws$"), self._open)
+
+    def _open(self, ws: WebSocketRoute) -> None:
+        if self.offline:
+            self.waiting.append(ws)  # never connected; closed on restore (closing here hangs)
+        else:
+            self.routes.append((ws, ws.connect_to_server()))
+
+    def cut(self) -> None:
+        """Go offline: the open connection drops, on both sides."""
+        self.offline = True
+        for page_side, server_side in self.routes:
+            server_side.close()
+            page_side.close(code=4000, reason="offline")
+        self.routes.clear()
+
+    def restore(self) -> None:
+        """Come back online: an attempt made while cut fails, and the page's next one works."""
+        self.offline = False
+        for attempt in self.waiting:
+            attempt.close(code=4000, reason="offline")
+        self.waiting.clear()
+
+
+def six_at_a_table(browser: Browser, base: str, mail: MemoryMailer) -> tuple[list[Page], Line]:
+    """Six people signed up and seated together through a room, each seeing the table; the
+    second one's connection can be cut."""
+    pages = [sign_up(browser, base, mail, f"back{i}@example.org") for i in range(6)]
+    line = Line(pages[1])
+    pages[1].reload()  # its game connection now goes through the line
+    expect(pages[1].get_by_role("button", name="Find a table")).to_be_enabled()
+    pages[0].get_by_role("button", name="Make a room for friends").click()
+    code = pages[0].get_by_label("Room code").inner_text()
+    for page in pages[1:]:
+        page.get_by_placeholder("Room code").fill(code)
+        page.get_by_role("button", name="Join").click()
+    for page in pages:
+        expect(page.get_by_role("region", name="Your hand")).to_be_visible()
+    return pages, line
+
+
+def test_a_player_who_goes_offline_comes_back_to_the_table_or_is_told(
+    site: Site, browser: Browser, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R.8.4 in the browser: offline for a moment, the page says it is reconnecting, then shows
+    the table again; offline longer than the reconnection time (30 seconds, made 3 here), it
+    comes back to the lobby, told that a bot took the seat, and the others see the bot."""
+    monkeypatch.setattr(table, "RECONNECT_US", 3 * table.SECOND_US)
+    base, mail, engine = site
+    pages, line = six_at_a_table(browser, base, mail)
+    away = pages[1]
+
+    line.cut()
+    expect(away.get_by_text("The connection was lost. Reconnecting…")).to_be_visible()
+    line.restore()  # back within a second: the first retry gets through
+    expect(away.get_by_role("region", name="Your hand")).to_be_visible()
+    expect(away.get_by_text("Reconnecting…")).to_have_count(0)
+    deadline = time.monotonic() + 5
+    while "reconnected" not in connection_states(engine):
+        assert time.monotonic() < deadline, "the server never saw the player come back"
+        away.wait_for_timeout(100)
+
+    line.cut()  # and now for longer than the seat is held
+    expect(away.get_by_text("The connection was lost. Reconnecting…")).to_be_visible()
+    deadline = time.monotonic() + 15
+    while not handed_over(engine):
+        assert time.monotonic() < deadline, "the seat was never handed over"
+        away.wait_for_timeout(200)  # not time.sleep: the routed socket's callbacks need it
+    expect(pages[0].get_by_text("bot", exact=True)).to_have_count(1)  # the others see it
+    line.restore()
+    ending = away.get_by_role("region", name="Your last game")
+    expect(ending).to_contain_text("A bot took over your seat while you were away", timeout=20_000)
+    expect(away.get_by_role("button", name="Find a table")).to_be_enabled()
+    for page in pages:
+        page.context.close()
+
+
+def connection_states(engine: Engine) -> list[str]:
+    with engine.connect() as conn:
+        data = conn.execute(
+            select(db.server_log.c.data).where(db.server_log.c.type == "connection")
+        ).scalars()
+        return [d["state"] for d in data]
+
+
+def handed_over(engine: Engine) -> bool:
+    with engine.connect() as conn:
+        query = select(func.count()).select_from(db.server_log)
+        return conn.execute(query.where(db.server_log.c.type == "handover")).scalar_one() > 0
