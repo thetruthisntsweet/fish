@@ -8,11 +8,13 @@ consent flags and note. Then one of them withdraws on the website, and the next 
 the game out. A second test stops the server in the middle of a game, as a deploy does, and
 each player's connection closes with 1012 (service restart), and the game ends
 ``abandoned``. A third has one person leave early: B1 takes their seat and the game is
-recorded with the handover, the bot's waits and actions. Each takes a few tens of seconds
-of real time, mostly declaration windows and bot waits. Skipped without
+recorded with the handover, the bot's waits and actions. A fourth has all six press Call at
+once: one window, and the R.8.1 priority order decides the call. The whole games take a few
+tens of seconds of real time, mostly declaration windows and bot waits. Skipped without
 FISH_TEST_DATABASE_URL."""
 
 import asyncio
+import contextlib
 import json
 import random
 import re
@@ -30,8 +32,14 @@ import uvicorn
 import websockets
 from sqlalchemy import Engine, create_engine, func, pool, select
 
+from fish_rules.action_index import encode
+from fish_rules.cards import SEATS, Seat, set_of, team_of
+from fish_rules.codec import action_from_data
 from fish_rules.corpus import SeatConsent, analysis_flags, read_corpus_record, response_times
-from fish_rules.events import Declare
+from fish_rules.engine import replay
+from fish_rules.events import Ask, Declare, OpenWindow
+from fish_rules.priority import first_in_priority, priority_order
+from fish_rules.state import new_game
 from fish_server import db, table
 from fish_server.app import app as server
 from fish_server.auth import COOKIE, limiter
@@ -370,3 +378,142 @@ def test_a_person_who_leaves_is_replaced_by_b1_and_the_game_is_recorded_so(
     assert flags.completed
     assert flags.bot_seat  # in RQ1's sensitivity set only (corpus.md §6)
     assert not flags.primary
+
+
+# ---------------------------------------------------------------- calls at once (T3.6)
+
+
+class Client:
+    """One person's socket, read in the background: pings are answered at once and every other
+    message is queued for the test."""
+
+    def __init__(self, ws: Any) -> None:
+        self.ws = ws
+        self.inbox: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+        self.updates: list[dict[str, Any]] = []
+        self.reader = asyncio.create_task(self._read())
+
+    async def _read(self) -> None:
+        with contextlib.suppress(websockets.ConnectionClosed):
+            async for raw in self.ws:
+                message = json.loads(raw)
+                if message["type"] == "ping":
+                    await self.ws.send(json.dumps({"type": "pong", "nonce": message["nonce"]}))
+                    continue
+                if message["type"] == "update":
+                    self.updates.append(message)
+                await self.inbox.put(message)
+
+    async def send(self, message: dict[str, Any]) -> None:
+        await self.ws.send(json.dumps(message))
+
+    async def next(self, kind: str) -> dict[str, Any]:
+        """The next message of type ``kind``, passing over the others."""
+        while True:
+            message = await asyncio.wait_for(self.inbox.get(), timeout=10)
+            if message["type"] == kind:
+                return message
+
+    async def until(self, check: Callable[[dict[str, Any]], bool]) -> dict[str, Any]:
+        """The next update ``check`` accepts."""
+        while not check(update := await self.next("update")):
+            pass
+        return update
+
+
+async def seated(where: str, people: list[tuple[uuid.UUID, str]]) -> dict[Seat, Client]:
+    """The six connected and matched by the solo queue: each one's client, by seat."""
+    clients: list[Client] = []
+    for _, token in people:
+        ws = await websockets.connect(
+            f"ws://{where}/ws", additional_headers={"Cookie": f"{COOKIE}={token}"}
+        )
+        client = Client(ws)
+        await client.send({"type": "client_hello", "protocol_version": PROTOCOL_VERSION})
+        await client.send({"type": "join_queue"})
+        clients.append(client)
+    firsts = [await c.next("update") for c in clients]
+    return {u["view"]["seat"]: c for u, c in zip(firsts, clients, strict=True)}
+
+
+def test_six_presses_at_once_open_one_window_and_r8_1_picks_the_call(
+    app: Engine, site: Site
+) -> None:
+    """R.8.1, R.8.3, R.8.7 over real sockets. The current player makes an ask that succeeds;
+    a player whose press has not seen it, naming the set of the card it moved, is told the
+    press is stale. Then all six press Call on another set in the same instant: one window
+    opens, every press is a declaration, and nobody is shown another's; an ask sent while the
+    window is open is discarded and its sender told; when the window closes the call that
+    proceeds is the first of the six in the window's R.8.1 priority order. The actions written
+    replay to that same call."""
+    where = site[0]
+    people = sign_up(app, site, 6)
+    with_seed: list[int] = []
+
+    async def scenario() -> tuple[dict[str, Any], dict[str, Any], int, dict[Seat, Client]]:
+        seat = await seated(where, people)
+        with app.connect() as conn:
+            seed = int(conn.execute(select(db.games.c.seed)).scalar_one())
+        with_seed.append(seed)
+        state = new_game(seed)
+        turn = state.current
+        assert turn is not None
+
+        # An ask certain to succeed (the test knows the deal), so it moves a card.
+        held = {set_of(c) for c in state.hands[turn]}
+        target, card = next(
+            (s, c) for s in SEATS if team_of(s) != team_of(turn)
+            for c in state.hands[s] if set_of(c) in held
+        )  # fmt: skip
+        await seat[turn].send({"type": "act", "index": encode(Ask(turn, target, card))})
+        asked = [
+            await c.until(lambda u: u["view"]["last_event"] is not None) for c in seat.values()
+        ]
+        (event,) = {json.dumps(u["view"]["last_event"]) for u in asked}  # the same for all
+        assert json.loads(event)["success"]
+        seen = json.loads(event)["number"]
+
+        # R.8.7: a press that has not seen the ask, on the set of the card it moved.
+        late = next(s for s in SEATS if s not in (turn, target))
+        await seat[late].send({"type": "press", "set_id": set_of(card), "seen": None})
+        stale = await seat[late].next("rejected")
+
+        # Six presses at once on a set the ask did not touch, then an ask inside the window.
+        named = next(s for s in range(9) if s != set_of(card))
+        presses = [c.send({"type": "press", "set_id": named, "seen": seen}) for c in seat.values()]
+        await asyncio.gather(*presses)
+        other = next(c for c in state.hands[target] if c != card)
+        await seat[turn].send({"type": "act", "index": encode(Ask(turn, target, other))})
+        discarded = await seat[turn].next("rejected")
+        for client in seat.values():
+            await client.until(lambda u: u["view"]["phase"] == "assign")
+        for client in seat.values():
+            await client.ws.close()
+            await client.reader
+        return stale, discarded, named, seat
+
+    stale, discarded, named, seat = asyncio.run(asyncio.wait_for(scenario(), timeout=60))
+    (seed,) = with_seed
+    assert (stale["reason"], stale["discarded"]) == ("stale", False)
+    assert (discarded["reason"], discarded["discarded"]) == ("illegal", True)
+
+    wait_for(app, db.server_log, 2, type="rejected")
+    with app.connect() as conn:
+        rows = conn.execute(select(db.actions.c.action).order_by(db.actions.c.seq)).scalars().all()
+    actions = [action_from_data(row) for row in rows]
+    assert sum(isinstance(a, OpenWindow) for a in actions) == 1  # one window for six presses
+    declared = [a.seat for a in actions if isinstance(a, Declare)]
+    assert sorted(declared) == list(SEATS)
+    assert {a.set_id for a in actions if isinstance(a, Declare)} == {named}
+    caller = first_in_priority(priority_order(seed, 0), declared)
+
+    for s, client in seat.items():
+        windows = [u["view"]["window"] for u in client.updates if u["view"]["window"] is not None]
+        assert windows, f"seat {s} never saw the window"
+        assert {w["own_declaration"] for w in windows} <= {None, named}  # its own, if any
+        (assigning,) = [u for u in client.updates if u["view"]["phase"] == "assign"][:1]
+        assert assigning["view"]["call"] == {"caller": caller, "set_id": named}  # R.8.1
+
+    *_, (final, _) = replay(seed, actions)
+    assert final.call is not None
+    assert (final.call.caller, final.call.set_id) == (caller, named)

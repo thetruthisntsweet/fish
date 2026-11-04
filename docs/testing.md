@@ -92,7 +92,9 @@ pinged every 5 seconds and the round trip recorded (R.8.7), handovers release th
 and whole random games end with rows that are exactly the table's log. `test_hub.py` checks
 the plumbing between connections, games and the database writer, and `test_ws.py` plays a
 game over real WebSockets with six players and a real database, a window closing on the real
-clock.
+clock. `test_end_to_end.py` has six people press Call in the same instant over real sockets
+and checks that R.8.1's priority order, not who arrived first, decides the call (R.8.3,
+R.8.7).
 
 **What each seat sees.** `test_view_leaks.py` changes everything hidden from a seat (the
 other hands with sizes kept, the seed, other seats' window answers and votes) at every step of

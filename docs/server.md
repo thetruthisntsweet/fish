@@ -205,6 +205,12 @@ replays to the same end with every seat's flags and note, and leaves it out once
 withdraws. A second test stops the server mid-game, as a deploy does: every connection closes
 with 1012 and the game ends `abandoned`. A third has one person leave early: B1 takes their
 seat, the other five finish, and the record has the handover, the bot's waits and actions.
+A fourth has all six press Call on one set in the same instant: one window opens, every
+press is a declaration that no other seat is shown, an ask sent inside the window is
+discarded and its sender told, the call that proceeds is the first of the six in the
+window's R.8.1 priority order (not the first to arrive), and a press that had not seen an ask
+moving a card of its set is rejected as stale (R.8.7). The actions written replay to the
+same call.
 
 The website: `test_pages.py` (the pages and files served, nothing else) and `test_study.py`
 (every text the server knows is in the client, with the same last day); the client's own
