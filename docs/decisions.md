@@ -1101,3 +1101,25 @@ append-only table as at the marker, and an export that builds. Alternatives: a d
 on the laptop, which would put email addresses there; an export download page on the site,
 which would expose the whole corpus to the web; opening the database to the laptop's address,
 which `ipAllowList: []` rules out.
+
+**D104 · 2026-11-03 · T3.6 close-out: the website is ready for real players to drop out, race and lose a server.**
+- **Coming back** (D99): a person who reconnects within 30 seconds sees the game as it stands,
+  their turn timer not restarted. A person released while away is told why when they next
+  connect. Tested over real WebSockets on a turn, mid-call and mid-vote, and in Chromium with
+  the connection cut and restored.
+- **Simultaneous calls** (D100): six presses in one instant open one window, and R.8.1's
+  priority order, not arrival, decides the call. Tested over real sockets.
+- **Monitoring** (D101): UptimeRobot checks `/health` and `/health/db` every 5 minutes and
+  sends email alerts.
+- **Backups** (D102, D103): Render's point-in-time recovery for the last 3 days, a restore
+  drill that now also checks every append-only table and the export on the restored copy, and
+  one weekly corpus copy on the laptop. The export writes one game at a time.
+
+Three steps are done by hand, each with a runbook and a record:
+- the restore drill, repeated before launch (`docs/runbooks/restore-drill.md`);
+- the UptimeRobot monitors and a test alert (`monitoring.md` §1);
+- the SSH key and a trial copy from the pilot site (`backups.md` §1).
+
+The consent text v1.0 must say that the laptop copy exists before the study site opens (T4.3).
+That wording goes to Dr. Hany first; the pilot text is unchanged, since pilot games are
+never copied.
