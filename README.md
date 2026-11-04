@@ -115,6 +115,7 @@ the [changelog](CHANGELOG.md).
 - [Email](docs/runbooks/email.md): sending invitations and game-night emails, the weekly
   routine, and what to delete when the study ends
 - [Restore drill](docs/runbooks/restore-drill.md): rehearsing a database restore on staging
+- [Monitoring](docs/runbooks/monitoring.md): the uptime checks, and what to do when one fails
 - [Releasing](docs/runbooks/release.md): publishing a new version
 
 ## Citing and licence

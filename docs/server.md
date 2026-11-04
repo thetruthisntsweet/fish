@@ -184,8 +184,11 @@ from the developer tools, and run:
 
     uv run python scripts/try_server.py https://fish-pilot.thedefinitivesanjeevexperience.com --session <value>
 
-It checks the page, `/study`, `/health`, `/auth/me` and the socket (hello, lobby, a room made
-and left) and prints PASS.
+It checks the page, `/study`, `/health`, `/health/db` (the database reachable, and at this
+checkout's newest migration, so run it from an up-to-date main), `/auth/me` and the socket
+(hello, lobby, a room made and left) and prints PASS. UptimeRobot checks `/health` and
+`/health/db` every 5 minutes and emails when either fails
+([runbooks/monitoring.md](runbooks/monitoring.md)).
 
 ## 8. How it is checked
 

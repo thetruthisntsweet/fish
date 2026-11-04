@@ -1060,3 +1060,16 @@ first to arrive, so a server that went by arrival would fail. The same test send
 inside the window (discarded, its sender told) and a press that had not seen an ask moving
 a card of its set (stale, R.8.7), and replays the recorded actions to the same call. No
 change to the server was needed.
+
+**D101 · 2026-11-03 · Uptime: two keyword checks per site, every 5 minutes, by email.**
+UptimeRobot's free plan checks each site from outside Render every 5 minutes and emails
+when a check fails and when it recovers. There are two checks per site: `/health` for the
+server and `/health/db` for its database. The server stays up when the database doesn't,
+and Render's own health check deliberately ignores the database (it must not restart a
+working server over it). Both are keyword checks (`"status":"ok"`, `"database":"ok"`), so a
+200 from something other than this server still fails. `scripts/try_server.py` now checks
+`/health/db` too, including that the database is at the checkout's newest migration, which
+shows whether a deploy finished. What to do on an alert is `docs/runbooks/monitoring.md`.
+Alternatives: Render's notifications alone, which report failed deploys but not an outside
+view of the site or a database the server can't reach; a paid plan with 1-minute checks,
+which a study with scheduled game nights doesn't need.
