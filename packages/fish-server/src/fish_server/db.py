@@ -97,6 +97,8 @@ def _confirmations() -> list[Column[bool]]:
     ]
 
 
+_TERMS_VERSION: Final = "terms_version IS NULL OR terms_version ~ '^v[0-9]+[.][0-9]+(-pilot)?$'"
+
 consents = Table(
     "consents",
     metadata,
@@ -105,13 +107,16 @@ consents = Table(
     _timestamp("at"),
     Column("version", Text, nullable=False),
     *_confirmations(),
+    Column("terms_version", Text, nullable=True),
     UniqueConstraint("consent_id", "player_id", "version"),
     CheckConstraint(_CONFIRMED, name="confirmed"),
     CheckConstraint("version ~ '^v[0-9]+[.][0-9]+(-pilot)?$'", name="version"),
+    CheckConstraint(_TERMS_VERSION, name="terms_version"),
 )
 """One row per acceptance of the consent screen (Consent Screen §3): which text was shown
-(``v1.0``, or ``v1.0-pilot`` on the staging site) and the three confirmations. A row is
-written only when all three are ticked, so they are always true; storing them keeps every
+(``v1.0``, or ``v1.0-pilot`` on the staging site), the three confirmations, and which terms
+of use and privacy policy were agreed to with it (T3.8; NULL before there were terms). A row
+is written only when all three are ticked, so they are always true; storing them keeps every
 row readable on its own."""
 
 withdrawals = Table(
@@ -147,6 +152,7 @@ sign_in_links = Table(
     _timestamp("created_at"),
     Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("consent_version", Text, nullable=True),
+    Column("terms_version", Text, nullable=True),
     Index(None, "email", "created_at"),
     Index(None, "created_at"),
     CheckConstraint("length(token_hash) = 64", name="token_hash"),
@@ -154,10 +160,12 @@ sign_in_links = Table(
         "consent_version IS NULL OR consent_version ~ '^v[0-9]+[.][0-9]+(-pilot)?$'",
         name="consent_version",
     ),
+    CheckConstraint(_TERMS_VERSION, name="terms_version"),
 )
 """``consent_version``: the consent text accepted, with all three confirmations, on the
-screen before the link was asked for (Consent Screen §2.5); it becomes an acceptance when the
-link is used. Nothing is stored before the person presses Continue."""
+screen before the link was asked for (Consent Screen §2.5), and ``terms_version`` the terms
+agreed to with it (T3.8); they become an acceptance when the link is used. Nothing is
+stored before the person presses Continue."""
 
 sign_in_uses = Table(
     "sign_in_uses",

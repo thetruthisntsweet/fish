@@ -92,10 +92,12 @@ def request_link(
     *,
     daily_limit: int,
     consent_version: str | None = None,
+    terms_version: str | None = None,
     lifetime: timedelta = LINK_LIFETIME,
 ) -> str:
     """A new link token for ``email`` (already normalized), carrying the acceptance of text
-    ``consent_version`` made on the screen before it, if any. Raises TooManyLinksError if the
+    ``consent_version``, with the terms ``terms_version``, made on the screen before it, if
+    any. Raises TooManyLinksError if the
     address or the server has had its share of links."""
     now = func.now()
     recent = conn.execute(
@@ -120,6 +122,7 @@ def request_link(
             email=email,
             expires_at=now + lifetime,
             consent_version=consent_version,
+            terms_version=terms_version,
         )
     )
     return token
@@ -131,7 +134,11 @@ def use_link(conn: Connection, token: str, *, cohort_seed: int) -> uuid.UUID | N
     expired, or it was used before."""
     hashed = token_hash(token)
     link = conn.execute(
-        select(db.sign_in_links.c.email, db.sign_in_links.c.consent_version)
+        select(
+            db.sign_in_links.c.email,
+            db.sign_in_links.c.consent_version,
+            db.sign_in_links.c.terms_version,
+        )
         .where(db.sign_in_links.c.token_hash == hashed)
         .where(db.sign_in_links.c.expires_at > func.now())
     ).one_or_none()
@@ -146,8 +153,8 @@ def use_link(conn: Connection, token: str, *, cohort_seed: int) -> uuid.UUID | N
     if used is None:
         return None
     player = player_for(conn, link.email, cohort_seed=cohort_seed)
-    if link.consent_version is not None:
-        accept(conn, player, link.consent_version)
+    if link.consent_version is not None and link.terms_version is not None:
+        accept(conn, player, link.consent_version, link.terms_version)
     return player
 
 

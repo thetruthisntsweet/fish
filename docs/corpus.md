@@ -50,7 +50,7 @@ Plan (§6) set them out; three append-only tables (T3.2, replacing T1.6's first 
 
 | Record | Fields |
 |---|---|
-| acceptance (`consents`) | `player_id`, `at`, `version` (the text shown: `v1.0`, or `v1.0-pilot` on staging), and the screen's three confirmations: `us_resident_adult` (lives in the US and is a legal adult there), `agrees` (to take part, including the CC BY 4.0 release), `no_outside_communication`. Written only when all three are ticked, so they are always true. No date of birth is stored |
+| acceptance (`consents`) | `player_id`, `at`, `version` (the text shown: `v1.0`, or `v1.0-pilot` on staging), and the screen's three confirmations: `us_resident_adult` (lives in the US and is a legal adult there), `agrees` (to take part, including the CC BY 4.0 release), `no_outside_communication`. Written only when all three are ticked, so they are always true. No date of birth is stored. Also `terms_version`, the terms of use and privacy policy agreed to with it (T3.8; empty before them), never exported |
 | seat flags (`seat_consents`) | for each person's seat, the version and the three confirmations, copied from that person's latest acceptance when the game starts, with the acceptance it came from |
 | withdrawal (`withdrawals`) | `player_id`, `at`, `channel` (`website` or `email`); a record of its own, never a change to an acceptance, and not undone by a later one |
 

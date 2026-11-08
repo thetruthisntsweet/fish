@@ -1135,3 +1135,18 @@ logs through `fish_server` rather than `print`. A test runs uvicorn with the Doc
 command behind a forwarded address and reads everything it writes. Alternatives: dropping
 `--proxy-headers`, which would leave the sign-in limit counting Render's proxy as one address;
 keeping the access log and disclosing it, which the user declined.
+
+**D106 · 2026-11-07 · The terms are agreed to with the consent screen, and recorded with it (T3.8).**
+Each acceptance (`consents`, and the `sign_in_links` an acceptance travels with) now names the
+version of the terms of use and privacy policy shown with it (migration 0007, `terms_version`).
+The two documents share one version, so a change to either is a new version of both. A person
+may play only while their latest acceptance is of the site's current text and current terms.
+A new version of either brings the same consent screen back, and the client needs no new
+screen for it. Rows from before the migration have no terms version, so those people accept
+again; on staging that is only test sign-ups, and production has none yet. The site's version
+is `FISH_TERMS_VERSION`: by default `v1.0`, or `v1.0-pilot` on a site showing a pilot text, and
+a mismatch stops the server starting. So neither site needs a new setting in `render.yaml`.
+The column is never exported: what a person agreed to as terms is not research data.
+Alternatives: a separate acceptance table and screen for the terms, which would mean two
+records and two screens for one moment of agreeing; a version tied to the consent text, which
+couldn't change without changing that text.

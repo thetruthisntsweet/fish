@@ -32,3 +32,11 @@ VERSIONS: Final[dict[str, Version]] = {
     "v1.0-pilot": Version(date(2027, 3, 31), datetime(2027, 4, 1, 4, tzinfo=UTC)),
 }
 """Every text this site can show, by version."""
+
+
+TERMS: Final[tuple[str, ...]] = ("v1.0", "v1.0-pilot")
+"""Every version of the terms of use and privacy policy this site can show (Terms and
+Privacy §1-3; T3.8). The two documents share a version: a change to either is a new version
+of both, accepted on the consent screen before the next game. ``-pilot`` versions are the
+pilot site's, shown with a pilot consent text. Like the consent texts, the web client holds
+each one word for word, and an old one is never changed."""

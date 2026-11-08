@@ -27,7 +27,7 @@ from fish_server.games import load_player
 from fish_server.hub import Connection, Hub, error
 from fish_server.lobby import Player
 from fish_server.protocol import PROTOCOL_VERSION, ClientHello, parse_client_message, server_hello
-from fish_server.settings import consent_version, server_commit
+from fish_server.settings import server_commit, shown
 
 
 @asynccontextmanager
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     games stopped without an ending; on shutdown, stop the games, which ends each one
     ``abandoned``, and close database connections."""
     logs.install()  # after uvicorn has set up its loggers: every line is scrubbed
-    hub = Hub(get_engine, server_commit(), consent_version())
+    hub = Hub(get_engine, server_commit(), shown())
     app.state.hub = hub
     hub.start()
     yield

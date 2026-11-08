@@ -14,6 +14,8 @@ const UNTICKED: Readonly<Record<Confirmation, boolean>> = {
 
 interface Props {
   text: StudyText;
+  /** The terms of use and privacy policy agreed to with it (T3.8). */
+  terms: string;
   /** A signed-in player whose accepted text is no longer the one shown (§2.8). */
   renewing: boolean;
   /** Called with the acceptance; resolves to a message to show, or null if it went through. */
@@ -21,7 +23,7 @@ interface Props {
   onDecline: () => void;
 }
 
-export function ConsentScreen({ text, renewing, onContinue, onDecline }: Props) {
+export function ConsentScreen({ text, terms, renewing, onContinue, onDecline }: Props) {
   const [ticked, setTicked] = useState(UNTICKED);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export function ConsentScreen({ text, renewing, onContinue, onDecline }: Props) 
     }
     setBusy(true);
     setProblem(null);
-    const message = await onContinue(acceptance(text.version));
+    const message = await onContinue(acceptance(text.version, terms));
     setBusy(false);
     setProblem(message);
   }

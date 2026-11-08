@@ -15,7 +15,7 @@ from sqlalchemy import Engine, create_engine, pool, select
 
 from fish_server import db
 from fish_server.consent import standing, withdraw
-from fish_server.settings import consent_version, database_url
+from fish_server.settings import database_url, shown
 from fish_server.signin import normalize_email
 
 
@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None, engine: Engine | None = None) -> int:
             if player is None:
                 print(f"No player has the address {email}; nothing recorded.")
                 return 1
-            if standing(conn, player, consent_version()).withdrawn:
+            if standing(conn, player, shown()).withdrawn:
                 print(f"{email} had already withdrawn; nothing more recorded.")
                 return 0
             withdraw(conn, player, "email")

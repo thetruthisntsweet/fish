@@ -57,7 +57,7 @@ def session(
     with app.begin() as conn:
         player = player_for(conn, email, cohort_seed=cohort_seed)
         if consented:
-            accept(conn, player, "v1.0")
+            accept(conn, player, "v1.0", "v1.0")
         return player, start_session(conn, player)
 
 

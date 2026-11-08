@@ -40,14 +40,17 @@ Continue, and No thanks sends nothing. `/information` shows the text a participa
 with its confirmations, and `/account` the version accepted, "Withdraw from the study" (asked
 twice) and Sign out. The footer links them. `GET /study`
 gives the version this site shows (`FISH_CONSENT_VERSION`: `v1.0`, or `v1.0-pilot` on
-staging), the last day its participants can withdraw on the website (`withdraw_until`), and
-whether they still can (`withdrawal_open`). The versions a site can show, and their last
+staging), the version of the terms of use and privacy policy agreed to with it
+(`terms_version`, T3.8: `FISH_TERMS_VERSION`, by default `v1.0`, or `v1.0-pilot` on a site
+showing a pilot text), the last day its participants can withdraw on the website
+(`withdraw_until`), and whether they still can (`withdrawal_open`). The versions a site can show, and their last
 days, are `fish_server.study`; the server refuses to start with any other.
 
-1. `POST /auth/link` with `{"email": …, "consent": {"version": …, "us_resident_adult": true,
-   "agrees": true, "no_outside_communication": true}}` emails a link (Resend on Render; printed in the
-   server's output locally). It answers 202 whether or not the address has played before,
-   and 422, storing nothing, for an acceptance of another version or with a box unticked.
+1. `POST /auth/link` with `{"email": …, "consent": {"version": …, "terms_version": …,
+   "us_resident_adult": true, "agrees": true, "no_outside_communication": true}}` emails a
+   link (Resend on Render; printed in the server's output locally). It answers 202 whether or
+   not the address has played before, and 422, storing nothing, for an acceptance of another
+   version of either text or with a box unticked.
    Someone signing in again sends `"consent": null`.
 2. The link opens `/sign-in`, a page with one button. Opening it uses nothing: mail scanners
    open links in emails by themselves.
@@ -60,19 +63,22 @@ days, are `fish_server.study`; the server refuses to start with any other.
 Only SHA-256 hashes of links and sessions are stored. Limits: 3 links per address in 15
 minutes, 10 requests per network address an hour, and 90 emails a day from the whole server
 (`FISH_SIGNIN_DAILY_LIMIT`), under Resend's free 100. `GET /auth/me` says whether a cookie
-signs in and where the player stands with the study (the version last accepted, whether
-withdrawn, whether they may play); `POST /auth/sign-out` ends the session.
+signs in and where the player stands with the study (the versions of the text and of the
+terms shown and last accepted, whether withdrawn, whether they may play); `POST
+/auth/sign-out` ends the session.
 
-- **A new version** of the text (Consent Screen §2.8): set `FISH_CONSENT_VERSION`, and each
-  player accepts it with `POST /consent` before their next game.
+- **A new version** of the text (Consent Screen §2.8), or of the terms (`fish_server.study.TERMS`
+  and `FISH_TERMS_VERSION`): each player accepts the consent screen again, with `POST /consent`,
+  before their next game. Each acceptance records both versions; one made before there were
+  terms (migration 0007) has none, so it is made again.
 - **Withdrawing** on the website: `POST /withdraw` with `{"confirm": true}`, until the end of
   the text's last day in US Eastern time (14 February 2027; 31 March 2027 for the pilot), and
   409 after. By email: in the `fish-staging` (or production) **Shell**,
   `python -m fish_server.withdraw <address>`, which has no deadline: you decide by hand.
   Either way it is a record of its own, made once and never undone; every game the person
   played leaves the corpus at the next export, and they cannot play again.
-- **Who may play:** only a player who has accepted the current text and not withdrawn may
-  join the queue or a room; anyone else is told why.
+- **Who may play:** only a player whose latest acceptance is of the current text and terms,
+  and who has not withdrawn, may join the queue or a room; anyone else is told why.
 
 ## 3. Matchmaking
 

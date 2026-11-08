@@ -71,6 +71,7 @@ export function Home({ site, onChange }: Props) {
       return (
         <ConsentScreen
           text={text}
+          terms={site.study.termsVersion}
           renewing={view.renewing}
           onContinue={(accepted) => continueWith(view.renewing, accepted)}
           onDecline={() => {
