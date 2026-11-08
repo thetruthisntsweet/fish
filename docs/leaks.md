@@ -7,7 +7,7 @@ R.8.3 for declarations, R.5.2 for votes). That covers a message's **content**, a
 **whether and when** it is sent: a message that arrives because of something hidden tells its
 reader that the hidden thing happened.
 
-The audit found two leaks of the second kind (§6), fixed in T3.7 subtask 2. Everything
+The audit found two leaks of the second kind, both fixed in T3.7 subtask 2 (§6). Everything
 else holds.
 
 What a seat's view may contain is decided once, in `fish_rules.view.project`, and tested
@@ -59,26 +59,27 @@ A seat is sent an update when something it is shown changes, and in a few cases 
 on a reconnect or a stale press (the state as it is now, R.8.7), and a last one when its seat
 is handed to a bot.
 
-**Finding 1.** The server sends every connected seat an update after **any** new entry. Two kinds of entry change nothing another seat is shown:
+**Finding 1 (fixed).** The server used to send every connected seat an update after **any**
+new entry. Two kinds of entry change nothing another seat is shown:
 - a **declaration** in an open window: the other five got an update identical to their last
   apart from its timers;
 - a **vote** in an after-call choice: only one's own vote is shown (R.5.2).
 
-The update's arrival tells everyone that someone has declared or voted, and exactly when. It
-doesn't say who. The fix: an update goes to a seat only when its content changes. The time
-left on a timer doesn't count as a change, but a timer starting, stopping or moving its
-deadline does.
+The update's arrival told everyone that someone had declared or voted, and exactly when. It
+didn't say who. Now an update goes to a seat only when its content changes. The time left on
+a timer doesn't count as a change, but a timer starting, stopping or moving its deadline does
+(`fish_server.game`; tests in `test_game.py`, and over real sockets in `test_end_to_end.py`).
 
 ## 4. Pings
 
 The server pings each connected person every 5 seconds to time the round trip
 (`round-trip time` in the Research Plan §6).
 
-**Finding 2.** The nonce comes from one counter shared by the whole game. So the gap between
-two pings to a seat counts the pings sent to the other seats meanwhile. When a person drops
-out, their pings stop and the gaps shrink: the others can tell, up to 30 seconds before the
-bot takes the seat (R.8.4), and they can tell when the person comes back. The fix: each seat
-counts its own pings, 1, 2, 3 and so on.
+**Finding 2 (fixed).** The nonce came from one counter shared by the whole game. So the gap
+between two pings to a seat counted the pings sent to the other seats meanwhile. When a person
+dropped out, their pings stopped and the gaps shrank: the others could tell, up to 30 seconds
+before the bot took the seat (R.8.4), and could tell when the person came back. Now each seat
+counts its own pings, 1, 2, 3 and so on, and a pong is matched by its seat and nonce together.
 
 ## 5. Over HTTP
 
@@ -99,8 +100,8 @@ Unknown paths get the standard 404, and `/health/db` names no host in an error.
 
 | | Finding | Reveals | Fix | Status |
 |---|---|---|---|---|
-| 1 | Every entry sent every seat an update | that someone declared in a window, or voted in a choice, and when (R.4.3, R.5.2, R.8.3) | an update only when the seat's own content changes (T3.7 subtask 2) | open |
-| 2 | Ping nonces came from one counter for the whole game | whether another person is connected, before a bot takes the seat (R.8.4) | a counter per seat (T3.7 subtask 2) | open |
+| 1 | Every entry sent every seat an update | that someone declared in a window, or voted in a choice, and when (R.4.3, R.5.2, R.8.3) | an update only when the seat's own content changes (T3.7 subtask 2) | fixed |
+| 2 | Ping nonces came from one counter for the whole game | whether another person is connected, before a bot takes the seat (R.8.4) | a counter per seat (T3.7 subtask 2) | fixed |
 
 ## 7. What clients send
 

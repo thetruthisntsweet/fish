@@ -149,12 +149,19 @@ refused ([`protocol.py`](../packages/fish-server/src/fish_server/protocol.py), p
 | `join_queue`, `create_room`, `join_room`, `leave` | the lobby | `lobby` | waiting for what, with how many |
 | `press` | `set_id` and `seen` | `update` | the seat's `fish-view-v1` view, `actions`, `pressable`, `timers`, `bots` |
 | `act` | an action index (`fish-action-index-v1`, from the player's seat) | `rejected` | `illegal`, `stale` or `malformed`; `discarded` in a window |
-| `pong` | the `ping`'s nonce | `ping` | every 5 s (R.8.7) |
+| `pong` | the `ping`'s nonce | `ping` | every 5 s (R.8.7), numbered 1, 2, 3 for each seat on its own |
 | `note_answer` | `yes`, `no` or `declined` | `note_question` | after a game the rules ended, to each person still in it: "Did you take notes during this game?" (`v1`) |
 | | | `error` | `protocol_version`, `bad_message`, `not_signed_in`, `not_now` |
 
 The view's own `legal` list is the environment's mask; a website client offers exactly
 `update.actions` and `update.pressable`.
+
+A seat is sent an `update` only when what it shows has changed: its view, actions,
+pressable sets or bots, or when a timer starts, stops or moves. The time left alone doesn't
+count. So a declaration in a window, or a vote in a choice, reaches only the seat that made
+it (R.8.3, R.5.2). A reconnection or a rejected input gets the state as it is now regardless,
+and a person whose seat is handed to a bot gets a last one. Why, and everything else the server
+sends: [leaks.md](leaks.md).
 
 ## 6. What is written, and when
 

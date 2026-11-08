@@ -8,13 +8,12 @@ import dataclasses
 import uuid
 from collections.abc import Sequence
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from fish_agents.memory import MemorySetting
 from fish_rules.action_index import encode
-from fish_rules.cards import SEATS, set_cards
+from fish_rules.cards import SEATS, set_cards, team_of
 from fish_rules.corpus import read_corpus_record
 from fish_rules.events import Ask, CallEvent, Declare, OpenWindow
 from fish_rules.rng import SplitMix64
@@ -27,15 +26,17 @@ from fish_server.game import (
     Connected,
     Disconnected,
     End,
+    Event,
     Game,
     Malformed,
+    Out,
     Ponged,
     Pressed,
     Release,
     Send,
 )
 from fish_server.protocol import Ping, Rejected, Update
-from fish_server.table import RECONNECT_US, SECOND_US, TURN_US, Controller
+from fish_server.table import ASSIGN_US, RECONNECT_US, SECOND_US, TURN_US, Controller
 
 U64 = st.integers(min_value=0, max_value=2**64 - 1)
 GAMES: int = max(10, int(settings().max_examples) // 40)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
@@ -102,7 +103,6 @@ def test_a_press_is_shown_to_everyone() -> None:
 # ---------------------------------------------------------------- leaks (T3.7, docs/leaks.md)
 
 
-@pytest.mark.xfail(strict=True, reason="docs/leaks.md finding 1: fixed in T3.7 subtask 2")
 def test_r8_3_a_declaration_is_not_announced_by_an_update_to_the_others() -> None:
     """A declaration changes nothing another seat is shown, so only its maker hears of it."""
     game = new_game()
@@ -112,7 +112,62 @@ def test_r8_3_a_declaration_is_not_announced_by_an_update_to_the_others() -> Non
     assert set(sends(outs, Update)) == {2}
 
 
-@pytest.mark.xfail(strict=True, reason="docs/leaks.md finding 2: fixed in T3.7 subtask 2")
+def test_r5_2_a_vote_is_not_announced_but_the_choice_it_completes_is() -> None:
+    """Only a voter's own vote is shown (R.5.2), so a vote reaches nobody else; the vote that
+    completes the choice changes what everyone sees, so everyone is sent it."""
+    game = new_game()
+    caller = current(game)
+    game.handle(Pressed(caller, game.table.state.sets_in_play()[0], None), 10)
+    game.wake(10 + SECOND_US)  # the window closes: the caller assigns
+    game.wake(10 + SECOND_US + ASSIGN_US)  # and runs out of time, so the call is wrong
+    choice = game.table.state.choice
+    assert game.table.state.phase is Phase.VOTE
+    assert choice is not None
+    voters = [s for s in SEATS if team_of(s) == choice.team]
+    at = 10 + SECOND_US + ASSIGN_US + 1
+    for i, voter in enumerate(voters):
+        vote = game.table.actions(voter)[0]
+        outs = game.handle(Acted(voter, encode(vote)), at + i)
+        if i < len(voters) - 1:
+            assert set(sends(outs, Update)) == {voter}, f"vote {i + 1} was announced"
+        else:
+            assert set(sends(outs, Update)) == set(SEATS)  # the choice is made: public
+
+
+@settings(max_examples=GAMES, deadline=None)
+@given(U64, U64)
+def test_no_seat_is_sent_an_update_that_shows_it_nothing_new(game_seed: int, rng_seed: int) -> None:
+    """Whole random games through ``Game``: apart from a resync (a reconnection, a rejected
+    input) and a last update before a handover, every update shows its seat something its
+    previous one didn't, beyond the time left on a timer (docs/leaks.md §3)."""
+    game = Game(uuid.uuid4(), game_seed, [uuid.uuid4() for _ in SEATS])
+    last: dict[int, object] = {}
+    handle, wake = game.handle, game.wake
+
+    def checked(outs: list[Out], resync: set[int]) -> list[Out]:
+        resync |= {o.seat for o in outs if isinstance(o, Release)}
+        resync |= {o.seat for o in outs if isinstance(o, Send) and isinstance(o.message, Rejected)}
+        for out in outs:
+            if isinstance(out, Send) and isinstance(out.message, Update):
+                shown = (
+                    out.message.model_dump(exclude={"timers"}),
+                    [t.name for t in out.message.timers],
+                )
+                assert out.seat in resync or shown != last.get(out.seat), "an empty update"
+                last[out.seat] = shown
+        return outs
+
+    def handled(event: Event, now: int) -> list[Out]:
+        return checked(handle(event, now), {event.seat} if isinstance(event, Connected) else set())
+
+    game.handle = handled  # pyright: ignore[reportAttributeAccessIssue]
+    game.wake = lambda now: checked(wake(now), set())  # pyright: ignore[reportAttributeAccessIssue]
+    for seat in SEATS:
+        game.handle(Connected(seat), 0)
+    play(SplitMix64(rng_seed), game, 400)
+    assert game.ended
+
+
 def test_r8_4_ping_nonces_do_not_count_the_other_seats_pings() -> None:
     """Each seat's pings are numbered 1, 2, 3 ... on their own: the gaps between them must
     not show how many others are connected."""
@@ -135,7 +190,7 @@ def test_r8_7_people_are_pinged_on_connecting_and_every_5_seconds() -> None:
     nonce = pings[2].nonce
     game.handle(Ponged(2, nonce), 38_000)
     game.handle(Ponged(2, nonce), 39_000)  # answered once only
-    game.handle(Ponged(3, pings[4].nonce), 40_000)  # not seat 3's
+    game.handle(Ponged(3, pings[3].nonce + 1), 40_000)  # not a nonce seat 3 was sent
     assert [(r["seat"], r["rtt_us"]) for r in game.table.log if r["type"] == "rtt"] == [(2, 38_000)]
     assert game.next_wake() == PING_US
     assert set(sends(game.wake(PING_US), Ping)) == set(SEATS)

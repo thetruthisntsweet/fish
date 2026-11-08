@@ -44,6 +44,7 @@ from fish_server import db, table
 from fish_server.app import app as server
 from fish_server.auth import COOKIE, limiter
 from fish_server.corpus_export import export
+from fish_server.game import PING_US
 from fish_server.mailer import MemoryMailer, mailer
 from fish_server.protocol import PROTOCOL_VERSION
 from fish_server.settings import COHORT_SEED_VAR, CONSENT_VERSION_VAR, database_url
@@ -392,6 +393,7 @@ class Client:
         self.ws = ws
         self.inbox: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self.updates: list[dict[str, Any]] = []
+        self.nonces: list[int] = []
         self.reader = asyncio.create_task(self._read())
 
     async def _read(self) -> None:
@@ -399,6 +401,7 @@ class Client:
             async for raw in self.ws:
                 message = json.loads(raw)
                 if message["type"] == "ping":
+                    self.nonces.append(message["nonce"])
                     await self.ws.send(json.dumps({"type": "pong", "nonce": message["nonce"]}))
                     continue
                 if message["type"] == "update":
@@ -518,3 +521,44 @@ def test_six_presses_at_once_open_one_window_and_r8_1_picks_the_call(
     *_, (final, _) = replay(seed, actions)
     assert final.call is not None
     assert (final.call.caller, final.call.set_id) == (caller, named)
+
+
+# ---------------------------------------------------------------- leaks (T3.7)
+
+
+def test_a_declaration_reaches_only_its_maker_and_pings_count_only_their_own_seat(
+    app: Engine, site: Site
+) -> None:
+    """docs/leaks.md §3, §4, over real sockets. One person opens a window and another declares
+    in it: the other four are sent nothing between the window opening and closing, so nothing
+    tells them a declaration was made (R.8.3). And each person's pings are numbered 1, 2, 3 on
+    their own, whoever else is connected (R.8.4)."""
+    where = site[0]
+    people = sign_up(app, site, 6)
+
+    async def scenario() -> tuple[int, int, dict[Seat, Client]]:
+        seat = await seated(where, people)
+        opener, declarer = 0, 1
+        await seat[opener].send({"type": "press", "set_id": 0, "seen": None})
+        for client in seat.values():
+            await client.until(lambda u: u["view"]["phase"] == "window")
+        await seat[declarer].send({"type": "press", "set_id": 1, "seen": None})
+        for client in seat.values():
+            await client.until(lambda u: u["view"]["phase"] == "assign")
+        await asyncio.sleep(PING_US / 1_000_000 + 0.5)  # a second ping for everyone
+        for client in seat.values():
+            await client.ws.close()
+            await client.reader
+        return opener, declarer, seat
+
+    _, declarer, seat = asyncio.run(asyncio.wait_for(scenario(), timeout=60))
+    for s, client in seat.items():
+        in_window = [u for u in client.updates if u["view"]["phase"] == "window"]
+        if s == declarer:
+            assert [u["view"]["window"]["own_declaration"] for u in in_window] == [None, 1]
+        else:
+            assert len(in_window) == 1, f"seat {s} heard of the declaration"
+        assert client.nonces[:2] == [1, 2], f"seat {s}'s pings: {client.nonces}"
+    with app.connect() as conn:
+        kinds = [r.action["type"] for r in conn.execute(select(db.actions.c.action))]
+    assert kinds.count("Declare") == 2  # the opener's and the declarer's

@@ -1225,3 +1225,24 @@ Both are shown by strict expected-failure tests in `test_game.py`, which subtask
 into passing ones. "Every outbound client payload" (Task Order T3.7) is read as everything sent
 *to* a client. What clients send carries only what they already know, and goes only to the
 server, so the audit lists it without finding anything to fix there.
+
+**D112 · 2026-11-07 · A seat hears only of what changes for it; each seat counts its own pings (T3.7).**
+These fix the audit's two findings (D111, docs/leaks.md §3, §4).
+
+`Game` now remembers what it last sent each seat. It sends a new update only when the update
+differs from that, comparing everything but the time left on the timers: their deadlines
+instead. A declaration or a vote changes only its maker's update, so only its maker is sent
+one. The exceptions are deliberate: a reconnection and a rejected input get the state as it is
+now (R.8.7), and a last update goes to a person whose seat is handed over. Comparing deadlines
+rather than names is what lets a timer that starts or moves still count as a change. Neither
+timer moves on a hidden entry: the turn timer is off during windows and choices, and the phase
+timer runs from the phase change.
+
+Ping nonces are now counted per seat, and a pong is matched by its seat and nonce together.
+The round trips written are unchanged.
+
+Tests show both leaks: a declaration and a vote, a whole-game property that no seat is sent an
+update showing it nothing new, and the same over real sockets. Each failed on the old code.
+Alternatives: sending every seat an update at fixed intervals, which hides the timing but adds
+traffic and delay to every change; a dummy update to every seat after each hidden entry, which
+would still show that one happened.
