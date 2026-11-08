@@ -5,10 +5,11 @@ each week's pace, bot handovers, and how long games take. Counts only, never an 
 
 Run it in the service's **Shell** every Monday, before that week's M4 (docs/recruitment.md
 §3): if two full weeks in a row fall short of 110 corpus games, it says to add a Friday night.
-On the pilot site it leaves out the target and the pace, and its game length gives M3's
-``{N}``. A game counts for the corpus exactly as the export decides
-(``fish_server.corpus_export.membership``), so a withdrawal lowers past weeks too. Weeks run
-Monday to Sunday, Eastern time, as the game nights do.
+On the pilot site it leaves out the target and the pace. M3's ``{N}`` comes from
+``fish_server.pilot_report`` instead, which leaves out games from before the pilot. A game
+counts for the corpus exactly as the export decides (``fish_server.corpus_export.membership``),
+so a withdrawal lowers past weeks too. Weeks run Monday to Sunday, Eastern time, as the game
+nights do.
 """
 
 import argparse

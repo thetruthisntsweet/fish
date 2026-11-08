@@ -92,14 +92,17 @@ In this order:
 1. **The report**, in `fish-staging`'s Shell:
 
    ```bash
-   python -m fish_server.pilot_report --since 2026-12-01
+   python -m fish_server.pilot_report --since 2026-12-01 --out /tmp/pilot.json
+   cat /tmp/pilot.json
    ```
 
-   It counts only games started from 1 December, so your earlier test games are left out
-   (T4.2 subtask 2). Copy what it prints into §6.
+   It counts only games started from 1 December, so your earlier test games are left out.
+   Copy what it prints into §6. Then copy what `cat` prints into a file `pilot.json` on
+   your laptop. It holds every percentile of the response times, which step 3 needs, and
+   the Shell's `/tmp` is gone at the next deploy. It names no game or player.
 2. **The game length.** The report's median game length, rounded to five minutes, is M3's
    `{N}`. Send M3 on Tuesday 8 December with it (email.md §3).
-3. **The bots' delays.** The report's response-time percentiles go into
+3. **The bots' delays.** The response-time percentiles in `pilot.json` go into
    `bot_delays.json` with a new version, through a PR, deployed to production before it opens
    (T4.2 subtask 3).
 4. **The minimum detectable effects** are computed from the same games and recorded in

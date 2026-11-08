@@ -73,6 +73,7 @@ All from the repository root.
 | Make a release | [runbooks/release.md](runbooks/release.md) |
 | Export the corpus (docs/corpus.md §7) | `uv run --env-file .env python -m fish_server.corpus_export --out corpus.jsonl` (`.jsonl.gz`: gzipped) |
 | Check a copy of an export | `uv run python scripts/check_export.py corpus.jsonl.gz` |
+| What the pilot measured (runbooks/pilot.md §4) | `python -m fish_server.pilot_report --since 2026-12-01 --out /tmp/pilot.json`, in `fish-staging`'s Shell |
 | Answer a request about an address, or delete the email list (runbooks/requests.md) | `python -m fish_server.contacts show\|correct\|forget\|forget-everyone …`, in the Render Shell |
 | Regenerate client types after changing `protocol.py` | `scripts/gen_types.sh` |
 | Create a migration after changing `fish_server/db.py` | `uv run --env-file .env alembic revision --autogenerate --rev-id 0003 -m "what changed"` (next free number; read the file it writes) |
