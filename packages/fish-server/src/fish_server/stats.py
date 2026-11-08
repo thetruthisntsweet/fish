@@ -35,6 +35,7 @@ DAYS_SHOWN: Final = 14
 
 LEFT_OUT: Final[dict[Standing, str]] = {
     "abandoned": "abandoned",
+    "other_ruleset": "another ruleset",
     "withdrawn": "a person withdrew",
     "unconsented": "a seat without consent",
     "no_person": "no person played",

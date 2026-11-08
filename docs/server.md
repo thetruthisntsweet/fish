@@ -3,7 +3,7 @@
 How the website's server plays a game (T3.1, T3.2, T3.3): the website itself, consent and
 signing in, matchmaking, the website's rules around the engine, the messages, what is written
 to the database as a game is played, and how a game that cannot go on ends.
-The rules are the Canonical Ruleset v1.1 ([rules.md](rules.md)); what is recorded is
+The rules are the Canonical Ruleset v1.2 ([rules.md](rules.md)); what is recorded is
 [corpus.md](corpus.md). The server is the `fish-server` package, which is not published.
 
 ## 1. The pieces

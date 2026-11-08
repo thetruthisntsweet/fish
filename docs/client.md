@@ -3,7 +3,7 @@
 The website players use (T3.3, T3.4): React and TypeScript in `client/`, built by Vite and
 served by the game server itself ([server.md](server.md) §2). It holds no rules logic of its
 own (Plan §3): it shows what the server sends and offers exactly what the server allows. The
-rules are the Canonical Ruleset v1.1 ([rules.md](rules.md)).
+rules are the Canonical Ruleset v1.2 ([rules.md](rules.md)).
 
 ## 1. The pages
 

@@ -79,6 +79,7 @@ class Summary:
     no_person: int = 0
     unconsented: int = 0
     withdrawn: int = 0
+    other_ruleset: int = 0
     pseudonyms: dict[uuid.UUID, str] = field(default_factory=dict[uuid.UUID, str])
 
     def lines(self) -> list[str]:
@@ -90,6 +91,7 @@ class Summary:
             f"left out, no person played: {self.no_person}",
             f"left out, a person's seat without consent: {self.unconsented}",
             f"left out, a person withdrew: {self.withdrawn}",
+            f"left out, played under another ruleset: {self.other_ruleset}",
             f"people: {len(self.pseudonyms)}",
         ]
 
@@ -200,9 +202,11 @@ def _record(
 
 
 type Standing = Literal[
-    "exported", "not_ended", "abandoned", "no_person", "withdrawn", "unconsented"
+    "exported", "not_ended", "abandoned", "other_ruleset", "no_person", "withdrawn", "unconsented"
 ]
-"""Where a stored game stands with the corpus: in it, or why it is left out."""
+"""Where a stored game stands with the corpus: in it, or why it is left out. A game played
+under another ruleset version is analysed apart from this one's (R.10.2), so this corpus
+leaves it out: only test games on staging were played under v1.1."""
 
 
 def membership(conn: Connection) -> dict[uuid.UUID, Standing]:
@@ -216,16 +220,18 @@ def membership(conn: Connection) -> dict[uuid.UUID, Standing]:
         ).scalars()
     )
     games = conn.execute(
-        select(db.games.c.game_id, db.game_endings.c.completion).outerjoin(
+        select(db.games.c.game_id, db.game_endings.c.completion, db.games.c.ruleset).outerjoin(
             db.game_endings, db.games.c.game_id == db.game_endings.c.game_id
         )
     )
     standing: dict[uuid.UUID, Standing] = {}
-    for game_id, completion in games:
+    for game_id, completion, ruleset in games:
         if completion is None:
             standing[game_id] = "not_ended"
         elif completion not in COMPLETED:
             standing[game_id] = "abandoned"
+        elif ruleset != RULESET_VERSION:
+            standing[game_id] = "other_ruleset"
         elif game_id not in people:
             standing[game_id] = "no_person"
         elif game_id in withdrawn:

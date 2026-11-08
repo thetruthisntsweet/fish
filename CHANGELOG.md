@@ -10,6 +10,11 @@ name: a change to one is never silent, and is always listed here.
 
 ### fish-rules
 
+- Canonical Ruleset v1.2 (`RULESET_VERSION = "1.2"`): R.8.8 states how website bots' delays
+  are drawn after the pilot, from people's response times for the same kind of decision, by a
+  delay table each game records. Play is unchanged everywhere, and in the environment
+  entirely: the golden games and the replay digest differ only in the version they carry.
+
 - The corpus record is now `fish-corpus-v2` (`fish_rules.corpus`): each person's seat carries
   `consent`, the flags it copied from that person's acceptance of the consent screen when the
   game started (the text's `version`, and `us_resident_adult`, `agrees` and

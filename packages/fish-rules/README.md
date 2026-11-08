@@ -1,7 +1,7 @@
 # fish-rules
 
 The rules engine for **Fish**, a six-player team card game of asking, deduction and calls,
-as specified by the Canonical Ruleset v1.1. It is the foundation of the
+as specified by the Canonical Ruleset v1.2. It is the foundation of the
 [Fish benchmark](https://github.com/thetruthisntsweet/fish).
 
 - **Deterministic.** A game is its seed and its actions: replaying them gives the same states

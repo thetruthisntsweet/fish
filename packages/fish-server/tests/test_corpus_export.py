@@ -25,7 +25,15 @@ from fish_rules.playout import random_website_game
 from fish_rules.state import State, new_game, state_hash
 from fish_rules.version import RULESET_VERSION
 from fish_server import db
-from fish_server.corpus_export import ExportError, Summary, export, main, records, sha256
+from fish_server.corpus_export import (
+    ExportError,
+    Summary,
+    export,
+    main,
+    membership,
+    records,
+    sha256,
+)
 from fish_server.games import latest_consent
 from fish_server.settings import database_url
 
@@ -324,11 +332,18 @@ def test_only_completed_games_with_a_person_enter(app: Engine) -> None:
 # ---------------------------------------------------------------- refusing bad games
 
 
-def test_a_game_under_another_ruleset_stops_the_export(app: Engine) -> None:
+def test_a_game_under_another_ruleset_is_left_out(app: Engine) -> None:
+    """R.10.2: games under different ruleset versions are analysed separately, so this
+    corpus, of this version's games, leaves an older one out and says so."""
     with app.begin() as conn:
-        add_game(conn, 5, table(conn), ruleset="1.0")
-    with pytest.raises(ExportError, match=r"ruleset '1\.0'"), app.connect() as conn:
-        export(conn)
+        add_game(conn, 5, table(conn), ruleset="1.1")
+        add_game(conn, 6, table(conn))
+    with app.connect() as conn:
+        records, summary = export(conn)
+        assert set(membership(conn).values()) == {"other_ruleset", "exported"}
+    assert [read_corpus_record(r).seed for r in records] == [6]
+    assert summary.other_ruleset == 1
+    assert "left out, played under another ruleset: 1" in summary.lines()
 
 
 def test_a_record_that_does_not_read_stops_the_export(app: Engine) -> None:
@@ -380,7 +395,7 @@ def test_the_command_refuses_to_overwrite_and_reports_failures(
         main(["--out", str(existing)])
     assert stopped.value.code == 2
     with app.begin() as conn:
-        add_game(conn, 5, table(conn), ruleset="1.0")
+        add_game(conn, 5, table(conn), max_actions=10, ending="finished")  # does not read
     out = tmp_path / "corpus.jsonl"
     out.unlink()
     assert main(["--out", str(out)]) == 1

@@ -1,4 +1,4 @@
-# Canonical Ruleset v1.1
+# Canonical Ruleset v1.2
 
 The rules of Fish as this project plays them. `fish_rules` implements them exactly; every
 game record carries the version it was played under (R.10.2), and `RULESET_VERSION` in
@@ -148,9 +148,13 @@ multi-agent environment has no timers and asks every agent in every declaration 
   and records it in the event log, so analyses of call races can control for connection
   speed. An illegal action is rejected; the player is shown the current state and acts again.
 - **R.8.8** Bots on the website wait before every action and every Call press. The delay is
-  drawn at random, seeded by the game's seed, from 1.5 to 4 seconds until pilot data exists,
-  and afterwards from the response-time distribution observed in the pilot (T4.2). Bot delays
-  are recorded in the event log, and bot actions remain excluded from response-time analysis.
+  drawn at random, seeded by the game's seed, from a delay table. On the pilot site, and
+  anywhere before pilot data exists, the table draws 1.5 to 4 seconds uniformly. On the
+  study's site it draws from the response times people took in the pilot (T4.2) for the same
+  kind of decision: a turn (an ask, or a call on a turn or in run-out), a Call press, an
+  assignment, or an after-call choice or vote. Each game records the version of the table it
+  used. Bot delays are recorded in the event log, and bot actions remain excluded from
+  response-time analysis.
   After every event, each bot decides whether to declare a call. If it does, it presses Call
   once its delay has passed, provided no window is open and no call assignment or after-call
   choice is in progress at that moment; otherwise its decision is dropped, and it decides
@@ -178,7 +182,7 @@ R.9 is one rule for citations; its points are not numbered.
 
 ## R.10 Versioning
 
-- **R.10.1** This is ruleset v1.1. Any change to a rule creates a new version with a dated
+- **R.10.1** This is ruleset v1.2. Any change to a rule creates a new version with a dated
   changelog entry below.
 - **R.10.2** Every game record carries the ruleset version it was played under. Games played
   under different versions are analysed separately unless the change cannot affect play.
@@ -188,3 +192,7 @@ R.9 is one rule for citations; its points are not numbered.
 - v1.0 (Oct 2026): first canonical version.
 - v1.1 (Oct 2026): R.5.2 states which seats the game seed chooses among. No games were played
   under v1.0.
+- v1.2 (Nov 2026): R.8.8 states how bot delays are drawn after the pilot: from the pilot's
+  response times for the same kind of decision, by a delay table each game records. Only the
+  author's test games were played under v1.1, and no game in the environment is affected:
+  R.8.8 applies only on the website.

@@ -23,7 +23,7 @@ from fish_rules.version import RULESET_VERSION
 
 ROOT: Final = Path(__file__).resolve().parent.parent
 
-RULES_VERSION: Final = "1.1"
+RULES_VERSION: Final = "1.2"
 """The ruleset version RULES lists. A new version needs RULES checked against it."""
 
 RULES: Final[tuple[str, ...]] = (

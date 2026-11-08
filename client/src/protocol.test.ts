@@ -17,7 +17,7 @@ test("generated message types match the server's messages", () => {
   const reply: ServerHello = {
     type: "server_hello",
     protocol_version: 3,
-    ruleset_version: "1.1",
+    ruleset_version: "1.2",
     rng_algorithm: "splitmix64-sha256-v1",
   };
   const press: Press = { type: "press", set_id: 3, seen: null };
