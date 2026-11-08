@@ -100,6 +100,8 @@ the [changelog](CHANGELOG.md).
   fails
 - [Server](docs/server.md): the website's game server: signing in, matchmaking, the
   website's rules, the messages, and what is written as a game is played
+- [Leak audit](docs/leaks.md): everything the server sends a player, what it comes from, and
+  why that player may know it, including when each message is sent
 - [Client](docs/client.md): the website players use: the lobby, the table, taking actions,
   and the game connection
 - [Corpus](docs/corpus.md): what every website game records, who is in the corpus, and what

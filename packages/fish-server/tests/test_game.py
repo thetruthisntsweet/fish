@@ -8,6 +8,7 @@ import dataclasses
 import uuid
 from collections.abc import Sequence
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -96,6 +97,31 @@ def test_a_press_is_shown_to_everyone() -> None:
     outs = game.handle(Pressed(4, 0, None), 10)
     assert set(sends(outs, Update)) == set(SEATS)
     assert game.table.state.phase is Phase.WINDOW
+
+
+# ---------------------------------------------------------------- leaks (T3.7, docs/leaks.md)
+
+
+@pytest.mark.xfail(strict=True, reason="docs/leaks.md finding 1: fixed in T3.7 subtask 2")
+def test_r8_3_a_declaration_is_not_announced_by_an_update_to_the_others() -> None:
+    """A declaration changes nothing another seat is shown, so only its maker hears of it."""
+    game = new_game()
+    game.handle(Pressed(4, 0, None), 10)  # opens the window: everyone sees that
+    outs = game.handle(Pressed(2, 3, None), 20)  # seat 2 declares, hidden from the rest
+    assert game.table.state.phase is Phase.WINDOW
+    assert set(sends(outs, Update)) == {2}
+
+
+@pytest.mark.xfail(strict=True, reason="docs/leaks.md finding 2: fixed in T3.7 subtask 2")
+def test_r8_4_ping_nonces_do_not_count_the_other_seats_pings() -> None:
+    """Each seat's pings are numbered 1, 2, 3 ... on their own: the gaps between them must
+    not show how many others are connected."""
+    game = new_game()
+    first = sends(game.wake(0), Ping)
+    game.handle(Disconnected(5), SECOND_US)
+    second = sends(game.wake(PING_US), Ping)
+    assert {seat: ping.nonce for seat, ping in first.items()} == dict.fromkeys(SEATS, 1)
+    assert {seat: ping.nonce for seat, ping in second.items()} == dict.fromkeys(SEATS[:5], 2)
 
 
 # ---------------------------------------------------------------- pings (R.8.7)

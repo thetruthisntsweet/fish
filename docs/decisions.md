@@ -1209,3 +1209,19 @@ true:
 - requests and the 31 March deletion have a command and a runbook (D109).
 
 Still done by hand: the live check on staging before the pilot, and each request as it comes.
+
+**D111 · 2026-11-07 · The leak audit covers when a message is sent, not only what it says (T3.7).**
+`docs/leaks.md` lists everything the server sends a browser: each WebSocket message and its
+fields, each HTTP response, what each is computed from, and the rule that lets its reader know
+it. The projection's own leak tests (D32) cover a view's content. The audit adds the rest of
+each update, the other messages, and whether and when each is sent, because a message that
+arrives because of something hidden reveals it. It found two leaks of that kind:
+- every new entry sent every seat an update, so a declaration in a window (R.8.3) or a vote in a
+  choice (R.5.2) was announced by an update to the others;
+- ping nonces came from one counter per game, so the gaps between a seat's pings showed whether
+  others were connected, before a bot took the seat (R.8.4).
+
+Both are shown by strict expected-failure tests in `test_game.py`, which subtask 2's fixes turn
+into passing ones. "Every outbound client payload" (Task Order T3.7) is read as everything sent
+*to* a client. What clients send carries only what they already know, and goes only to the
+server, so the audit lists it without finding anything to fix there.
