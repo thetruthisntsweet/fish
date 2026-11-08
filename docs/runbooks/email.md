@@ -146,7 +146,9 @@ run it again.
 
 ## 5. After 31 March 2027
 
-The email list is deleted that day (Research Plan §6), and Resend's copy with it: in Resend,
+The email list is deleted that day (Research Plan §6): in the database with
+`python -m fish_server.contacts forget-everyone --yes` ([requests.md](requests.md) §6), and
+Resend's copy with it: in Resend,
 delete every contact and segment, then revoke the `broadcasts (laptop)` key and remove it from
 your keychain (`security delete-generic-password -s fish-resend-broadcast`). Move both plans
 back to free.

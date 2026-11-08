@@ -116,6 +116,7 @@ the [changelog](CHANGELOG.md).
   routine, and what to delete when the study ends
 - [Restore drill](docs/runbooks/restore-drill.md): rehearsing a database restore on staging
 - [Backups](docs/runbooks/backups.md): what is backed up where, and the weekly corpus copy
+- [Requests](docs/runbooks/requests.md): answering requests about personal data, and deleting the email list on 31 March 2027
 - [Monitoring](docs/runbooks/monitoring.md): the uptime checks, and what to do when one fails
 - [Releasing](docs/runbooks/release.md): publishing a new version
 

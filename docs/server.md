@@ -79,6 +79,10 @@ terms shown and last accepted, whether withdrawn, whether they may play); `POST
   `python -m fish_server.withdraw <address>`, which has no deadline: you decide by hand.
   Either way it is a record of its own, made once and never undone; every game the person
   played leaves the corpus at the next export, and they cannot play again.
+- **Requests about an address** (T3.8): `python -m fish_server.contacts` shows what is held
+  about it, corrects it, or deletes it with its sign-in links and sign-ins; and on 31 March
+  2027 deletes every address and sign-in record (`forget-everyone`). It connects as the owner,
+  since the server's login may only add to these tables ([runbooks/requests.md](runbooks/requests.md)).
 - **Who may play:** only a player whose latest acceptance is of the current text and terms,
   and who has not withdrawn, may join the queue or a room; anyone else is told why.
 
