@@ -121,3 +121,4 @@ date in §5.
 
 | Date | What | By |
 |---|---|---|
+| 2026-11-07 | Set up; trial copy matched (exported 0, same sha256) | Sanjeev |
