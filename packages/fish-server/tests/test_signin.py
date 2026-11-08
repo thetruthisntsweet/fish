@@ -269,6 +269,8 @@ def test_signing_in_from_start_to_finish(client: tuple[TestClient, MemoryMailer]
     assert mail.sent[-1]["to"] == "jo@example.org"
     assert "http://127.0.0.1:8000/sign-in?token=" in mail.sent[-1]["text"]
     assert "15 minutes" in mail.sent[-1]["html"]
+    assert mail.sent[-1]["text"].endswith("Privacy policy: http://127.0.0.1:8000/privacy")
+    assert "href='http://127.0.0.1:8000/privacy'" in mail.sent[-1]["html"]  # T3.8
     token = link_in(mail)
     page = http.get(f"/sign-in?token={token}")
     assert page.status_code == 200
@@ -296,6 +298,7 @@ def test_the_cookie_is_secure_over_https(
     http, mail = client
     http.post("/auth/link", json={"email": "kai@example.org"})
     assert "https://fish.example.org/sign-in?token=" in mail.sent[-1]["text"]
+    assert "Privacy policy: https://fish.example.org/privacy" in mail.sent[-1]["text"]
     response = http.post("/auth/verify", data={"token": link_in(mail)}, follow_redirects=False)
     assert "Secure" in response.headers["set-cookie"]
 

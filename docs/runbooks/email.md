@@ -79,8 +79,14 @@ uv run python scripts/broadcast.py M1 --segment Invited --create         # 2. a 
 ```
 
 For step 2, open the draft in Resend (**Broadcasts**) and use **Send test email** to send a
-copy to your own address. Read it on your phone: the links, the unsubscribe link, and that
-nothing reads oddly. Then schedule the draft in the dashboard for 9:00 am Eastern on its
+copy to your own address. Read it on your phone: the links, the footer's privacy policy (the
+pilot site's for M1 and M2, the study site's after) and unsubscribe links, and that nothing
+reads oddly.
+
+Before it makes anything, `--create` checks that Resend tracks neither opens nor clicks on
+`news.` and `mail.thedefinitivesanjeevexperience.com`, because the privacy policy says we
+never do (T3.8). Both are off unless someone turns them on. If it refuses, turn tracking off
+in Resend (**Domains**, the domain, **Configuration**), then run it again. Then schedule the draft in the dashboard for 9:00 am Eastern on its
 day, or delete it and make it scheduled in one step:
 
 ```bash

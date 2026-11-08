@@ -14,6 +14,10 @@ goes to a list its heading names.
 Without --create it only prints the message. With --create it makes a draft in Resend: open it
 in the dashboard (Broadcasts), send yourself a copy with "Send test email", then send it from
 there; --send-at schedules it instead.
+
+Every message ends with a footer: the privacy policy of its site (§2's Site column) and
+Resend's unsubscribe link. Before making anything, --create checks that Resend tracks neither
+opens nor clicks on the domains the study sends from, as the privacy policy says (T3.8).
 The key, RESEND_BROADCAST_KEY, is a full-access Resend key: it lives on your computer only,
 never in render.yaml or the repository (docs/runbooks/email.md).
 """
@@ -38,6 +42,16 @@ API: Final = "https://api.resend.com"
 KEY_VAR: Final = "RESEND_BROADCAST_KEY"
 PLAYERS: Final = ("Players: group 1", "Players: group 2")
 UNSUBSCRIBE: Final = "{{{RESEND_UNSUBSCRIBE_URL}}}"
+SITES: Final = {
+    "study": "https://fish.thedefinitivesanjeevexperience.com",
+    "pilot": "https://fish-pilot.thedefinitivesanjeevexperience.com",
+}
+"""The two sites, as the page's "Sites" paragraph names them."""
+SENDING_DOMAINS: Final = (
+    "news.thedefinitivesanjeevexperience.com",  # these broadcasts
+    "mail.thedefinitivesanjeevexperience.com",  # the sign-in emails (FISH_EMAIL_FROM)
+)
+"""Where the study's email comes from: Resend must track neither opens nor clicks on either."""
 
 LAST_WEEK_OPENING: Final = "This is the study's last week. Your group's game nights, Eastern time:"
 WEEK_OPENING: Final = "Your group's game nights this week, Eastern time:"
@@ -66,11 +80,27 @@ class Message:
     subject: str
     body: tuple[str, ...]
     """The quoted lines, without "> "; an empty string between paragraphs."""
+    site: str = ""
+    """The site it is about (§2's Site column): "study" or "pilot"."""
+
+    @property
+    def privacy(self) -> str:
+        """The privacy policy its footer links."""
+        if self.site not in SITES:
+            raise RefusedError(f"§2 names no site for {self.key}, so its footer has no policy")
+        return f"{SITES[self.site]}/privacy"
+
+
+def sites(page: str) -> dict[str, str]:
+    """The site each message is about, by key, from the timeline (§2)."""
+    rows = re.findall(r"^\| [^|]+ \| (M\d+): [^|]+ \| [^|]* \| *(\w*) *\|$", page, re.M)
+    return dict(rows)
 
 
 def messages(page: str) -> dict[str, Message]:
     """Every message on the page, by key (M1, M2, ...)."""
     found: dict[str, Message] = {}
+    site_of = sites(page)
     lines = page.splitlines()
     for i, line in enumerate(lines):
         heading = re.fullmatch(r"### (M\d+) · (.+?) · (.+?) · (.+)", line)
@@ -86,7 +116,7 @@ def messages(page: str) -> dict[str, Message]:
                 break
             body.append(s[2:] if s.startswith("> ") else "")
         lists = PLAYERS if to == "each Players segment" else tuple(to.split(", "))
-        found[key] = Message(key, title, lists, subject, tuple(body))
+        found[key] = Message(key, title, lists, subject, tuple(body), site_of.get(key, ""))
     return found
 
 
@@ -163,9 +193,8 @@ def this_week(message: Message, segment: str, week: date, page: str) -> Message:
             continue
         body.append(LAST_WEEK_OPENING if last and line == WEEK_OPENING else line)
     days = " and ".join(DAYS[n.day.weekday()] for n in mine)
-    return Message(
-        message.key, message.title, message.to, fill(message.subject, {"days": days}), tuple(body)
-    )
+    subject = fill(message.subject, {"days": days})
+    return Message(message.key, message.title, message.to, subject, tuple(body), message.site)
 
 
 def prepared(
@@ -187,7 +216,9 @@ def prepared(
     left = [s for s in (subject, *body) if "{" in s or "}" in s]
     if left:
         raise RefusedError(f"still in braces: {left[0]!r}")
-    return Message(message.key, message.title, message.to, subject, body)
+    ready = Message(message.key, message.title, message.to, subject, body, message.site)
+    _ = ready.privacy  # refuses a message with no site
+    return ready
 
 
 # ---------------------------------------------------------------- as an email
@@ -237,9 +268,11 @@ def as_html(message: Message) -> str:
     parts: list[str] = []
     for block in blocks(message.body):
         if block == ["[unsubscribe]"]:
+            quiet = "color:#5a6470"
             parts.append(
-                '<p style="font-size:13px;color:#5a6470;margin-top:28px">'
-                f'<a href="{UNSUBSCRIBE}" style="color:#5a6470">Unsubscribe</a></p>'
+                f'<p style="font-size:13px;{quiet};margin-top:28px">'
+                f'<a href="{html.escape(message.privacy)}" style="{quiet}">Privacy policy</a>'
+                f' · <a href="{UNSUBSCRIBE}" style="{quiet}">Unsubscribe</a></p>'
             )
         elif all(line.startswith("- ") for line in block):
             items = "".join(f"<li>{linked(line[2:])}</li>" for line in block)
@@ -254,7 +287,7 @@ def as_text(message: Message) -> str:
     parts: list[str] = []
     for block in blocks(message.body):
         if block == ["[unsubscribe]"]:
-            parts.append(f"Unsubscribe: {UNSUBSCRIBE}")
+            parts.append(f"Privacy policy: {message.privacy}\nUnsubscribe: {UNSUBSCRIBE}")
         elif all(line.startswith("- ") for line in block):
             parts.append("\n".join(block))
         else:
@@ -296,7 +329,29 @@ def segment_id(name: str, key: str) -> str:
     raise RefusedError(f"Resend has no segment named {name!r}; it has: {names or 'none'}")
 
 
+def check_tracking(key: str) -> None:
+    """Refuse unless Resend tracks neither opens nor clicks on every domain the study sends
+    from: the privacy policy says we do not (Terms and Privacy §2)."""
+    listed = call("GET", "/domains", key).get("data")
+    domains = {
+        str(d.get("name")): str(d.get("id"))
+        for d in (listed if isinstance(listed, list) else [])
+        if isinstance(d, dict)
+    }
+    for name in SENDING_DOMAINS:
+        if name not in domains:
+            raise RefusedError(f"Resend has no domain {name}; the study sends from it")
+        domain = call("GET", f"/domains/{domains[name]}", key)
+        tracked = [f"{w}s" for w in ("open", "click") if domain.get(f"{w}_tracking") is True]
+        if tracked:
+            raise RefusedError(
+                f"Resend tracks {' and '.join(tracked)} on {name}, which the privacy policy says "
+                f"we never do: turn it off in Resend (Domains, {name}, Configuration)"
+            )
+
+
 def create(message: Message, segment: str, key: str, send_at: datetime | None) -> str:
+    check_tracking(key)
     body: dict[str, object] = {
         "segment_id": segment_id(segment, key),
         "from": SENDER,
