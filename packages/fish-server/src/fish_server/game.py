@@ -43,7 +43,7 @@ from fish_rules.codec import action_to_data
 from fish_rules.events import Action
 from fish_rules.state import Phase
 from fish_server.bots import DelayStreams
-from fish_server.protocol import Message, Ping, Rejected, update
+from fish_server.protocol import Message, Ping, Rejected, Update, update
 from fish_server.table import SECOND_US, Controller, Entry, Table
 from fish_server.table import Rejected as TableRejected
 
@@ -146,6 +146,16 @@ class End:
 type Out = Send | Release | End
 
 
+def _seen(table: Table, message: Update) -> object:
+    """What an update shows its seat, to tell whether it has changed: everything but the time
+    left on each timer, with when each timer fires instead (docs/leaks.md §3)."""
+    return (
+        message.model_dump(exclude={"timers"}),
+        table.phase_deadline(),
+        table.turn_deadline(),
+    )
+
+
 class Game:
     """One table's game. ``seats[s]`` is the id of the person in seat s at the deal."""
 
@@ -161,8 +171,9 @@ class Game:
         self.ended = False
         self._people = self.table.people
         self._next_ping: dict[Seat, int] = {}
-        self._pings: dict[int, tuple[Seat, int]] = {}  # nonce -> seat, when sent
-        self._nonce = 0
+        self._pings: dict[tuple[Seat, int], int] = {}  # (seat, nonce) -> when sent
+        self._nonces: dict[Seat, int] = {}  # each seat's own count (docs/leaks.md §4)
+        self._shown: dict[Seat, object] = {}  # what each seat was last sent (§3)
         self._delays = DelayStreams(seed)
         self._bot_due: dict[Seat, Waiting] = {}
         self._press_due: dict[Seat, Pressing] = {}
@@ -195,10 +206,9 @@ class Game:
             case Malformed(seat, data):
                 result = table.reject(seat, data, "malformed", now)
             case Ponged(seat, nonce):
-                sent = self._pings.get(nonce)
-                if sent is not None and sent[0] == seat:
-                    del self._pings[nonce]
-                    table.round_trip(seat, now - sent[1], now)
+                sent = self._pings.pop((seat, nonce), None)
+                if sent is not None:
+                    table.round_trip(seat, now - sent, now)
             case Connected(seat):
                 if table.connect(seat, now):
                     self._next_ping[seat] = now
@@ -239,10 +249,10 @@ class Game:
                 table.press(seat, pressing.set_id, seen, now)
         for seat, due in sorted(self._next_ping.items()):
             if due <= now:
-                self._nonce += 1
-                self._pings[self._nonce] = (seat, now)
+                nonce = self._nonces[seat] = self._nonces.get(seat, 0) + 1
+                self._pings[seat, nonce] = now
                 self._next_ping[seat] = now + PING_US
-                outs.append(Send(seat, Ping(type="ping", nonce=self._nonce)))
+                outs.append(Send(seat, Ping(type="ping", nonce=nonce)))
         changed = len(table.entries) != version
         return outs + self._after(now, changed=changed, connected=connected)
 
@@ -300,16 +310,25 @@ class Game:
         self, now: int, *, changed: bool, connected: set[Seat], show: set[Seat] | None = None
     ) -> list[Out]:
         """What follows any change: updates (to a person handed over just now, if they were
-        connected, a last one), releases, the bots' next turns, the end."""
+        connected, a last one), releases, the bots' next turns, the end.
+
+        A seat is sent an update only when what it is shown has changed (docs/leaks.md §3): a
+        declaration or a vote changes nothing the other seats see, so they must not hear of it.
+        ``show`` (a reconnection, a rejected input) and a last update are sent regardless."""
         table, outs = self.table, list[Out]()
         handed = self._people - table.people
         self._people = table.people
         everyone = changed or bool(handed)
         for seat in SEATS:
-            if (table.connected(seat) and (everyone or seat in (show or ()))) or (
-                seat in handed and seat in connected
-            ):
-                outs.append(Send(seat, update(table, seat, now)))
+            last = seat in handed and seat in connected
+            shown = seat in (show or ())
+            if not ((table.connected(seat) and (everyone or shown)) or last):
+                continue
+            message = update(table, seat, now)
+            seen = _seen(table, message)
+            if shown or last or self._shown.get(seat) != seen:
+                self._shown[seat] = seen
+                outs.append(Send(seat, message))
         for seat in sorted(handed):
             self._next_ping.pop(seat, None)
             outs.append(Release(seat))
