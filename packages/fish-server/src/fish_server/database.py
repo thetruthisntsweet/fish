@@ -17,9 +17,12 @@ def get_engine() -> Engine:
 
     ``pool_pre_ping`` checks each pooled connection before use, so a connection the database
     closed (for example during a Render maintenance window) is replaced instead of failing
-    the request.
+    the request. ``hide_parameters`` leaves the values out of its errors, so a failed write
+    never quotes an email address into the logs (fish_server.logs).
     """
-    return create_engine(database_url(), pool_pre_ping=True, pool_size=5, max_overflow=5)
+    return create_engine(
+        database_url(), pool_pre_ping=True, pool_size=5, max_overflow=5, hide_parameters=True
+    )
 
 
 def dispose_engine() -> None:
