@@ -1291,3 +1291,15 @@ website, so no recorded game was affected.
 Live checking needs nothing beyond `scripts/try_server.py` after the deploy. The leaks are
 properties of the code, and the tests exercise the same code: real sockets, six real
 browsers. The first game night of the pilot is the live run.
+
+**D116 · 2026-11-08 · The pilot is checked at the tables, not by asking players (T4.2).**
+The pilot runbook (`docs/runbooks/pilot.md`) gives the checks before the first night, what
+to watch each night, and the order of the work from 5 to 7 December: the report, M3's game
+length, the bots' delays, the MDEs, then production. Whether events and timers show as they
+happen is checked by eye at a table the author plays at, against the automated checks
+(D114). Players are not asked for feedback: the privacy policy says the study collects no
+text from them beyond what it lists, and a feedback email would have to be added to it, to
+recruitment.md and to the consent screen. The pilot report counts only games started from
+1 December, so test games are left out. The last pilot night is Saturday 5 December.
+Alternatives: a feedback email after the last night, which would change three approved texts
+for what one more table can check.
