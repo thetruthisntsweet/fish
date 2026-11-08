@@ -58,7 +58,7 @@ baseline, inspecting a recorded game, and the shape of a training loop.
 
 | Package | What it is |
 |---|---|
-| [fish-rules](https://pypi.org/project/fish-rules/) | The rules engine: [Canonical Ruleset v1.1](docs/rules.md), immutable states, seeded and exactly replayable games, the projection that decides what each seat sees, and [Layer 1](docs/deduction.md), which works out exactly where each card can be from what a seat has seen. Standard library only. |
+| [fish-rules](https://pypi.org/project/fish-rules/) | The rules engine: [Canonical Ruleset v1.2](docs/rules.md), immutable states, seeded and exactly replayable games, the projection that decides what each seat sees, and [Layer 1](docs/deduction.md), which works out exactly where each card can be from what a seat has seen. Standard library only. |
 | [fish-env](https://pypi.org/project/fish-env/) | The PettingZoo environment: 648-bit observations, masks over 913 actions, declaration windows after every event, and a [memory wrapper](docs/memory.md) for training. Passes PettingZoo's API and seed tests. |
 | [fish-agents](https://pypi.org/project/fish-agents/) | The agent interface (`act(view, rng) -> int`), B0 (random legal play), [agent memory](docs/memory.md) (full, last-k or none), and `play_game` for six agents. |
 
@@ -86,7 +86,7 @@ the [changelog](CHANGELOG.md).
 
 ## Documentation
 
-- [Rules](docs/rules.md): Canonical Ruleset v1.1, the rules the engine implements
+- [Rules](docs/rules.md): Canonical Ruleset v1.2, the rules the engine implements
 - [Environment](docs/environment.md): the multi-agent interface, its actions, rewards and seeding
 - [Agents](docs/agents.md): the agent interface, B0, and the checks that run B0 games
 - [Deduction](docs/deduction.md): Layer 1, where each card can be, how it works and why it

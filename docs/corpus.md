@@ -7,7 +7,7 @@ field the research questions need and this document does not list will never exi
 
 Section numbers below are cited by the code that implements them. The research questions,
 analysis sets and the definition of response time are in the planning document (T1.1); the
-rules are the Canonical Ruleset v1.1.
+rules are the Canonical Ruleset v1.2.
 
 ## 1. Principles
 
@@ -162,8 +162,10 @@ Membership is computed at every export from the seats' flags and the withdrawals
 cohort) are computed from the record itself by `fish_rules.corpus.analysis_flags`, so every
 reader gets the same sets without trusting a stored copy.
 
-- **Corpus game.** Completed (§3), at least one person played in it, every person's seat
-  has its consent flags (§2.2), and nobody who held a seat in it has withdrawn. Flags are
+- **Corpus game.** Completed (§3), played under the current ruleset version (games under
+  another are analysed separately, R.10.2: only staging's test games were played under v1.1),
+  at least one person played in it, every person's seat has its consent flags (§2.2), and
+  nobody who held a seat in it has withdrawn. Flags are
   copied when the game starts, so accepting afterwards does not bring a game in. One
   withdrawal removes every game that person played, whole: their actions are part of every
   other seat's history.

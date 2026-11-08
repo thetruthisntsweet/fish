@@ -43,7 +43,7 @@ def test_scrub_replaces_addresses_and_tokens(line: str, shown: str) -> None:
     "line",
     [
         "game 3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90: stopped without an ending; now abandoned",
-        "INFO: started at 20:06:31, ruleset 1.1, server 0.1.0",
+        "INFO: started at 20:06:31, ruleset 1.2, server 0.1.0",
         "GET /assets/index-B3x9.js 200 2 ms",
     ],
 )

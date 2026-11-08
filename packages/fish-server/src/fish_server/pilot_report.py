@@ -214,6 +214,7 @@ def report(pilot: Pilot) -> list[str]:
         _row("still being played", counts["not_ended"]),
     ]
     other = {
+        "another ruleset": counts["other_ruleset"],
         "no person played": counts["no_person"],
         "a seat without consent": counts["unconsented"],
         "a person withdrew": counts["withdrawn"],

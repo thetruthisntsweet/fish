@@ -64,7 +64,7 @@ export class FakeSocket {
     this.push({
       type: "server_hello",
       protocol_version: 3,
-      ruleset_version: "1.1",
+      ruleset_version: "1.2",
       rng_algorithm: "splitmix64-sha256-v1",
     });
   }

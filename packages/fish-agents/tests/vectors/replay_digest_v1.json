@@ -1,6 +1,6 @@
 {
   "encoding": "fish-replay-digest-v1",
-  "ruleset": "1.1",
+  "ruleset": "1.2",
   "action_encoding": "fish-actions-v1",
   "state_encoding": "fish-state-v1",
   "agent": "b0-v1",
@@ -9,18 +9,18 @@
     "playout": {
       "actions": 61991,
       "ended": 100,
-      "digest": "cdea44a794baefa11d2389582342dbaa04cc568df3c4b33a1722904b134777aa"
+      "digest": "e93fea1bf4c3794649de6b9abcfbd306696d9220262a33c58c7604a2862ff18d"
     },
     "b0": {
       "actions": 39586,
       "ended": 100,
-      "digest": "4d1d35c6c7704170bfda39609e506278ecbd704406d6a534f0574b1a9d6b94f5"
+      "digest": "4945218d2f182cac4edd3b6c00b16476698c0051517a12a2184f25a5b3e9c24c"
     },
     "website": {
       "actions": 7647,
       "ended": 100,
-      "digest": "49c5942d9a975a60d41e415ee193c9ca2bf63952b992ce7c9198385a72eadf5d"
+      "digest": "c7de56d63ed14f17e850d6b0f90d13fc4dddbe2bd8979ba1858164c0f4277133"
     }
   },
-  "digest": "25d9d931f89e353d0c305c99ab788a5b753caaabf42e8493a53815fc24d75138"
+  "digest": "b397aa1368aff4435edf9af7e31e2eaa2a2cc1bea9d88b91b873d3a4b97ad4ef"
 }

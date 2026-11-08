@@ -105,7 +105,7 @@ def test_an_export_that_does_not_build_fails(owner: Engine) -> None:
     two_games(owner)
     mark(owner)
     with owner.begin() as conn:
-        GAMES.add_game(conn, 8, GAMES.table(conn), minutes=3, ruleset="1.0")
+        GAMES.add_game(conn, 8, GAMES.table(conn), minutes=3, max_actions=10, ending="finished")
     problems, _ = check(owner)
     assert len(problems) == 1
     assert problems[0].startswith("the corpus export does not build: game")

@@ -1393,3 +1393,28 @@ internet, before the first night. The games are left out of the pilot by `--sinc
 `test_rehearse.py` runs the script against the real server on a real port.
 Alternatives: rehearsing with people, who are the pilot; rehearsing locally, which would miss
 Render's Shell, the deploy, the migration and the network.
+
+**D121 · 2026-11-08 · Ruleset v1.2 for R.8.8; T4.2 close-out: the pilot is ready to run.**
+R.8.8 now says how bots wait on each site: the pilot's 1.5 to 4 seconds, and on the study's
+site the pilot's response times for the same kind of decision, by a delay table each game
+records (D118). That is a rule change, so the ruleset is v1.2 (R.10.1).
+
+The bump is made before any pilot game, so the pilot and the study share v1.2. It changes no
+play anywhere: the eight golden games and the replay digest's actions and endings are as
+before, and only the version they carry and the digests over it differ. Only the author's
+test games on staging were played under v1.1.
+
+The corpus is one ruleset's games (R.10.2). So a completed game under another version now
+stands `other_ruleset`, left out and counted like the other reasons, instead of stopping the
+export. Staging's v1.1 test games would otherwise stop its corpus copy and restore drill.
+
+T4.2's code and runbooks are done:
+- the pilot runbook (D116);
+- the pilot report (D117);
+- the bots' delays by kind (D118);
+- the MDEs (D119);
+- the rehearsal (D120).
+
+What remains is to run them: the rehearsal by 22 November, the three pilot nights from 1 to
+5 December, and on 6 and 7 December the report, M3's game length, the bots' table and
+`docs/mde.md` §3, all before the study opens on 8 December.
