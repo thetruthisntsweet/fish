@@ -1260,3 +1260,20 @@ count up from 1 on their own. Planting either a hand leak or a connection leak i
 fails it at once. It runs in the nightly server-games job at 1,250 games. Alternative:
 comparing two whole games dealt differently but alike for one seat, which would need every
 input replayed under both deals and wouldn't reach the table's own state.
+
+**D114 · 2026-11-08 · Drawn at once is checked inside the page (T3.7).**
+The client draws each message with `flushSync` (D90). T3.7 checks it three ways.
+- `useGame.test.tsx` looks at the page right after each of several messages pushed back to
+  back, before the next is pushed.
+- A browser test wraps each of six real pages' WebSocket in an init script. After the client's
+  own handler for an update returns, the table's `data-updates` count must already include it.
+  `GameState.updates` counts updates for this, and the table shows it. Measuring inside the
+  page shares no clock between processes, so the test doesn't depend on machine speed.
+- `delays.test.ts` fails on any CSS transition or animation, and on any timer, deferred
+  render or transition in the client's code apart from the reconnection wait and the
+  countdowns' tick.
+
+With `flushSync` removed, all of them fail: in the browser, every update appeared one behind.
+Alternatives: timing from the server's send to a screenshot, which measures the network and
+the machine more than the client; a rule against batching only in review, which nothing
+enforces.

@@ -33,11 +33,13 @@ const TIMER_NAMES: Record<Timer["name"], string> = {
 
 interface Props {
   update: Update;
+  /** How many updates have arrived, shown as `data-updates` (T3.7; GameState.updates). */
+  drawn?: number;
   rejected?: Notice<Rejected> | null;
   send?: (message: ClientMessage) => boolean;
 }
 
-export function Table({ update, rejected = null, send = () => false }: Props) {
+export function Table({ update, drawn, rejected = null, send = () => false }: Props) {
   const view = update.view;
   const own = view.seat;
   const [ours, theirs] = score(view);
@@ -67,7 +69,7 @@ export function Table({ update, rejected = null, send = () => false }: Props) {
   }
 
   return (
-    <div className="table">
+    <div className="table" data-updates={drawn}>
       <p className="score" aria-label="Score">
         Your team <strong>{ours}</strong> · Other team <strong>{theirs}</strong>
       </p>

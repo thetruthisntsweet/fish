@@ -93,7 +93,8 @@ and whole random games end with rows that are exactly the table's log. `test_hub
 the plumbing between connections, games and the database writer, and `test_ws.py` plays a
 game over real WebSockets with six players and a real database, a window closing on the real
 clock. `test_wire_leaks.py` holds every update to what its seat may know (T3.7,
-[leaks.md](leaks.md)). `test_end_to_end.py` has six people press Call in the same instant over real sockets
+[leaks.md](leaks.md)), and a browser test checks, inside each of six pages playing a game,
+that every update is drawn before the next message is read. `test_end_to_end.py` has six people press Call in the same instant over real sockets
 and checks that R.8.1's priority order, not who arrived first, decides the call (R.8.3,
 R.8.7).
 

@@ -26,7 +26,12 @@ export function Play({ onSignedOut }: Props) {
       case "open":
         if (game.state.atTable && game.state.update !== null) {
           return (
-            <Table update={game.state.update} rejected={game.state.rejected} send={game.send} />
+            <Table
+              update={game.state.update}
+              drawn={game.state.updates}
+              rejected={game.state.rejected}
+              send={game.send}
+            />
           );
         }
         return (

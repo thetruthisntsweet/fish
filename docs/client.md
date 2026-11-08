@@ -86,7 +86,11 @@ note-taking question with "Yes", "No" and "Prefer not to say", then the lobby.
 One WebSocket per page (D89). It sends `client_hello`, answers every `ping` before anything
 is drawn (the server times round trips with them, R.8.7), and keeps the latest lobby, update,
 question, rejection and error. Each message is drawn with `flushSync`, so two that arrive
-back to back are both shown (R.2.6). If the connection drops, it tries again after 1, 2, 4, 8
+back to back are both shown (R.2.6). Each update is on the page before the next message is
+read, with no batching and no added delay (T3.7). The table carries the count of updates
+drawn as `data-updates`, so a test inside the page can check exactly that. Nothing eases
+anything in: there's no CSS transition or animation. The only timers are the reconnection
+wait and the countdowns' tick, and `delays.test.ts` fails on any other. If the connection drops, it tries again after 1, 2, 4, 8
 and 15 seconds, 30 in all, the time a seat is held (R.8.4); the server then shows the game
 where it stands. It does not try again when the server refused it (signed out, or a page
 older than the server, which says to reload) or when Fish was opened somewhere else, which
