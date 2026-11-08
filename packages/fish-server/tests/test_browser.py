@@ -525,3 +525,68 @@ def test_the_privacy_policy_holds_in_the_browser(site: Site, browser: Browser) -
     ]
     assert elsewhere == [], f"requests to other sites: {elsewhere}"
     context.close()
+
+
+# ---------------------------------------------------------------- drawn at once (T3.7)
+
+WATCH_DRAWING = """
+(() => {
+  // After the page's own handler for each update returns, the table must already show it:
+  // its data-updates count is how many updates the client has drawn (GameState.updates).
+  const Native = window.WebSocket;
+  const own = Object.getOwnPropertyDescriptor(Native.prototype, "onmessage");
+  const drawn = { updates: 0, late: [] };
+  window.__drawn = drawn;
+  class Watched extends Native {
+    set onmessage(handler) {
+      own.set.call(this, handler === null ? null : (event) => {
+        handler.call(this, event);
+        let message;
+        try { message = JSON.parse(event.data); } catch { return; }
+        if (message.type !== "update") return;
+        drawn.updates += 1;
+        const table = document.querySelector(".table");
+        const shown = table === null ? null : Number(table.dataset.updates);
+        if (shown !== drawn.updates) drawn.late.push({ update: drawn.updates, shown });
+      });
+    }
+    get onmessage() { return own.get.call(this); }
+  }
+  window.WebSocket = Watched;
+})();
+"""
+
+
+def test_every_update_is_on_the_page_before_the_next_message_is_read(
+    site: Site, browser: Browser
+) -> None:
+    """T3.7, R.2.6: in six real browsers playing a game, every update the server sends is drawn
+    by the time the page has handled it, before the next message is read: no batching, no
+    delay. Measured inside each page, so no clock is shared between processes."""
+    base, mail, _ = site
+    pages = [sign_up(browser, base, mail, f"drawn{i}@example.org") for i in range(6)]
+    for page in pages:
+        page.add_init_script(WATCH_DRAWING)
+        page.reload()
+        expect(page.get_by_role("button", name="Find a table")).to_be_enabled()
+    pages[0].get_by_role("button", name="Make a room for friends").click()
+    code = pages[0].get_by_label("Room code").inner_text()
+    for page in pages[1:]:
+        page.get_by_placeholder("Room code").fill(code)
+        page.get_by_role("button", name="Join").click()
+    for page in pages:
+        expect(page.get_by_role("region", name="Your hand")).to_be_visible()
+    pressed: list[int] = []
+    for _ in range(40):
+        if shown(pages[0], "region", "Your last game"):
+            break
+        with contextlib.suppress(PlaywrightError):
+            play_a_move(pages, pressed)
+        pages[0].wait_for_timeout(150)
+    for i, page in enumerate(pages):
+        drawn = page.evaluate("window.__drawn")
+        assert drawn["late"] == [], f"player {i}: updates drawn late: {drawn['late'][:5]}"
+        assert drawn["updates"] >= 5, f"player {i} saw only {drawn['updates']} updates"
+    assert pressed, "nobody pressed Call: the game barely moved"
+    for page in pages:
+        page.context.close()

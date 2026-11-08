@@ -58,6 +58,9 @@ export interface GameState {
   readonly lobby: Lobby | null;
   /** The latest update; kept after the player leaves the table, to show how it ended. */
   readonly update: Update | null;
+  /** How many updates have arrived since the page opened: the table shows the count
+   * (`data-updates`), so a test can tell each one was drawn before the next (T3.7). */
+  readonly updates: number;
   /** Whether the player is at a table: the latest of lobby and update was an update. */
   readonly atTable: boolean;
   /** The note-taking question, until it is answered. */
@@ -82,6 +85,7 @@ export const INITIAL: GameState = {
   status: { kind: "connecting" },
   lobby: null,
   update: null,
+  updates: 0,
   atTable: false,
   question: null,
   rejected: null,
@@ -101,7 +105,14 @@ export function receive(state: GameState, message: ServerMessage): GameState {
       return { ...state, lobby: message, atTable: false, ended, tableError: null };
     }
     case "update":
-      return { ...state, update: message, atTable: true, question: null, ended: null };
+      return {
+        ...state,
+        update: message,
+        updates: state.updates + 1,
+        atTable: true,
+        question: null,
+        ended: null,
+      };
     case "note_question":
       return { ...state, question: message };
     case "rejected":
