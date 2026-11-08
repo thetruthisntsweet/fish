@@ -30,8 +30,11 @@ pilot's database on 31 March 2027 ([requests.md](requests.md) §6).
 
 ## 1. By Sunday 29 November
 
-- [ ] Everything through T3.8 is deployed on `fish-staging`: `scripts/try_server.py` against
-  the pilot site, from an up-to-date main, prints PASS with schema revision `0007`.
+- [ ] Everything through T4.2 is deployed on `fish-staging`: `scripts/try_server.py` against
+  the pilot site, from an up-to-date main, prints PASS with schema revision `0008` and
+  `bots:   uniform-1.5-4s-v1`.
+- [ ] The rehearsal is done, by Sunday 22 November, and anything it found is fixed
+  ([rehearsal.md](rehearsal.md)).
 - [ ] The pilot site shows "Fish research study: before you play" in its pilot version, and
   its footer links the pilot terms and privacy policy (T3.8 subtask 6's live check).
 - [ ] UptimeRobot's two pilot monitors are green ([monitoring.md](monitoring.md) §1).
