@@ -21,7 +21,7 @@ back as 200. `/health/db` replies 503 without the keyword when the database can'
 nothing; `/health/db` reads the migration number over a pooled connection. Nothing is
 written, and games and the corpus are unaffected.
 
-## 1. Set it up (once, before the pilot on 30 November)
+## 1. Set it up (once, before the pilot on 1 December)
 
 **Time needed:** about 20 minutes, half of it waiting for the test alert.
 

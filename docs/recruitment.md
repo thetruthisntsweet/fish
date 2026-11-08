@@ -226,8 +226,8 @@ the rest; T3.8) and Resend's unsubscribe link. Text in `{braces}` is filled in w
 >
 > [unsubscribe]
 
-`{N}` is the median game length from the pilot (T4.2), rounded to five minutes: the
-"minutes a game takes" line of `python -m fish_server.stats` on the pilot site.
+`{N}` is the median game length from the pilot (T4.2), rounded to five minutes: the pilot
+report's median, from games started on or after 1 December ([runbooks/pilot.md](runbooks/pilot.md) §4).
 
 ### M4 · This week's game nights · every Monday, 14 Dec – 8 Feb · each Players segment
 
