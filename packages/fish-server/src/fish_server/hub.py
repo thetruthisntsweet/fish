@@ -72,6 +72,7 @@ from fish_server.game import (
 )
 from fish_server.games import abandon_quiet, new_seed, start_game, write_ending
 from fish_server.lobby import Formed, Lobby, NotNowError, Player
+from fish_server.logs import LOGGER
 from fish_server.protocol import (
     NOTE_QUESTION_VERSION,
     Act,
@@ -258,7 +259,7 @@ class Running:
                     await asyncio.to_thread(job)
                     break
                 except Exception as problem:  # the database is down, or refused a row
-                    print(f"game {self.game.game_id}: a write failed: {problem!r}", flush=True)
+                    LOGGER.error("game %s: a write failed: %r", self.game.game_id, problem)
                     if wait is None:
                         self.lost = True
                         self.stop("The game had to stop: its moves could not be saved.")
@@ -403,7 +404,7 @@ class Hub:
         try:
             await asyncio.to_thread(self.write_note, *asked, answer)
         except Exception as problem:  # the answer is lost: it counts as unanswered
-            print(f"game {asked[0]}: a note answer could not be written: {problem!r}", flush=True)
+            LOGGER.error("game %s: a note answer could not be written: %r", asked[0], problem)
 
     def _tell(self, players: tuple[Player, ...]) -> None:
         for player in players:
@@ -419,7 +420,7 @@ class Hub:
         try:
             game_id = await asyncio.to_thread(self._write_start, formed, seed, started)
         except Exception as problem:  # tell the players; they can try again
-            print(f"a game could not start: {problem!r}", flush=True)
+            LOGGER.error("a game could not start: %r", problem)
             self.lobby.left_table(formed.seats)
             for player in formed.seats:
                 if (connection := self.connections.get(player.id)) is not None:
@@ -483,7 +484,7 @@ class Hub:
         with self.engine().begin() as conn:
             written = write_ending(conn, game.game_id, completion, played)
         if written != completion:
-            print(f"game {game.game_id}: its log has a gap, so it is abandoned", flush=True)
+            LOGGER.warning("game %s: its log has a gap, so it is abandoned", game.game_id)
 
     def write_note(self, game: uuid.UUID, seat: int, answer: str) -> None:
         """Write one seat's note answer, with the question's version; once only."""
@@ -502,9 +503,9 @@ class Hub:
         while not self.closing.is_set():
             try:
                 for game in await asyncio.to_thread(self.sweep):
-                    print(f"game {game}: stopped without an ending; now abandoned", flush=True)
+                    LOGGER.warning("game %s: stopped without an ending; now abandoned", game)
             except Exception as problem:  # the database may be down; try next time
-                print(f"the sweep for stopped games failed: {problem!r}", flush=True)
+                LOGGER.error("the sweep for stopped games failed: %r", problem)
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self.closing.wait(), self.sweep_s)
 

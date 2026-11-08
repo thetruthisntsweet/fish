@@ -1123,3 +1123,15 @@ Three steps are done by hand, each with a runbook and a record:
 The consent text v1.0 must say that the laptop copy exists before the study site opens (T4.3).
 That wording goes to Dr. Hany first; the pilot text is unchanged, since pilot games are
 never copied.
+
+**D105 · 2026-11-07 · The server's logs hold no IP addresses, email addresses or sign-in links (T3.8).**
+The privacy policy promises it (Terms and Privacy §2). Before this, uvicorn's access log
+wrote each visitor's real address (which `--proxy-headers` supplies for the sign-in limit)
+and each whole URL, including live sign-in tokens, and Render keeps logs for 7 days. Now
+uvicorn's access log is off, and `fish_server.logs.AccessLog` logs the method, path (never
+the query), status and time. A formatter on every handler scrubs email-, IP- and token-shaped
+text from every line, tracebacks included. The engine hides query parameters, and the hub
+logs through `fish_server` rather than `print`. A test runs uvicorn with the Dockerfile's own
+command behind a forwarded address and reads everything it writes. Alternatives: dropping
+`--proxy-headers`, which would leave the sign-in limit counting Render's proxy as one address;
+keeping the access log and disclosing it, which the user declined.

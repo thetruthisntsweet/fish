@@ -182,7 +182,7 @@ def test_a_game_nobody_is_left_in_is_written_abandoned_and_asks_nothing() -> Non
     asyncio.run(scenario())
 
 
-def test_a_write_that_fails_is_tried_again(capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_write_that_fails_is_tried_again(caplog: pytest.LogCaptureFixture) -> None:
     async def scenario() -> None:
         hub = Writes(failures=2)
         running = Running(hub, OneStep(), players(6), 0, retry_s=(0, 0, 0))  # pyright: ignore[reportArgumentType]
@@ -192,11 +192,11 @@ def test_a_write_that_fails_is_tried_again(capsys: pytest.CaptureFixture[str]) -
         assert not running.lost
 
     asyncio.run(scenario())
-    assert capsys.readouterr().out.count("a write failed") == 2
+    assert caplog.text.count("a write failed") == 2
 
 
 def test_a_write_that_keeps_failing_stops_the_game_and_writes_nothing_more(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     async def scenario() -> None:
         hub, six = Writes(fail=True), players(6)
@@ -215,11 +215,11 @@ def test_a_write_that_keeps_failing_stops_the_game_and_writes_nothing_more(
         assert {"type": "error", "code": "not_now", "message": running.stopped} in sent
 
     asyncio.run(scenario())
-    assert capsys.readouterr().out.count("a write failed") == 2
+    assert caplog.text.count("a write failed") == 2
 
 
 def test_a_game_that_cannot_start_sends_its_players_back(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     async def scenario() -> None:
         hub, six = Writes(fail=True), players(6)
@@ -235,7 +235,7 @@ def test_a_game_that_cannot_start_sends_its_players_back(
         assert conns[5][1].sent[-1] == {"type": "lobby", "waiting": None, "code": None, "people": 0}
 
     asyncio.run(scenario())
-    assert "could not start" in capsys.readouterr().out
+    assert "could not start" in caplog.text
 
 
 def test_messages_at_a_table_go_to_its_game() -> None:
@@ -354,7 +354,7 @@ def test_a_game_that_will_not_stop_is_cancelled() -> None:
 
 
 def test_the_sweep_runs_at_start_and_again_and_survives_failures(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     found = [uuid.uuid4()]
 
@@ -376,7 +376,7 @@ def test_the_sweep_runs_at_start_and_again_and_survives_failures(
         await hub.close()
 
     asyncio.run(scenario())
-    out = capsys.readouterr().out
+    out = caplog.text
     assert "the sweep for stopped games failed" in out
     assert f"game {found[0]}: stopped without an ending; now abandoned" in out
 
@@ -417,7 +417,7 @@ def test_a_note_answer_is_written_for_the_seat_asked_once() -> None:
 
 
 def test_leaving_or_playing_on_without_answering_is_unanswered(
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     async def scenario() -> None:
         hub, six = Writes(), players(6)
@@ -441,4 +441,4 @@ def test_leaving_or_playing_on_without_answering_is_unanswered(
         await hub.close()
 
     asyncio.run(scenario())
-    assert "a note answer could not be written" in capsys.readouterr().out
+    assert "a note answer could not be written" in caplog.text

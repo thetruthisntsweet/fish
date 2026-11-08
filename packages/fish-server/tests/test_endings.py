@@ -73,7 +73,7 @@ def test_an_ending_is_written_when_the_log_is_whole(app: Engine) -> None:
 
 @pytest.mark.parametrize(("stored", "played"), [(3, 4), (3, 2)])
 def test_a_log_with_a_gap_or_extra_rows_is_abandoned(
-    app: Engine, stored: int, played: int, capsys: pytest.CaptureFixture[str]
+    app: Engine, stored: int, played: int, caplog: pytest.LogCaptureFixture
 ) -> None:
     with app.begin() as conn:
         game = a_game(conn, started=datetime.now(UTC), actions=stored)
@@ -94,14 +94,14 @@ def test_a_log_whose_numbers_skip_is_abandoned(app: Engine) -> None:
 
 
 def test_the_hub_says_when_a_gap_abandons_a_game(
-    app: Engine, capsys: pytest.CaptureFixture[str]
+    app: Engine, caplog: pytest.LogCaptureFixture
 ) -> None:
     from fish_server.game import Game
 
     with app.begin() as conn:
         game_id = a_game(conn, started=datetime.now(UTC), actions=1)
     Hub(lambda: app, "t").write_ending(Game(game_id, 1, [uuid.uuid4()] * 6), "finished", 2)
-    assert "its log has a gap" in capsys.readouterr().out
+    assert "its log has a gap" in caplog.text
 
 
 # ---------------------------------------------------------------- the sweep

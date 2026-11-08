@@ -173,6 +173,17 @@ Games are held in the one server process's memory, so a game that cannot go on e
 Before an ending is written, the game's stored actions are checked for a gap; a game whose
 log could not replay it ends `abandoned`, whatever the rules said.
 
+**The server's own logs** (Render keeps them 7 days) hold no IP addresses, email addresses or
+sign-in links, as the privacy policy says (Terms and Privacy §2, §4; `fish_server.logs`).
+Uvicorn's access log is off (`--no-access-log`): it would name each visitor's real address,
+since `--proxy-headers` gives the server that for the sign-in limit, and each whole URL,
+including `/sign-in?token=…`. Instead each request gets one line: method, path, status and
+time (`GET /sign-in 200 3 ms`; a WebSocket when it closes, `WebSocket /ws 101 912345 ms`).
+Every line from any logger is also scrubbed of anything shaped like an email address, an IP
+address or a token in a URL, which covers an error that quotes data, and the database engine
+leaves values out of its errors (`hide_parameters`). The server's own messages use the
+`fish_server` logger, never `print`.
+
 ## 7. Trying it
 
 Locally: start the database, build the client and start the server ([setup.md](setup.md)),

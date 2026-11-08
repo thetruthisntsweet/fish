@@ -21,7 +21,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from fish_rules.rng import RNG_ALGORITHM
 from fish_rules.version import RULESET_VERSION
-from fish_server import __version__, auth, pages
+from fish_server import __version__, auth, logs, pages
 from fish_server.database import dispose_engine, get_engine, schema_revision
 from fish_server.games import load_player
 from fish_server.hub import Connection, Hub, error
@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Runs around the server's whole life: the hub of games while it runs, with its sweep for
     games stopped without an ending; on shutdown, stop the games, which ends each one
     ``abandoned``, and close database connections."""
+    logs.install()  # after uvicorn has set up its loggers: every line is scrubbed
     hub = Hub(get_engine, server_commit(), consent_version())
     app.state.hub = hub
     hub.start()
@@ -48,6 +49,7 @@ app = FastAPI(
 )
 app.include_router(auth.router)
 app.include_router(pages.router)
+app.add_middleware(logs.AccessLog)  # uvicorn's own access log is off (fish_server.logs)
 
 
 class Health(BaseModel):

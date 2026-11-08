@@ -50,4 +50,4 @@ USER fish
 EXPOSE 8000
 # Render sets PORT; locally it defaults to 8000. Uvicorn pings every WebSocket every 15 s
 # so idle connections are not dropped by proxies (T2.1 §17).
-CMD ["sh", "-c", "exec uvicorn fish_server.app:app --host 0.0.0.0 --port ${PORT:-8000} --ws-ping-interval 15 --ws-ping-timeout 20 --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "exec uvicorn fish_server.app:app --host 0.0.0.0 --port ${PORT:-8000} --ws-ping-interval 15 --ws-ping-timeout 20 --proxy-headers --forwarded-allow-ips='*' --no-access-log"]
