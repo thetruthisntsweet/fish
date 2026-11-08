@@ -103,7 +103,26 @@ Unknown paths get the standard 404, and `/health/db` names no host in an error.
 | 1 | Every entry sent every seat an update | that someone declared in a window, or voted in a choice, and when (R.4.3, R.5.2, R.8.3) | an update only when the seat's own content changes (T3.7 subtask 2) | fixed |
 | 2 | Ping nonces came from one counter for the whole game | whether another person is connected, before a bot takes the seat (R.8.4) | a counter per seat (T3.7 subtask 2) | fixed |
 
-## 7. What clients send
+## 7. How it's tested
+
+- **What a view may hold:** `fish-rules/tests/test_view_leaks.py` (T2.4, D32).
+- **Everything else in an update:** `fish-server/tests/test_wire_leaks.py`. At every step of
+  whole random games played through `Game`, with people coming and going and bots taking
+  their seats, every seat's whole update is unchanged when everything hidden from it is
+  scrambled. That means the other hands (sizes kept), the seed, other seats' window answers
+  and votes, and who else is connected or away. Also: a rejection goes only to the seat whose
+  input it rejects, and each seat's pings are numbered 1, 2, 3 on their own.
+- **When updates are sent:** `test_game.py`. A declaration or a vote reaches only its maker,
+  and no seat is ever sent an update showing it nothing new. With the test above, that makes
+  whether a seat is sent an update depend only on what it may know: it compares two updates
+  that each do. `test_end_to_end.py` checks a declaration and pings over real sockets.
+
+Each test fails on the leak it guards against: the two findings' tests on the code before
+their fixes, and the wire test on an update made to read another seat's hand, or whether
+another person is connected. The wire test runs 10 games in development, 25 in CI and 1,250
+nightly.
+
+## 8. What clients send
 
 `client_hello`, `join_queue`, `create_room`, `join_room` (a room code), `leave`, `press` (a set
 and the last event seen), `act` (an action index), `note_answer` and `pong` (the nonce back).

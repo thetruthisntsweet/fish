@@ -1246,3 +1246,17 @@ update showing it nothing new, and the same over real sockets. Each failed on th
 Alternatives: sending every seat an update at fixed intervals, which hides the timing but adds
 traffic and delay to every change; a dummy update to every seat after each hidden entry, which
 would still show that one happened.
+
+**D113 · 2026-11-08 · The wire leak test scrambles what the table hides as well as what the state does (T3.7).**
+`test_wire_leaks.py` checks every seat's whole update, at every step of whole random games
+played through `Game`, against a copy of the table with everything hidden from that seat
+scrambled. The state is scrambled by the projection leak tests' own `scramble`, loaded from
+`fish-rules/tests` so there is one definition of what a state hides. The table's record of who
+else is connected or away is scrambled as well. So the fields outside the view (`actions`,
+`pressable`, `timers`, `bots`) are held to the same rule as the view. With D112's
+send-on-change rule, that also covers whether an update is sent at all.
+The test also checks that rejections go only to their sender and that each seat's ping nonces
+count up from 1 on their own. Planting either a hand leak or a connection leak in `update`
+fails it at once. It runs in the nightly server-games job at 1,250 games. Alternative:
+comparing two whole games dealt differently but alike for one seat, which would need every
+input replayed under both deals and wouldn't reach the table's own state.
