@@ -29,7 +29,7 @@ move messages and rows.
 ## 2. The website, consent and signing in
 
 The server serves the web client itself (`fish_server.pages`; the image builds it): `/`,
-`/account` and `/information` are its `index.html`, never cached, and `/assets/` its files,
+`/account`, `/information`, `/terms` and `/privacy` are its `index.html`, never cached, and `/assets/` its files,
 cached for good since their names change with their contents. One address for the pages, the
 endpoints and `/ws` means the session cookie needs nothing more. Any other path is 404.
 
@@ -38,7 +38,9 @@ The client (`client/src`) holds every text a site can show, word for word
 player whose accepted text is no longer the one shown; nothing is sent or stored before
 Continue, and No thanks sends nothing. `/information` shows the text a participant accepted,
 with its confirmations, and `/account` the version accepted, "Withdraw from the study" (asked
-twice) and Sign out. The footer links them. `GET /study`
+twice) and Sign out. `/terms` and `/privacy` show the terms of use and privacy policy this site
+shows (`legal/legal.ts`; T3.8), agreed to on the consent screen with the study information.
+The footer links them all. `GET /study`
 gives the version this site shows (`FISH_CONSENT_VERSION`: `v1.0`, or `v1.0-pilot` on
 staging), the version of the terms of use and privacy policy agreed to with it
 (`terms_version`, T3.8: `FISH_TERMS_VERSION`, by default `v1.0`, or `v1.0-pilot` on a site

@@ -10,7 +10,10 @@ out. And six people sign up, sit together through a room (its link or its code),
 whole game (T3.4): an ask, Calls pressed and assigned, choices and votes, the result, and
 the note-taking question answered and written. And one person's connection drops at a table
 (T3.6): back at once, they see the table again; back too late, they are told a bot took
-their seat.
+their seat. And the privacy policy holds in the browser (T3.8): the terms open from the
+consent screen in a new tab, leaving it as it was; every page links both; and after signing in
+and visiting every page, there is one cookie, unreadable by scripts, nothing was loaded from
+any other site, and nothing is in the browser's storage.
 
 Marked ``browser``: the ordinary test run leaves these out, because they need the client
 built first. ``scripts/check.sh`` and CI run them after the build with ``pytest -m browser``.
@@ -433,3 +436,92 @@ def handed_over(engine: Engine) -> bool:
     with engine.connect() as conn:
         query = select(func.count()).select_from(db.server_log)
         return conn.execute(query.where(db.server_log.c.type == "handover")).scalar_one() > 0
+
+
+# ---------------------------------------------------------------- the privacy policy (T3.8)
+
+
+def test_the_privacy_policy_holds_in_the_browser(site: Site, browser: Browser) -> None:
+    """Terms and Privacy §2, §4: one cookie, ``fish_session``, httpOnly, 30 days; no request to
+    any other site; nothing in local or session storage, IndexedDB or caches. And the terms
+    open from the consent screen without losing its ticks."""
+    base, mail, _ = site
+    context = browser.new_context(viewport=PHONE)
+    requested: list[str] = []
+    context.on("request", lambda request: requested.append(request.url))
+    sockets: list[str] = []
+    page = context.new_page()
+    page.on("websocket", lambda ws: sockets.append(ws.url))
+    page.set_default_timeout(5_000)
+    page.goto(base + "/")
+
+    # The agreement line, with both documents a new tab away (the ticks stay).
+    boxes = page.get_by_role("checkbox")
+    expect(boxes).to_have_count(3)
+    for box in boxes.all():
+        box.check()
+    line = page.locator(".agreement")
+    expect(line).to_have_text(
+        "By continuing you agree to the Terms of Use and have read the Privacy Policy."
+    )
+    for name, title in (
+        ("Terms of Use", "Fish research study: terms of use"),
+        ("Privacy Policy", "Fish research study: privacy policy"),
+    ):
+        with context.expect_page() as opened:
+            line.get_by_role("link", name=name).click()
+        tab = opened.value
+        expect(tab.get_by_role("heading", level=1)).to_have_text(title)
+        assert tab.evaluate("document.documentElement.scrollWidth") <= PHONE["width"]
+        tab.close()
+    for box in boxes.all():
+        expect(box).to_be_checked()
+
+    # Sign in, then every page the site has.
+    page.get_by_role("button", name="Continue").click()
+    page.get_by_label("Email address").fill("privacy@example.org")
+    page.get_by_role("button", name="Send sign-in link").click()
+    expect(page.get_by_role("heading", name="Check your email")).to_be_visible()
+    token = re.search(r"token=([A-Za-z0-9_\-]+)", mail.sent[-1]["text"])
+    assert token is not None
+    page.goto(f"{base}/sign-in?token={token.group(1)}")
+    page.get_by_role("button", name="Sign in").click()
+    expect(page.get_by_role("button", name="Find a table")).to_be_enabled()
+    footer = page.get_by_role("contentinfo")
+    for link, heading in (
+        ("Terms of use", "Fish research study: terms of use"),
+        ("Privacy policy", "Fish research study: privacy policy"),
+        ("Study information", "Fish research study: before you play"),
+        ("Your account", "Your account"),
+    ):
+        footer.get_by_role("link", name=link).click()
+        expect(page.get_by_role("heading", level=1)).to_have_text(heading)
+    footer.get_by_role("link", name="Fish").click()
+    expect(page.get_by_role("button", name="Find a table")).to_be_enabled()
+
+    # One cookie, the session: unreadable by the page, sent only here, for 30 days.
+    (cookie,) = context.cookies()
+    assert cookie.get("name") == "fish_session"
+    assert cookie.get("httpOnly") is True
+    assert cookie.get("sameSite") == "Lax"
+    assert cookie.get("domain") == "127.0.0.1"
+    days = (cookie.get("expires", 0) - time.time()) / 86_400
+    assert 29.9 < days <= 30.0
+    assert page.evaluate("document.cookie") == ""
+
+    # Nothing stored in the browser, and nothing asked of any other site.
+    stored = page.evaluate(
+        """async () => ({
+            local: localStorage.length,
+            session: sessionStorage.length,
+            databases: (await indexedDB.databases()).length,
+            caches: (await caches.keys()).length,
+        })"""
+    )
+    assert stored == {"local": 0, "session": 0, "databases": 0, "caches": 0}
+    assert sockets, "the game connection opened"
+    elsewhere = [
+        u for u in [*requested, *sockets] if not re.match(r"(http|ws)://127\.0\.0\.1:\d+/", u)
+    ]
+    assert elsewhere == [], f"requests to other sites: {elsewhere}"
+    context.close()

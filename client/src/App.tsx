@@ -1,10 +1,12 @@
 // The website (T3.3): the front page with the consent screen (screens/Home.tsx), "Study
-// information" and the account page, with the footer that links them (Consent Screen §2).
+// information", the account page, and the terms of use and privacy policy (T3.8), with the
+// footer that links them on every page (Consent Screen §2).
 // Signed in, the front page is the game (screens/Play.tsx). The client holds no rules logic of
 // its own (Plan §3): it shows what the server sends and offers what the server allows.
 import { useEffect, useState } from "react";
 import { AccountPage } from "./screens/AccountPage.tsx";
 import { Home } from "./screens/Home.tsx";
+import { LegalPage } from "./legal/LegalPage.tsx";
 import { InformationPage } from "./screens/InformationPage.tsx";
 import { Link } from "./screens/Link.tsx";
 import { Problem } from "./screens/Messages.tsx";
@@ -60,6 +62,10 @@ export default function App() {
             return <InformationPage site={loading.site} />;
           case "/account":
             return <AccountPage site={loading.site} onChange={refresh} />;
+          case "/terms":
+            return <LegalPage document={loading.site.legal.terms} />;
+          case "/privacy":
+            return <LegalPage document={loading.site.legal.privacy} />;
           default:
             // A new standing starts the front page afresh.
             return (
@@ -80,6 +86,8 @@ export default function App() {
       <footer className="footer">
         <Link to="/">Fish</Link>
         <Link to="/information">Study information</Link>
+        <Link to="/terms">Terms of use</Link>
+        <Link to="/privacy">Privacy policy</Link>
         {signedIn && <Link to="/account">Your account</Link>}
       </footer>
     </div>

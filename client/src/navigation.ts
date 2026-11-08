@@ -2,7 +2,7 @@
 // the client (fish_server.pages.PAGES), so an address typed or bookmarked works too.
 
 /** Every page the client has; the same as fish_server.pages.PAGES. */
-export const PAGES = ["/", "/account", "/information"] as const;
+export const PAGES = ["/", "/account", "/information", "/terms", "/privacy"] as const;
 
 /** Go to ``to``, as a link would, and start at the top of the page. */
 export function go(to: string): void {

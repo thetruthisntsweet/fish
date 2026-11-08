@@ -1,7 +1,7 @@
 // The website's first screens (Consent Screen §2), against a stand-in server: the consent
 // screen first, nothing sent or stored before Continue, the acceptance carried with the
 // sign-in link, a new version accepted again, and the screens around them.
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "./App.tsx";
 import { fakeServer, type FakeServer } from "./test/server.ts";
@@ -170,16 +170,33 @@ test("a new version is read and accepted again before the next game", async () =
   ]);
 });
 
-test("new terms alone bring the consent screen back, and the new terms are sent", async () => {
-  server.terms = "v1.1"; // the terms of use and privacy policy changed (T3.8)
-  server.standing = { accepted: "v1.0", termsAccepted: "v1.0", withdrawn: false };
+test("terms not yet accepted bring the consent screen back, saying so, and are sent", async () => {
+  // Accepted before there were terms (T3.8): the same as new terms alone.
+  server.standing = { accepted: "v1.0", termsAccepted: null, withdrawn: false };
   await consentScreen();
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "The terms of use and privacy policy have changed.",
+  );
   tickAll();
   fireEvent.click(button("Continue"));
   expect(await screen.findByRole("heading", { name: "Play Fish" })).toBeInTheDocument();
-  expect(server.posts()).toEqual([
-    { method: "POST", path: "/consent", body: { ...ACCEPTED, terms_version: "v1.1" } },
-  ]);
+  expect(server.posts()).toEqual([{ method: "POST", path: "/consent", body: ACCEPTED }]);
+});
+
+test("Continue says it agrees to the terms, and links them in a new tab", async () => {
+  await consentScreen();
+  const line = screen.getByText(/By continuing you agree to the/);
+  expect(line).toHaveTextContent(
+    "By continuing you agree to the Terms of Use and have read the Privacy Policy.",
+  );
+  for (const [name, href] of [
+    ["Terms of Use", "/terms"],
+    ["Privacy Policy", "/privacy"],
+  ]) {
+    const link = within(line).getByRole("link", { name });
+    expect(link).toHaveAttribute("href", href);
+    expect(link).toHaveAttribute("target", "_blank"); // the ticks stay where they are
+  }
 });
 
 test("a player whose session ran out signs in again with the new acceptance", async () => {
