@@ -36,7 +36,7 @@ All times are Eastern. 8:00 pm Eastern is 5:00 pm Pacific.
 | Tue 12 Jan 2027 | M5: five weeks left | Invited | study |
 | Tue 9 Feb | M6: last week | Invited | study |
 | Sun 14 Feb | Last game night; collection and website withdrawal close | | study |
-| Mon 15 Feb | M7: thank you | Players: group 1, Players: group 2 | |
+| Mon 15 Feb | M7: thank you | Players: group 1, Players: group 2 | study |
 
 The launch invitation goes out after the pilot, once game length is known (M3 says it) and
 anything the pilot found is fixed. M5 and M6 go out on Tuesdays so that signed-up players,
@@ -122,8 +122,9 @@ in this repository. Resend's contacts are deleted on 31 March 2027, with the ema
 
 ## 5. Messages
 
-`[unsubscribe]` stands for Resend's unsubscribe link, which every bulk email carries in its
-footer. Text in `{braces}` is filled in when the message is sent.
+`[unsubscribe]` stands for the footer every bulk email carries: a link to the privacy policy
+of the message's site (§2's Site column: the pilot site's for M1 and M2, the study site's for
+the rest; T3.8) and Resend's unsubscribe link. Text in `{braces}` is filled in when the message is sent.
 
 ### M1 · Pilot invitation · Mon 16 Nov · Invited
 

@@ -1,7 +1,8 @@
 """The recruitment emails (scripts/broadcast.py; docs/recruitment.md; T4.1): every message on
 the page can be sent, word for word, only to the lists its heading names; M4 announces every
 game night in §3 exactly once to each group it is for; and Resend is asked for exactly the
-broadcast intended."""
+broadcast intended. Each footer links its site's privacy policy, and nothing is made in
+Resend while it tracks opens or clicks (T3.8)."""
 
 import importlib.util
 import io
@@ -56,6 +57,23 @@ def test_the_page_has_seven_messages_each_to_its_lists() -> None:
     for message in found.values():
         assert message.body[0] == "Hi,"
         assert message.body[-1] == "[unsubscribe]"  # every bulk email can be stopped
+    assert {k: m.site for k, m in found.items()} == {
+        "M1": "pilot", "M2": "pilot", "M3": "study", "M4": "study", "M5": "study",
+        "M6": "study", "M7": "study",
+    }  # fmt: skip
+
+
+def test_the_sites_are_the_ones_the_page_names() -> None:
+    sites = PAGE[PAGE.index("**Sites.**") :].split("\n\n")[0]
+    for url in broadcast.SITES.values():
+        assert url in sites
+
+
+def test_a_message_without_a_site_has_no_footer_to_send() -> None:
+    page = PAGE.replace("| M7: thank you | Players: group 1, Players: group 2 | study |",
+                        "| M7: thank you | Players: group 1, Players: group 2 | |")  # fmt: skip
+    with pytest.raises(broadcast.RefusedError, match="§2 names no site for M7"):
+        broadcast.prepared(page, "M7", "Players: group 1", {}, None)
 
 
 def test_the_sender_is_the_one_the_page_names() -> None:
@@ -146,6 +164,7 @@ def test_the_html_links_addresses_keeps_letter_breaks_and_can_unsubscribe() -> N
     assert "<p>Thanks,<br>Sanjeev</p>" in body
     assert "<li>Opening night: Sunday 13 December, 8:00 – 10:00 pm</li>" in body  # noqa: RUF001
     assert 'href="{{{RESEND_UNSUBSCRIBE_URL}}}"' in body
+    assert f'<a href="{url}/privacy" style="color:#5a6470">Privacy policy</a> · ' in body
     assert "players&#x27; actions" in body  # escaped
 
 
@@ -153,17 +172,26 @@ def test_the_text_version_is_the_same_words() -> None:
     text = broadcast.as_text(prepared("M2", "Invited"))
     assert text.startswith("Hi,\n\nA reminder that the Fish pilot starts tomorrow.")
     assert "\n- Tuesday 1 December, 8:00 – 10:00 pm\n" in text  # noqa: RUF001
-    assert text.endswith("Thanks,\nSanjeev\n\nUnsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}\n")
+    pilot = "https://fish-pilot.thedefinitivesanjeevexperience.com"
+    assert text.endswith(
+        f"Thanks,\nSanjeev\n\nPrivacy policy: {pilot}/privacy\n"
+        "Unsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}\n"
+    )  # the pilot's own policy
 
 
 # ---------------------------------------------------------------- Resend
 
 
 class FakeResend:
-    """Answers the two calls the script makes, and keeps what it was sent."""
+    """Answers the calls the script makes (its domains, its segments, the broadcast), and
+    keeps what it was sent."""
 
     def __init__(self, segments: list[dict[str, str]]) -> None:
         self.segments = segments
+        self.domains: dict[str, dict[str, object]] = {
+            name: {"id": f"d-{i}", "name": name, "open_tracking": False, "click_tracking": False}
+            for i, name in enumerate(broadcast.SENDING_DOMAINS)
+        }
         self.sent: list[tuple[str, str, dict[str, str], Any]] = []
         self.refuse = False
 
@@ -174,8 +202,20 @@ class FakeResend:
             raise urllib.error.HTTPError(
                 request.full_url, 422, "bad", Headers(), io.BytesIO(b'{"message": "no"}')
             )
-        answer = {"data": self.segments} if request.get_method() == "GET" else {"id": "b-1"}
+        path = request.full_url.removeprefix(broadcast.API)
+        answer: object
+        if path == "/domains":
+            answer = {"data": [{"id": d["id"], "name": d["name"]} for d in self.domains.values()]}
+        elif path.startswith("/domains/"):
+            answer = next(d for d in self.domains.values() if d["id"] == path.split("/")[-1])
+        elif request.get_method() == "GET":
+            answer = {"data": self.segments}
+        else:
+            answer = {"id": "b-1"}
         return io.BytesIO(json.dumps(answer).encode())
+
+    def calls(self) -> list[tuple[str, str]]:
+        return [(method, url.removeprefix(broadcast.API)) for method, url, _, _ in self.sent]
 
 
 @pytest.fixture
@@ -190,10 +230,12 @@ def resend(monkeypatch: pytest.MonkeyPatch) -> FakeResend:
 def test_a_draft_is_made_for_the_named_segment(resend: FakeResend) -> None:
     message = prepared("M3", "Invited", N="25")
     assert broadcast.create(message, "Invited", "re_key", None) == "b-1"
-    (_, segments, headers, _), (method, url, _, body) = resend.sent
-    assert segments == "https://api.resend.com/segments"
-    assert headers["Authorization"] == "Bearer re_key"
-    assert (method, url) == ("POST", "https://api.resend.com/broadcasts")
+    assert resend.calls() == [
+        ("GET", "/domains"), ("GET", "/domains/d-0"), ("GET", "/domains/d-1"),
+        ("GET", "/segments"), ("POST", "/broadcasts"),
+    ]  # fmt: skip
+    assert {headers["Authorization"] for _, _, headers, _ in resend.sent} == {"Bearer re_key"}
+    body = resend.sent[-1][3]
     assert body == {
         "segment_id": "s-invited",
         "from": broadcast.SENDER,
@@ -222,7 +264,31 @@ def test_a_segment_resend_does_not_have_is_named(resend: FakeResend) -> None:
 
 def test_resends_refusal_is_shown(resend: FakeResend) -> None:
     resend.refuse = True
-    with pytest.raises(broadcast.RefusedError, match=r'422 to GET /segments: \{"message": "no"\}'):
+    with pytest.raises(broadcast.RefusedError, match=r'422 to GET /domains: \{"message": "no"\}'):
+        broadcast.create(prepared("M1", "Invited"), "Invited", "re_key", None)
+
+
+@pytest.mark.parametrize(
+    ("domain", "tracking", "said"),
+    [
+        ("news.thedefinitivesanjeevexperience.com", ["open"], r"tracks opens on news\."),
+        ("mail.thedefinitivesanjeevexperience.com", ["click"], r"tracks clicks on mail\."),
+        ("news.thedefinitivesanjeevexperience.com", ["open", "click"], "opens and clicks"),
+    ],
+)
+def test_nothing_is_made_while_resend_tracks_opens_or_clicks(
+    resend: FakeResend, domain: str, tracking: list[str], said: str
+) -> None:
+    for what in tracking:
+        resend.domains[domain][f"{what}_tracking"] = True
+    with pytest.raises(broadcast.RefusedError, match=said):
+        broadcast.create(prepared("M1", "Invited"), "Invited", "re_key", None)
+    assert ("POST", "/broadcasts") not in resend.calls()
+
+
+def test_a_sending_domain_resend_does_not_have_is_named(resend: FakeResend) -> None:
+    del resend.domains["mail.thedefinitivesanjeevexperience.com"]
+    with pytest.raises(broadcast.RefusedError, match=r"no domain mail\.thedefinitive"):
         broadcast.create(prepared("M1", "Invited"), "Invited", "re_key", None)
 
 

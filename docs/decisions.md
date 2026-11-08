@@ -1167,3 +1167,15 @@ v1.0 in nine parts (Consent Screen §4).
 A browser test checks the privacy policy's claims after a sign-in and every page: one
 `fish_session` cookie, httpOnly, SameSite Lax, 30 days; no request or socket to any other
 site; and nothing in local or session storage, IndexedDB or caches.
+
+**D108 · 2026-11-07 · Every email links the privacy policy, and none is tracked (T3.8).**
+The sign-in email ends with "Privacy policy:" and the site's own `/privacy`. Each study email's
+footer (`[unsubscribe]` in recruitment.md) now links the privacy policy of the message's site,
+taken from §2's Site column (M1 and M2 the pilot's, M3 to M7 the study's; M7's cell was blank
+and is now "study"), beside the unsubscribe link. A message with no site is refused.
+The privacy policy says we don't track opens or clicks. Resend leaves both off by default, but
+they are per-domain settings anyone could turn on. So `scripts/broadcast.py --create` reads
+both sending domains from Resend's API (`open_tracking`, `click_tracking`) and refuses to
+make a broadcast while either is on. The sign-in domain's emails go out from the server with a
+sending-only key that can't read domains, so the broadcast check, run before every study
+email, covers that domain too.

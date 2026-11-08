@@ -90,17 +90,21 @@ def _page(title: str, body: str, status: int = 200) -> HTMLResponse:
     )
 
 
-def _email(link: str) -> tuple[str, str, str]:
+def _email(link: str, privacy: str) -> tuple[str, str, str]:
+    """The sign-in email: the link, how long it works, and the privacy policy (T3.8)."""
     minutes = int(LINK_LIFETIME.total_seconds() // 60)
     subject = "Your Fish sign-in link"
     text = (
         f"Sign in to Fish:\n\n{link}\n\nThe link works once, within {minutes} minutes. "
-        "If you did not ask for it, you can ignore this email."
+        "If you did not ask for it, you can ignore this email.\n\n"
+        f"Privacy policy: {privacy}"
     )
     safe = html.escape(link, quote=True)
     body = (
         f"<p><a href='{safe}'>Sign in to Fish</a></p><p>The link works once, within "
         f"{minutes} minutes. If you did not ask for it, you can ignore this email.</p>"
+        f"<p style='font-size:13px;color:#5a6470;margin-top:28px'><a "
+        f"href='{html.escape(privacy, quote=True)}' style='color:#5a6470'>Privacy policy</a></p>"
     )
     return subject, text, body
 
@@ -131,7 +135,7 @@ def send_link(
                 terms_version=terms,
             )
             link = f"{public_url()}/sign-in?token={quote(token)}"
-            mail.send(email, *_email(link))  # a failed send rolls the link back
+            mail.send(email, *_email(link, f"{public_url()}/privacy"))  # a failure rolls back
     except TooManyLinksError as limit:
         status = 429 if limit.for_address else 503
         return JSONResponse({"detail": f"{str(limit).capitalize()}. Try later."}, status)
