@@ -37,7 +37,7 @@ from starlette.concurrency import run_in_threadpool
 from fish_server.consent import Acceptance, accept, problem, standing, withdraw
 from fish_server.database import get_engine
 from fish_server.mailer import Mailer, MailError, mailer
-from fish_server.settings import cohort_seed, consent_version, daily_link_limit, public_url
+from fish_server.settings import cohort_seed, consent_version, daily_link_limit, public_url, shown
 from fish_server.signin import (
     LINK_LIFETIME,
     SESSION_LIFETIME,
@@ -113,18 +113,22 @@ def send_link(
         email = normalize_email(form.email)
     except ValueError:
         return JSONResponse({"detail": "That is not an email address."}, status_code=422)
-    accepted = None
+    accepted = terms = None
     if form.consent is not None:
-        refused = problem(form.consent, consent_version())
+        refused = problem(form.consent, shown())
         if refused is not None:
             return JSONResponse({"detail": refused}, status_code=422)
-        accepted = form.consent.version
+        accepted, terms = form.consent.version, form.consent.terms_version
     if not limiter.allow(request.client.host if request.client else "unknown"):
         return JSONResponse({"detail": "Too many sign-in emails. Try later."}, status_code=429)
     try:
         with get_engine().begin() as conn:
             token = request_link(
-                conn, email, daily_limit=daily_link_limit(), consent_version=accepted
+                conn,
+                email,
+                daily_limit=daily_link_limit(),
+                consent_version=accepted,
+                terms_version=terms,
             )
             link = f"{public_url()}/sign-in?token={quote(token)}"
             mail.send(email, *_email(link))  # a failed send rolls the link back
@@ -189,13 +193,15 @@ def signed_in(token: str | None) -> uuid.UUID | None:
 
 @router.get("/study")
 def study(now: Annotated[datetime, Depends(clock)]) -> JSONResponse:
-    """The version of the study information this site shows (Consent Screen §1, §4), the last
-    day to withdraw on the website (§2.7), and whether withdrawing is still open."""
-    current = consent_version()
-    version = VERSIONS[current]
+    """The version of the study information this site shows (Consent Screen §1, §4), the
+    version of the terms of use and privacy policy (T3.8), the last day to withdraw on the
+    website (§2.7), and whether withdrawing is still open."""
+    site = shown()
+    version = VERSIONS[site.consent]
     return JSONResponse(
         {
-            "version": current,
+            "version": site.consent,
+            "terms_version": site.terms,
             "withdraw_until": version.withdraw_until.isoformat(),
             "withdrawal_open": version.withdrawal_open(now),
         }
@@ -204,10 +210,12 @@ def study(now: Annotated[datetime, Depends(clock)]) -> JSONResponse:
 
 def _standing(player: uuid.UUID) -> dict[str, object]:
     with get_engine().connect() as conn:
-        where = standing(conn, player, consent_version())
+        where = standing(conn, player, shown())
     return {
         "current": where.current,
         "accepted": where.accepted,
+        "terms_current": where.shown.terms,
+        "terms_accepted": where.terms_accepted,
         "withdrawn": where.withdrawn,
         "may_play": where.may_play,
     }
@@ -232,14 +240,14 @@ def give_consent(
     player = signed_in(fish_session)
     if player is None:
         return JSONResponse({"detail": "Sign in first."}, 401)
-    current = consent_version()
-    refused = problem(form, current)
+    site = shown()
+    refused = problem(form, site)
     if refused is not None:
         return JSONResponse({"detail": refused}, 422)
     with get_engine().begin() as conn:
-        if standing(conn, player, current).withdrawn:
+        if standing(conn, player, site).withdrawn:
             return JSONResponse({"detail": "You have withdrawn from the study."}, 409)
-        accept(conn, player, current)
+        accept(conn, player, site.consent, site.terms)
     return Response(status_code=204)
 
 
@@ -256,7 +264,7 @@ def withdraw_here(
         return JSONResponse({"detail": "Sign in first."}, 401)
     current = consent_version()
     with get_engine().begin() as conn:
-        if standing(conn, player, current).withdrawn:
+        if standing(conn, player, shown()).withdrawn:
             return Response(status_code=204)
         version = VERSIONS[current]
         if not version.withdrawal_open(now):

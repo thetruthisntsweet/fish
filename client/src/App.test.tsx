@@ -9,6 +9,7 @@ import { fakeSockets } from "./test/socket.ts";
 
 const ACCEPTED = {
   version: "v1.0",
+  terms_version: "v1.0",
   us_resident_adult: true,
   agrees: true,
   no_outside_communication: true,
@@ -141,7 +142,7 @@ test("the pilot site shows the pilot text and sends its version", async () => {
   await screen.findByRole("heading", { name: "Check your email" });
   expect(server.posts()[0]?.body).toEqual({
     email: "pilot@example.org",
-    consent: { ...ACCEPTED, version: "v1.0-pilot" },
+    consent: { ...ACCEPTED, version: "v1.0-pilot", terms_version: "v1.0-pilot" },
   });
 });
 
@@ -161,7 +162,23 @@ test("a new version is read and accepted again before the next game", async () =
   fireEvent.click(button("Continue"));
   expect(await screen.findByRole("heading", { name: "Play Fish" })).toBeInTheDocument();
   expect(server.posts()).toEqual([
-    { method: "POST", path: "/consent", body: { ...ACCEPTED, version: "v1.0-pilot" } },
+    {
+      method: "POST",
+      path: "/consent",
+      body: { ...ACCEPTED, version: "v1.0-pilot", terms_version: "v1.0-pilot" },
+    },
+  ]);
+});
+
+test("new terms alone bring the consent screen back, and the new terms are sent", async () => {
+  server.terms = "v1.1"; // the terms of use and privacy policy changed (T3.8)
+  server.standing = { accepted: "v1.0", termsAccepted: "v1.0", withdrawn: false };
+  await consentScreen();
+  tickAll();
+  fireEvent.click(button("Continue"));
+  expect(await screen.findByRole("heading", { name: "Play Fish" })).toBeInTheDocument();
+  expect(server.posts()).toEqual([
+    { method: "POST", path: "/consent", body: { ...ACCEPTED, terms_version: "v1.1" } },
   ]);
 });
 

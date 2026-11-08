@@ -3,9 +3,11 @@
 // session cookie goes with every request on its own.
 import type { Confirmation } from "./study/texts.ts";
 
-/** GET /study: the text this site shows, and until when its participants can withdraw. */
+/** GET /study: the text this site shows, the terms of use and privacy policy agreed to with
+ * it (T3.8), and until when its participants can withdraw. */
 export interface Study {
   readonly version: string;
+  readonly termsVersion: string;
   readonly withdrawUntil: string;
   readonly withdrawalOpen: boolean;
 }
@@ -14,12 +16,17 @@ export interface Study {
 export interface Standing {
   readonly current: string;
   readonly accepted: string | null;
+  /** The terms shown now, and those in the latest acceptance (null: none, or before terms). */
+  readonly termsCurrent: string;
+  readonly termsAccepted: string | null;
   readonly withdrawn: boolean;
   readonly mayPlay: boolean;
 }
 
-/** What Continue sends: the version shown, every confirmation ticked (fish_server.consent). */
-export type Acceptance = { readonly version: string } & Readonly<Record<Confirmation, true>>;
+/** What Continue sends: the versions shown, every confirmation ticked (fish_server.consent). */
+export type Acceptance = { readonly version: string; readonly terms_version: string } & Readonly<
+  Record<Confirmation, true>
+>;
 
 export type Outcome =
   { readonly ok: true } | { readonly ok: false; readonly status: number; readonly detail: string };
@@ -32,8 +39,14 @@ export const LINK_MINUTES = 15;
 /** The server answered something the client does not understand. */
 export class UnexpectedAnswer extends Error {}
 
-export function acceptance(version: string): Acceptance {
-  return { version, us_resident_adult: true, agrees: true, no_outside_communication: true };
+export function acceptance(version: string, termsVersion: string): Acceptance {
+  return {
+    version,
+    terms_version: termsVersion,
+    us_resident_adult: true,
+    agrees: true,
+    no_outside_communication: true,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -52,6 +65,7 @@ export async function getStudy(): Promise<Study> {
     status !== 200 ||
     !isRecord(body) ||
     typeof body.version !== "string" ||
+    typeof body.terms_version !== "string" ||
     typeof body.withdraw_until !== "string" ||
     typeof body.withdrawal_open !== "boolean"
   ) {
@@ -59,6 +73,7 @@ export async function getStudy(): Promise<Study> {
   }
   return {
     version: body.version,
+    termsVersion: body.terms_version,
     withdrawUntil: body.withdraw_until,
     withdrawalOpen: body.withdrawal_open,
   };
@@ -76,6 +91,8 @@ export async function getStanding(): Promise<Standing | null> {
     !isRecord(study) ||
     typeof study.current !== "string" ||
     !(typeof study.accepted === "string" || study.accepted === null) ||
+    typeof study.terms_current !== "string" ||
+    !(typeof study.terms_accepted === "string" || study.terms_accepted === null) ||
     typeof study.withdrawn !== "boolean" ||
     typeof study.may_play !== "boolean"
   ) {
@@ -84,6 +101,8 @@ export async function getStanding(): Promise<Standing | null> {
   return {
     current: study.current,
     accepted: study.accepted,
+    termsCurrent: study.terms_current,
+    termsAccepted: study.terms_accepted,
     withdrawn: study.withdrawn,
     mayPlay: study.may_play,
   };

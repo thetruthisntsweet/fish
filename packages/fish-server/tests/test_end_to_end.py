@@ -54,6 +54,7 @@ pressing when it must (its turn, and no ask left)."""
 
 ACCEPTANCE = {
     "version": "v1.0",
+    "terms_version": "v1.0",
     "us_resident_adult": True,
     "agrees": True,
     "no_outside_communication": True,

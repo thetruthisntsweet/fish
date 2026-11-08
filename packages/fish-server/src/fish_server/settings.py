@@ -20,7 +20,8 @@ from pathlib import Path
 
 from sqlalchemy import make_url
 
-from fish_server.study import VERSIONS
+from fish_server.consent import Shown
+from fish_server.study import TERMS, VERSIONS
 
 ADMIN_DATABASE_URL_VAR = "FISH_ADMIN_DATABASE_URL"
 APP_PASSWORD_VAR = "FISH_APP_DB_PASSWORD"
@@ -188,6 +189,32 @@ def consent_version() -> str:
         known = ", ".join(VERSIONS)
         raise ValueError(f"{CONSENT_VERSION_VAR} is one of {known}, not {version!r}")
     return version
+
+
+TERMS_VERSION_VAR = "FISH_TERMS_VERSION"
+
+
+def terms_version() -> str:
+    """The terms of use and privacy policy this site shows and asks people to agree to with
+    the consent screen (Terms and Privacy; T3.8): unless FISH_TERMS_VERSION says otherwise,
+    ``v1.0``, or ``v1.0-pilot`` on a site showing a pilot consent text. It must be one this
+    site has (``fish_server.study.TERMS``), and a pilot version exactly when the consent text
+    is one."""
+    pilot = consent_version().endswith("-pilot")
+    default = "v1.0-pilot" if pilot else "v1.0"
+    version = os.environ.get(TERMS_VERSION_VAR, "").strip() or default
+    if version not in TERMS:
+        known = ", ".join(TERMS)
+        raise ValueError(f"{TERMS_VERSION_VAR} is one of {known}, not {version!r}")
+    if version.endswith("-pilot") != pilot:
+        site = "a pilot" if pilot else "the study's"
+        raise ValueError(f"{TERMS_VERSION_VAR} {version!r} does not go with {site} consent text")
+    return version
+
+
+def shown() -> Shown:
+    """What this site asks people to accept: the consent text and the terms."""
+    return Shown(consent_version(), terms_version())
 
 
 # ---------------------------------------------------------------- the web client (T3.3)

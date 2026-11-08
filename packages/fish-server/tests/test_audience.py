@@ -110,7 +110,7 @@ def sign_up(engine: Engine, cohort: bool, *, accepted: bool = True, left: bool =
             if held != cohort:
                 continue
             if accepted:
-                accept(conn, player, "v1.0")
+                accept(conn, player, "v1.0", "v1.0")
             if left:
                 withdraw(conn, player, "website")
             return email

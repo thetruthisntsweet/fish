@@ -12,9 +12,11 @@ export interface Sent {
 export interface FakeServer {
   readonly sent: Sent[];
   version: string;
+  /** The terms shown; unset, the pilot's on a pilot text, else v1.0. */
+  terms?: string;
   withdrawalOpen: boolean;
-  /** Null: no one signed in. */
-  standing: { accepted: string | null; withdrawn: boolean } | null;
+  /** Null: no one signed in. ``termsAccepted`` unset: the terms shown now. */
+  standing: { accepted: string | null; termsAccepted?: string | null; withdrawn: boolean } | null;
   /** Answers to give instead, by "METHOD /path", once each. */
   readonly next: Map<string, { status: number; body?: unknown }>;
   reachable: boolean;
@@ -38,6 +40,7 @@ export function fakeServer(): FakeServer {
     reachable: true,
     posts: () => server.sent.filter((s) => s.method !== "GET"),
   };
+  const terms = () => server.terms ?? (server.version.endsWith("-pilot") ? "v1.0-pilot" : "v1.0");
   vi.stubGlobal("fetch", (path: string, init?: RequestInit) => {
     const method = init?.method ?? "GET";
     const body = typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined;
@@ -56,6 +59,7 @@ export function fakeServer(): FakeServer {
         return Promise.resolve(
           json(200, {
             version: server.version,
+            terms_version: terms(),
             withdraw_until: server.version === "v1.0" ? "2027-02-14" : "2027-03-31",
             withdrawal_open: server.withdrawalOpen,
           }),
@@ -65,14 +69,21 @@ export function fakeServer(): FakeServer {
         if (standing === null) {
           return Promise.resolve(json(401, { signed_in: false }));
         }
+        const termsAccepted =
+          standing.termsAccepted === undefined ? terms() : standing.termsAccepted;
         return Promise.resolve(
           json(200, {
             signed_in: true,
             study: {
               current: server.version,
               accepted: standing.accepted,
+              terms_current: terms(),
+              terms_accepted: termsAccepted,
               withdrawn: standing.withdrawn,
-              may_play: standing.accepted === server.version && !standing.withdrawn,
+              may_play:
+                standing.accepted === server.version &&
+                termsAccepted === terms() &&
+                !standing.withdrawn,
             },
           }),
         );
@@ -96,6 +107,7 @@ export function fakeServer(): FakeServer {
       case "POST /consent":
         if (server.standing !== null) {
           server.standing.accepted = server.version;
+          server.standing.termsAccepted = terms();
         }
         return Promise.resolve(json(204));
       default:

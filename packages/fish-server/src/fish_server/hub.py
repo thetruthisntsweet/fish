@@ -56,7 +56,7 @@ from sqlalchemy import Engine, insert
 from sqlalchemy.dialects.postgresql import insert as upsert
 
 from fish_server import db
-from fish_server.consent import standing
+from fish_server.consent import Shown, standing
 from fish_server.game import (
     Acted,
     Connected,
@@ -267,6 +267,10 @@ class Running:
                         await asyncio.sleep(wait)
 
 
+DEFAULT_SHOWN: Final = Shown("v1.0", "v1.0")
+"""What the study site shows; the app passes the site's own (``fish_server.settings.shown``)."""
+
+
 class Hub:
     """The lobby, the connections and the games in progress."""
 
@@ -274,12 +278,12 @@ class Hub:
         self,
         engine: Callable[[], Engine],
         server_commit: str,
-        consent_version: str = "v1.0",
+        shown: Shown = DEFAULT_SHOWN,
         sweep_s: float = SWEEP_S,
     ) -> None:
         self.engine = engine
         self.server_commit = server_commit
-        self.consent_version = consent_version
+        self.shown = shown
         self.lobby = Lobby()
         self.connections: dict[uuid.UUID, Connection] = {}
         self.games: dict[uuid.UUID, Running] = {}  # player -> the game they are in
@@ -465,7 +469,7 @@ class Hub:
         """Why ``player`` may not wait for a game now: they have not accepted the current
         study information, or they have withdrawn (``fish_server.consent``)."""
         with self.engine().connect() as conn:
-            return standing(conn, player.id, self.consent_version).refusal()
+            return standing(conn, player.id, self.shown).refusal()
 
     def _write_start(self, formed: Formed, seed: int, started: datetime) -> uuid.UUID:
         with self.engine().begin() as conn:
