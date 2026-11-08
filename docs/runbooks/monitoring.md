@@ -110,3 +110,4 @@ Every alert that wasn't a test, and the setup itself.
 
 | Date | Site | What failed | Down for | Cause and fix | By |
 |---|---|---|---|---|---|
+| 2026-11-07 | Pilot | — | — | Set up; test alert received | Sanjeev |
