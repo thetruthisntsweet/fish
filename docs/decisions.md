@@ -1150,3 +1150,20 @@ The column is never exported: what a person agreed to as terms is not research d
 Alternatives: a separate acceptance table and screen for the terms, which would mean two
 records and two screens for one moment of agreeing; a version tied to the consent text, which
 couldn't change without changing that text.
+
+**D107 · 2026-11-07 · The terms and privacy policy on the website; the laptop copy in consent v1.0 (T3.8).**
+`/terms` and `/privacy` show the version the site names, word for word from Terms and Privacy
+§1-3 (`client/src/legal/legal.ts`). The pilot site's versions are built from the same
+sentences, and a test checks that they differ in exactly the parts §3 lists.
+`client/src/legal/versions.json` and `fish_server.study.TERMS` are checked against each other,
+as the consent versions are. Every page's footer links both. The consent screen's agreement
+line opens them in a new tab, so leaving to read them doesn't lose the ticks. A notice says
+whether it was the study information or only the terms that changed.
+Consent v1.0's "How your data is kept" gains Dr. Hany's approved sentence about the weekly
+laptop copy (D103). v1.0 is changed in place rather than made a new version because no one can
+have accepted it yet: only the staging site runs, and it shows the pilot text. The pilot text
+keeps the paragraph as it was, since pilot games are never copied, so it now differs from
+v1.0 in nine parts (Consent Screen §4).
+A browser test checks the privacy policy's claims after a sign-in and every page: one
+`fish_session` cookie, httpOnly, SameSite Lax, 30 days; no request or socket to any other
+site; and nothing in local or session storage, IndexedDB or caches.

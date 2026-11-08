@@ -9,18 +9,26 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from fish_server.study import VERSIONS
+from fish_server.study import TERMS, VERSIONS
 
 CLIENT_VERSIONS: Final = (
     Path(__file__).resolve().parents[3] / "client" / "src" / "study" / "versions.json"
 )
 """The versions the client has a text for (client/src/study/texts.ts checks that it does)."""
 
+CLIENT_TERMS: Final = CLIENT_VERSIONS.parents[1] / "legal" / "versions.json"
+"""The terms versions the client has (client/src/legal/legal.test.ts checks that it does)."""
+
 
 def test_the_client_has_a_text_for_exactly_the_versions_the_server_knows() -> None:
     client = json.loads(CLIENT_VERSIONS.read_text(encoding="utf-8"))
     server = {name: {"withdrawUntil": v.withdraw_until.isoformat()} for name, v in VERSIONS.items()}
     assert client == server
+
+
+def test_the_client_has_terms_for_exactly_the_versions_the_server_knows() -> None:
+    """T3.8: the terms of use and privacy policy, one version for both."""
+    assert json.loads(CLIENT_TERMS.read_text(encoding="utf-8")) == list(TERMS)
 
 
 @pytest.mark.parametrize(

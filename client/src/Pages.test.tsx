@@ -27,7 +27,7 @@ const button = (name: string) => screen.getByRole("button", { name });
 const footer = () => within(screen.getByRole("contentinfo"));
 
 test("the client has a page for exactly the paths the server serves it on", () => {
-  expect(PAGES).toEqual(["/", "/account", "/information"]); // fish_server.pages.PAGES
+  expect(PAGES).toEqual(["/", "/account", "/information", "/terms", "/privacy"]); // fish_server.pages.PAGES
 });
 
 test("every page's footer links to the study information; the account once signed in", async () => {
@@ -154,4 +154,61 @@ test("signing out goes back to the consent screen", async () => {
   expect(window.location.pathname).toBe("/");
   expect(server.posts()).toEqual([{ method: "POST", path: "/auth/sign-out", body: undefined }]);
   expect(footer().queryByRole("link", { name: "Your account" })).toBeNull();
+});
+
+// ---------------------------------------------------------------- terms and privacy (T3.8)
+
+test.each([
+  ["/", false],
+  ["/information", false],
+  ["/terms", false],
+  ["/account", true],
+])("the footer of %s links to the terms of use and the privacy policy", async (path, signedIn) => {
+  if (signedIn) {
+    server.standing = { accepted: "v1.0", withdrawn: false };
+  }
+  visit(path);
+  await screen.findByRole("contentinfo");
+  await waitFor(() => {
+    expect(footer().getByRole("link", { name: "Terms of use" })).toHaveAttribute("href", "/terms");
+  });
+  expect(footer().getByRole("link", { name: "Privacy policy" })).toHaveAttribute(
+    "href",
+    "/privacy",
+  );
+});
+
+test.each([
+  ["/terms", "v1.0", "Fish research study: terms of use", "Law"],
+  ["/privacy", "v1.0", "Fish research study: privacy policy", "Cookies"],
+  ["/terms", "v1.0-pilot", "Fish research study: pilot terms of use", "Your games"],
+  ["/privacy", "v1.0-pilot", "Fish research study: privacy policy for the pilot", "Age"],
+])("%s shows the site's own version (%s) to anyone", async (path, version, title, heading) => {
+  server.version = version; // the pilot site shows the pilot's terms with its text
+  visit(path);
+  expect(await screen.findByRole("heading", { level: 1, name: title })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 2, name: heading })).toBeInTheDocument();
+  expect(screen.getByText("Version 1.0, effective 30 November 2026.")).toBeInTheDocument();
+  expect(server.posts()).toEqual([]); // reading them sends nothing
+});
+
+test("the privacy policy shows what is collected as a table, and links its addresses", async () => {
+  visit("/privacy");
+  const table = await screen.findByRole("table");
+  expect(
+    within(table)
+      .getAllByRole("columnheader")
+      .map((th) => th.textContent),
+  ).toEqual(["What", "When", "Why"]);
+  expect(within(table).getAllByRole("row")).toHaveLength(9);
+  expect(screen.getAllByRole("link", { name: "821sanjeevkumar@gmail.com" })[0]).toHaveAttribute(
+    "href",
+    "mailto:821sanjeevkumar@gmail.com",
+  );
+});
+
+test("a site showing terms this page does not have asks for a reload", async () => {
+  server.terms = "v9.9"; // a newer server
+  visit("/terms");
+  expect(await screen.findByRole("alert")).toHaveTextContent("This page is out of date.");
 });

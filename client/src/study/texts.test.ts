@@ -1,5 +1,5 @@
 // The study texts (Consent Screen §1, §4): one per version the server knows, each saying its
-// own last day to withdraw, and the pilot differing from the study text in exactly the eight
+// own last day to withdraw, and the pilot differing from the study text in exactly the nine
 // parts §4 lists.
 import { describe, expect, test } from "vitest";
 import { CONFIRMATIONS, TEXTS, studyText, type StudyText } from "./texts.ts";
@@ -100,7 +100,7 @@ describe("v1.0", () => {
 });
 
 describe("v1.0-pilot", () => {
-  test("differs from v1.0 in exactly the eight parts of Consent Screen §4", () => {
+  test("differs from v1.0 in exactly the nine parts of Consent Screen §4", () => {
     const a = parts(study);
     const b = parts(pilot);
     const changed = [...new Set([...a.keys(), ...b.keys()])].filter((k) => a.get(k) !== b.get(k));
@@ -109,6 +109,7 @@ describe("v1.0-pilot", () => {
       "Key points / list 0 / item 0", // 2
       "Key points / list 0 / item 3", // 3
       "What the study is for / paragraph 0", // 4, its last sentence
+      "How your data is kept / paragraph 0", // 9, its last two sentences removed
       "Publication / paragraph 0", // 5, both paragraphs: one in the pilot
       "Publication / paragraph 1",
       "Withdrawing / paragraph 0", // 6, both paragraphs: one in the pilot
@@ -119,6 +120,17 @@ describe("v1.0-pilot", () => {
     expect(b.has("Publication / paragraph 1")).toBe(false);
     expect(b.has("Withdrawing / paragraph 1")).toBe(false);
     expect(b.has("Possible extra games in March 2027 / paragraph 0")).toBe(false);
+  });
+
+  test("keeps how the data is kept, without the laptop copy", () => {
+    const study_ = parts(study).get("How your data is kept / paragraph 0") ?? "";
+    const pilot_ = parts(pilot).get("How your data is kept / paragraph 0") ?? "";
+    expect(study_.startsWith(`${pilot_} As a backup, the researcher also keeps one copy`)).toBe(
+      true,
+    );
+    expect(pilot_).toBe(
+      "In a database in the United States that can be reached only from inside our hosting provider's private network. The game server can add records but cannot change or delete them.",
+    );
   });
 
   test.each(["What the study is for / paragraph 0", "Risks / paragraph 0"])(

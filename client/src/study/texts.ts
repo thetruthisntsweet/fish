@@ -5,9 +5,9 @@
 // version, here, in versions.json and in fish_server/study.py. Typo fixes keep the version
 // (Consent Screen §2.8).
 //
-// The pilot text is the study text with exactly eight parts changed (§4). It is built from
+// The pilot text is the study text with exactly nine parts changed (§4). It is built from
 // the same sentences below, so everything else is word for word by construction, and
-// texts.test.ts checks that exactly those eight parts differ.
+// texts.test.ts checks that exactly those nine parts differ.
 
 import versions from "./versions.json";
 
@@ -101,11 +101,14 @@ const RECORDED: Section = {
   ],
 };
 
+const KEPT_HEADING = "How your data is kept";
+const KEPT_DATABASE =
+  "In a database in the United States that can be reached only from inside our hosting provider's private network. The game server can add records but cannot change or delete them.";
 const KEPT: Section = {
-  heading: "How your data is kept",
+  heading: KEPT_HEADING,
   blocks: [
     paragraph(
-      "In a database in the United States that can be reached only from inside our hosting provider's private network. The game server can add records but cannot change or delete them.",
+      `${KEPT_DATABASE} As a backup, the researcher also keeps one copy of the games that count for the study, under random IDs and without email addresses, on a laptop with an encrypted disk. It is replaced every week, so withdrawn games leave it within a week, and it is deleted by 30 June 2027.`,
     ),
   ],
 };
@@ -216,7 +219,8 @@ const PILOT: StudyText = {
     WHAT_YOU_DO,
     BOTS,
     RECORDED,
-    KEPT,
+    // 9. How your data is kept, last two sentences: removed (pilot games are never copied)
+    { heading: KEPT_HEADING, blocks: [paragraph(KEPT_DATABASE)] },
     {
       heading: PUBLICATION,
       // 5. Publication, both paragraphs

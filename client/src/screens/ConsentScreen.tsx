@@ -18,12 +18,21 @@ interface Props {
   terms: string;
   /** A signed-in player whose accepted text is no longer the one shown (§2.8). */
   renewing: boolean;
+  /** Renewing because only the terms changed (T3.8). */
+  termsChanged?: boolean;
   /** Called with the acceptance; resolves to a message to show, or null if it went through. */
   onContinue: (accepted: Acceptance) => Promise<string | null>;
   onDecline: () => void;
 }
 
-export function ConsentScreen({ text, terms, renewing, onContinue, onDecline }: Props) {
+export function ConsentScreen({
+  text,
+  terms,
+  renewing,
+  termsChanged = false,
+  onContinue,
+  onDecline,
+}: Props) {
   const [ticked, setTicked] = useState(UNTICKED);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -45,7 +54,9 @@ export function ConsentScreen({ text, terms, renewing, onContinue, onDecline }: 
     <>
       {renewing && (
         <p className="notice" role="status">
-          The study information has changed. Please read it and confirm again before your next game.
+          {termsChanged
+            ? "The terms of use and privacy policy have changed. Please read them and confirm again before your next game."
+            : "The study information has changed. Please read it and confirm again before your next game."}
         </p>
       )}
       <StudyDocument text={text} />
@@ -70,6 +81,17 @@ export function ConsentScreen({ text, terms, renewing, onContinue, onDecline }: 
             </label>
           ))}
         </fieldset>
+        <p className="agreement">
+          By continuing you agree to the{" "}
+          <a href="/terms" target="_blank" rel="noopener">
+            Terms of Use
+          </a>{" "}
+          and have read the{" "}
+          <a href="/privacy" target="_blank" rel="noopener">
+            Privacy Policy
+          </a>
+          .
+        </p>
         {problem !== null && (
           <p className="problem" role="alert">
             {problem}

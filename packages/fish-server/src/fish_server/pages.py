@@ -5,8 +5,9 @@ too, and ``FISH_CLIENT_DIR`` can point elsewhere). The server answers the client
 its ``index.html`` and serves its files, so the pages, the endpoints and ``/ws`` share one
 address and the session cookie works with nothing more to set up.
 
-- ``/``, ``/account``, ``/information``: ``index.html``, never cached, so a deploy reaches
-  everyone at their next visit. The client shows the right screen for the path.
+- ``/``, ``/account``, ``/information``, ``/terms``, ``/privacy``: ``index.html``, never
+  cached, so a deploy reaches everyone at their next visit. The client shows the right screen
+  for the path.
 - ``/assets/<name>``: the client's scripts and styles. Their names carry a hash of their
   contents, so they are cached for good.
 - ``/favicon.svg``.
@@ -22,7 +23,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 
 from fish_server.settings import client_dir
 
-PAGES: Final = ("/", "/account", "/information")
+PAGES: Final = ("/", "/account", "/information", "/terms", "/privacy")
 """Every path the client shows a screen for."""
 
 ASSET_NAME: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")

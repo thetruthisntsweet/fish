@@ -12,8 +12,14 @@ rules are the Canonical Ruleset v1.1 ([rules.md](rules.md)).
 | `/` | the consent screen to anyone not signed in (or whose accepted text is out of date); signed in, the game (§3) |
 | `/information` | the study information the player accepted |
 | `/account` | the version accepted, "Withdraw from the study", Sign out |
+| `/terms`, `/privacy` | the terms of use and the privacy policy this site shows (T3.8), to anyone |
 
-The study texts are in `client/src/study/texts.ts`, word for word (Consent Screen §1, §4).
+The study texts are in `client/src/study/texts.ts`, word for word (Consent Screen §1, §4),
+and the terms of use and privacy policy in `client/src/legal/legal.ts` (Terms and Privacy
+§1-3). Every page's footer links Study information, Terms of use, Privacy policy and, signed
+in, Your account. Above Continue, the consent screen says "By continuing you agree to the
+Terms of Use and have read the Privacy Policy.", with both opening in a new tab so the
+ticks stay.
 Signing in, consenting and withdrawing are described in [server.md](server.md) §2.
 
 ## 2. The pieces
