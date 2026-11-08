@@ -24,6 +24,7 @@ import argparse
 import json
 import statistics
 import sys
+import uuid
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -122,12 +123,17 @@ class Pilot:
         self.games_handed_over += handed
 
 
+def chosen(conn: Connection, since: date | None) -> set[uuid.UUID]:
+    """The stored games that started on or after ``since`` (Eastern), or all of them."""
+    return set(conn.execute(text(_SINCE), {"since": since}).scalars())
+
+
 def read(conn: Connection, since: date | None) -> Pilot:
     """The pilot's figures, from the games that started on or after ``since`` (Eastern)."""
-    chosen = set(conn.execute(text(_SINCE), {"since": since}).scalars())
+    games = chosen(conn, since)
     standing = membership(conn)
-    pilot = Pilot(since, Counter(standing[g] for g in chosen))
-    for record in records(conn, Summary(), only=chosen):
+    pilot = Pilot(since, Counter(standing[g] for g in games))
+    for record in records(conn, Summary(), only=games):
         pilot.add(read_corpus_record(record))
     return pilot
 

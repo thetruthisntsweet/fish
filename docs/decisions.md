@@ -1350,3 +1350,27 @@ Alternatives: one distribution for every decision, which would make a bot's assi
 as its asks; fitting a parametric distribution, which smooths away the tails the percentiles
 keep; a per-site environment variable, which would leave the study's table outside the code
 and its review.
+
+**D119 · 2026-11-08 · The MDEs come from proxies' spread across pilot games (T4.2).**
+`python -m fish_server.mde` computes, from the pilot's corpus records, the minimum detectable
+effect of each primary metric: `2.80 x SE`, for a two-sided 5% test at 80% power. The SE is a
+game-level bootstrap with 10,000 resamples, as in the analysis, scaled to 150 and to 1,000
+games by the square root of the number of games (`docs/mde.md`).
+
+B2 and B3 don't exist yet, so each metric is stood in for by a proxy on the same games:
+- RQ1: Layer 1's log loss, scored exactly as T1.1 scores beliefs;
+- RQ2: a hand-count policy's leakage on people's asks;
+- RQ3: the pilot's win rate, for a difference of two win rates.
+
+The RQ1 proxy is a single model's loss. The real metric is a paired difference on the same
+cards, which should vary less, so that MDE errs large. 150 games is about one test set's
+primary-set games, and RQ1's headline is computed per test set (Research Questions §5.1): at
+1,000 games alone, its MDE would look 2.6 times smaller than the test it describes.
+
+The command runs on the pilot site, so pilot games never leave the server. It uses the
+standard library only, since the server image has no research packages. It names nothing.
+T6.4 and T6.5 recompute each MDE with the real metric once B2 and B3 exist, as a new section of
+`docs/mde.md`; the figures recorded before launch stay.
+Alternatives: waiting for B2 and B3, which would miss "recorded before launch"; a simulated
+effect on bot games, which says nothing about how people's games vary; MDEs at 1,000 games
+only, which overstate what RQ1's test sets can detect.

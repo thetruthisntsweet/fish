@@ -116,8 +116,16 @@ In this order:
    `scripts/try_server.py` against production then prints `bots:   pilot-2026-12-v1`, and
    fails if production would open with the stand-in. The pilot site keeps
    `uniform-1.5-4s-v1`.
-4. **The minimum detectable effects** are computed from the same games and recorded in
-   `docs/mde.md`, through a PR, before 8 December (T4.2 subtask 4).
+4. **The minimum detectable effects**, in `fish-staging`'s Shell:
+
+   ```bash
+   python -m fish_server.mde --since 2026-12-01
+   ```
+
+   It takes a minute or two. It prints the table for [docs/mde.md](../mde.md) §3, from the
+   same games as the report. Paste it there with the number of games, then commit, push and
+   merge the PR before 8 December. If it says there are too few finished games (fewer than
+   10), record what it prints anyway, and say so under the table.
 5. **Production** opens on 8 December with all of it (T4.3).
 
 ## 5. Record
