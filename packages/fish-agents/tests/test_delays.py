@@ -184,3 +184,13 @@ def test_a_wait_comes_from_its_kinds_row_linearly_between_percentiles() -> None:
         table.draw(SplitMix64(0), "ask")
     with pytest.raises(ValueError, match="no delay table 'pilot-v9'"):
         load("pilot-v9")
+
+
+def test_a_dry_run_writes_where_it_is_told(tmp_path: Path) -> None:
+    pilot = tmp_path / "pilot.json"
+    pilot.write_text(json.dumps(report()))
+    elsewhere = tmp_path / "dry" / "run"
+    assert _script().main([str(pilot), "rehearsal-v1", "--tables", str(elsewhere)]) == 0
+    assert check(json.loads((elsewhere / "rehearsal-v1.json").read_text())).version == (
+        "rehearsal-v1"
+    )

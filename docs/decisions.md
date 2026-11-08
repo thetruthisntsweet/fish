@@ -1374,3 +1374,22 @@ T6.4 and T6.5 recompute each MDE with the real metric once B2 and B3 exist, as a
 Alternatives: waiting for B2 and B3, which would miss "recorded before launch"; a simulated
 effect on bot games, which says nothing about how people's games vary; MDEs at 1,000 games
 only, which overstate what RQ1's test sets can detect.
+
+**D120 · 2026-11-08 · The pilot is rehearsed on staging with six scripted players (T4.2).**
+`scripts/rehearse.py` plays whole games on a deployed site as six test accounts at a private
+room. A room rather than the solo queue, so the held-out cohort can't split them. Each player
+waits 0.8 to 4 seconds and makes a random legal move. It presses Call after 4% of updates,
+and whenever its turn leaves it no ask, so games end by the rules. In one game a player goes
+away for 40 seconds and a bot takes the seat.
+
+The rehearsal (`docs/runbooks/rehearsal.md`, by 22 November) then runs every command of the
+pilot runbook's §4 on those games:
+- the pilot report, whose response times must be at least the waits the script chose;
+- the MDEs, timed;
+- `make_bot_delays.py`, as a dry run into another folder (`--tables`).
+
+So the whole path from a game to the bots' table and the MDEs is tried once, over the
+internet, before the first night. The games are left out of the pilot by `--since`.
+`test_rehearse.py` runs the script against the real server on a real port.
+Alternatives: rehearsing with people, who are the pilot; rehearsing locally, which would miss
+Render's Shell, the deploy, the migration and the network.

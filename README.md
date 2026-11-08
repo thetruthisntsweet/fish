@@ -121,6 +121,7 @@ the [changelog](CHANGELOG.md).
 - [Requests](docs/runbooks/requests.md): answering requests about personal data, and deleting the email list on 31 March 2027
 - [Monitoring](docs/runbooks/monitoring.md): the uptime checks, and what to do when one fails
 - [Pilot](docs/runbooks/pilot.md): the three pilot nights, 1 – 5 December, and what follows from them
+- [Rehearsal](docs/runbooks/rehearsal.md): the pilot run once on staging with test players, by 22 November
 - [Releasing](docs/runbooks/release.md): publishing a new version
 
 ## Citing and licence

@@ -7,7 +7,8 @@ Reads the file ``python -m fish_server.pilot_report --out`` wrote, and writes
 percentiles of people's response times (any below zero raised to zero), the count behind each,
 and where they came from. It refuses a version that exists already, since a table is never
 changed once a game has used it, and a kind with fewer than 50 times. Then set
-``fish_server.study.BOT_DELAYS`` to the version, as it prints.
+``fish_server.study.BOT_DELAYS`` to the version, as it prints. ``--tables DIR`` writes the
+file to DIR instead, for a dry run (docs/runbooks/rehearsal.md).
 """
 
 import argparse
@@ -24,7 +25,12 @@ def main(argv: list[str] | None = None, tables: Path = TABLES) -> int:
     parser = argparse.ArgumentParser(description="Make the bots' delay table from the pilot.")
     parser.add_argument("report", type=Path, help="the pilot report's --out file")
     parser.add_argument("version", help="the new table's version, e.g. pilot-2026-12-v1")
+    parser.add_argument(
+        "--tables", type=Path, help="write it here instead (the rehearsal's dry run)"
+    )
     args = parser.parse_args(argv)
+    tables = args.tables or tables
+    tables.mkdir(parents=True, exist_ok=True)
     out = tables / f"{args.version}.json"
     if out.exists():
         parser.error(f"{out.name} exists already: a table never changes, so choose a new version")
