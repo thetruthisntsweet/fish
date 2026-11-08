@@ -128,6 +128,26 @@ A B1 decision takes about 1.2 ms (one Layer 1 deduction and a little arithmetic;
 performance smoke reports it). The definition is frozen as `b1-v1`, pinned by five games in
 `test_b1_frozen.py`. A different B1 needs a new name.
 
+## The website bots' waits (`fish_agents.delays`)
+
+On the website a bot waits before every action and Call press (R.8.8). How long comes from a
+delay table, which every game records by version (`bot_delays`, corpus.md §3):
+
+- `uniform-1.5-4s-v1`: 1.5 to 4 seconds, uniform, whatever the decision. The pilot site keeps
+  it.
+- a **percentile table**: the 0th to 100th percentiles of people's response times in the
+  pilot, for each of four kinds of decision: a turn (an ask or a call, and run-out's naming
+  of the next set), a Call press, an assignment, and an after-call choice or vote. A wait is
+  drawn from its kind's row, linearly between neighbouring percentiles, in integers.
+  Percentile tables are files in `fish_agents/delay_tables/`, never changed once used.
+  `stand-in-v1` spreads 1.5 to 4 seconds evenly and is never for the study.
+
+`DelayTable.draw(rng, kind)` is the one draw; `KIND_OF_PHASE` gives a seat's kind of decision
+from the phase. A person's response time runs from when they could act to when their input
+reached the server, so a bot that waits that long before its action is sent looks the same to
+the other players: no network allowance is subtracted. The same tables give the H1c
+placebo's B0 games human timing (T5.5).
+
 ## Checks that use B0 and B1
 
 - **Performance smoke (every CI run).** `scripts/bench_b0.py` plays 1,000 B0 games and

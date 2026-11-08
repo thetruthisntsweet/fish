@@ -117,8 +117,11 @@ outcome itself (D23):
   choice, and every new turn starts a fresh one.
 - **People and bots** (R.8.4). A person away for 30 seconds, or who lets the turn timer run
   out, is replaced by a bot for the rest of the game and released to the lobby. A bot waits
-  before every action (R.8.8): 1.5 to 4 seconds, drawn from the game's seed
-  (`fish_server.bots`; determinism.md §2), each wait a `bot_delay` row, marked dropped when
+  before every action (R.8.8), drawn from the game's seed and its delay table
+  (`fish_server.bots`, `fish_agents.delays`; determinism.md §2): 1.5 to 4 seconds on the
+  pilot site, and on the study's as long as the pilot's people took for that kind of decision
+  (D118). The table's version is recorded with the game (`games.bot_delays`). Each wait is a
+  `bot_delay` row, marked dropped when
   the game moved on before it ended, after which a new one is drawn. The bot is B1 (`b1-v1`)
   remembering the latest 8 events (D95): shown every view its seat is shown from the moment
   it takes the seat, choosing among the actions the website allows (on a turn, only asks),

@@ -102,9 +102,20 @@ In this order:
    the Shell's `/tmp` is gone at the next deploy. It names no game or player.
 2. **The game length.** The report's median game length, rounded to five minutes, is M3's
    `{N}`. Send M3 on Tuesday 8 December with it (email.md §3).
-3. **The bots' delays.** The response-time percentiles in `pilot.json` go into
-   `bot_delays.json` with a new version, through a PR, deployed to production before it opens
-   (T4.2 subtask 3).
+3. **The bots' delays.** On your laptop, from an up-to-date main:
+
+   ```bash
+   git switch -c bot-delays-pilot
+   uv run python scripts/make_bot_delays.py ~/Downloads/pilot.json pilot-2026-12-v1
+   ```
+
+   It writes `packages/fish-agents/src/fish_agents/delay_tables/pilot-2026-12-v1.json`, or
+   says which kind has too few times (fewer than 50). Set `BOT_DELAYS = "pilot-2026-12-v1"`
+   in `packages/fish-server/src/fish_server/study.py`, as it says. Run `./scripts/check.sh`,
+   then commit, push and merge the PR, and deploy it to production before 8 December.
+   `scripts/try_server.py` against production then prints `bots:   pilot-2026-12-v1`, and
+   fails if production would open with the stand-in. The pilot site keeps
+   `uniform-1.5-4s-v1`.
 4. **The minimum detectable effects** are computed from the same games and recorded in
    `docs/mde.md`, through a PR, before 8 December (T4.2 subtask 4).
 5. **Production** opens on 8 December with all of it (T4.3).

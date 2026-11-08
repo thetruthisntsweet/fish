@@ -24,6 +24,7 @@ from fish_server.hub import BOT_TOOK_SEAT
 from fish_server.protocol import PROTOCOL_VERSION
 from fish_server.settings import database_url
 from fish_server.signin import player_for, start_session
+from fish_server.study import BOT_DELAYS
 
 type Socket = WebSocketTestSession
 HELLO = {"type": "client_hello", "protocol_version": PROTOCOL_VERSION}
@@ -212,6 +213,7 @@ def test_six_players_play_and_every_step_is_written(http: TestClient, app: Engin
     assert first["timers"][0]["name"] == "turn"
     (game_id,) = _games(app)
     assert count(app, db.seats, game_id=game_id) == 6
+    assert count(app, db.games, game_id=game_id, bot_delays=BOT_DELAYS) == 1  # the site's (R.8.8)
 
     current = by_seat[first["view"]["current"]]
     current.send_json({"type": "act", "index": first["actions"][0]})

@@ -3,16 +3,21 @@
 import pytest
 from sqlalchemy import make_url
 
+from fish_agents.delays import UNIFORM
 from fish_server.settings import (
     ADMIN_DATABASE_URL_VAR,
     APP_PASSWORD_VAR,
     APP_USER_VAR,
+    BOT_DELAYS_VAR,
+    CONSENT_VERSION_VAR,
     admin_database_url,
     app_login_role,
     app_password,
+    bot_delays,
     database_url,
     normalize_database_url,
 )
+from fish_server.study import BOT_DELAYS
 
 RENDER_URL = "postgresql://fish:owner-pw@dpg-abc123-a/fish"
 
@@ -87,3 +92,18 @@ def test_app_password_is_read_as_given(monkeypatch: pytest.MonkeyPatch) -> None:
 )
 def test_urls_are_normalized_to_psycopg(given: str, expected: str) -> None:
     assert normalize_database_url(given) == expected
+
+
+def test_the_bots_wait_uniformly_on_the_pilot_site_and_by_the_study_s_table_on_its(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(BOT_DELAYS_VAR, raising=False)
+    monkeypatch.setenv(CONSENT_VERSION_VAR, "v1.0")
+    assert bot_delays().version == BOT_DELAYS
+    monkeypatch.setenv(CONSENT_VERSION_VAR, "v1.0-pilot")
+    assert bot_delays().version == UNIFORM
+    monkeypatch.setenv(BOT_DELAYS_VAR, "stand-in-v1")  # a rehearsal of the study's on staging
+    assert bot_delays().version == "stand-in-v1"
+    monkeypatch.setenv(BOT_DELAYS_VAR, "pilot-v9")
+    with pytest.raises(ValueError, match=r"FISH_BOT_DELAYS is one of uniform-1\.5-4s-v1, "):
+        bot_delays()

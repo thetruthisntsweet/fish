@@ -15,8 +15,9 @@ from types import ModuleType
 import pytest
 from sqlalchemy import Connection, Engine, create_engine, pool, select
 
+from fish_agents.delays import KINDS
 from fish_server import db
-from fish_server.pilot_report import KIND_OF, KINDS, figures, five_minutes, main, percentiles, read
+from fish_server.pilot_report import KIND_OF, figures, five_minutes, main, percentiles, read
 from fish_server.settings import database_url
 
 

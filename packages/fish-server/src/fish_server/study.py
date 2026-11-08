@@ -34,6 +34,14 @@ VERSIONS: Final[dict[str, Version]] = {
 """Every text this site can show, by version."""
 
 
+BOT_DELAYS: Final = "stand-in-v1"
+"""The bots' delay table on the study's site (R.8.8; ``fish_agents.delays``). Until the pilot
+report exists it is a stand-in, which the study must never open with: on 6 or 7 December it
+becomes the table built from the pilot (docs/runbooks/pilot.md §4)."""
+LAUNCH: Final = date(2026, 12, 8)
+"""The day the study opens (docs/recruitment.md §2)."""
+
+
 TERMS: Final[tuple[str, ...]] = ("v1.0", "v1.0-pilot")
 """Every version of the terms of use and privacy policy this site can show (Terms and
 Privacy §1-3; T3.8). The two documents share a version: a change to either is a new version

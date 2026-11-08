@@ -9,6 +9,7 @@ from fish_server.app import app
 from fish_server.database import get_engine
 from fish_server.protocol import PROTOCOL_VERSION, ServerHello
 from fish_server.settings import ADMIN_DATABASE_URL_VAR, APP_PASSWORD_VAR
+from fish_server.study import BOT_DELAYS
 
 
 @pytest.fixture
@@ -25,6 +26,7 @@ def test_health_reports_ok_and_versions(client: TestClient) -> None:
         "ruleset_version": RULESET_VERSION,
         "rng_algorithm": RNG_ALGORITHM,
         "protocol_version": PROTOCOL_VERSION,
+        "bot_delays": BOT_DELAYS,  # the study's site; the pilot's keeps uniform-1.5-4s-v1
     }
 
 

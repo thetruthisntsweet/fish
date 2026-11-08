@@ -10,7 +10,9 @@ Cookies). Then:
 
 It checks that ``/`` serves the web client and ``/study`` names the text the site shows,
 that ``/health`` reports protocol 3, that ``/health/db`` reaches the database and finds it
-at this checkout's newest migration (so run it from an up-to-date main), that ``/auth/me``
+at this checkout's newest migration (so run it from an up-to-date main), that the bots wait as
+this checkout says the site's bots should (``uniform-1.5-4s-v1`` on the pilot site, the study's
+table on the study's, never a stand-in from 8 December), that ``/auth/me``
 says signed in and allowed to play (the study information accepted, not withdrawn), and over
 ``/ws`` that the server says hello, shows the lobby, makes a room and leaves it. Exits 0
 and prints PASS, or 1 with what failed. It never joins the solo queue, so it cannot start a
@@ -23,12 +25,16 @@ import json
 import sys
 import urllib.error
 import urllib.request
+from datetime import date
 from pathlib import Path
 from typing import cast
 
 import websockets
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+
+from fish_agents.delays import UNIFORM, load
+from fish_server.study import BOT_DELAYS, LAUNCH
 
 PROTOCOL_VERSION = 3
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
@@ -70,6 +76,23 @@ def check_health(base: str) -> None:
             f"/health/db: the database is at {database.get('schema_revision')}, this checkout's "
             f"newest migration is {newest}: has the deploy finished, and is this main?"
         )
+
+
+def check_bot_delays(base: str, today: date | None = None) -> None:
+    """The site's bots wait as this checkout says they should: ``uniform-1.5-4s-v1`` on a
+    site showing a pilot text, ``fish_server.study.BOT_DELAYS`` on the study's, and never a
+    stand-in on the study's from the day it opens. Raises RuntimeError saying what is wrong."""
+    _, study = get(f"{base}/study")
+    _, health = get(f"{base}/health")
+    pilot = str(study.get("version", "")).endswith("-pilot")
+    expected = UNIFORM if pilot else BOT_DELAYS
+    used = health.get("bot_delays")
+    print("bots:  ", used)
+    if used != expected:
+        site = "the pilot site" if pilot else "the study's site"
+        raise RuntimeError(f"the bots wait by {used}, but on {site} this checkout says {expected}")
+    if not pilot and load(expected).stand_in and (today or date.today()) >= LAUNCH:
+        raise RuntimeError(f"{expected} is a stand-in: the study's bots need the pilot's table")
 
 
 def page(url: str) -> str:
@@ -126,6 +149,7 @@ def main() -> int:
         if status != 200 or not study.get("version"):
             raise RuntimeError("/study should name the text this site shows")
         check_health(base)
+        check_bot_delays(base)
         status, me = get(f"{base}/auth/me", args.session)
         print("me:    ", status, me)
         if me.get("signed_in") is not True:

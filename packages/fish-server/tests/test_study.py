@@ -2,14 +2,15 @@
 web client, with the same last day to withdraw, and that day ends in US Eastern time."""
 
 import json
-from datetime import datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import Final
 from zoneinfo import ZoneInfo
 
 import pytest
 
-from fish_server.study import TERMS, VERSIONS
+from fish_agents.delays import load
+from fish_server.study import BOT_DELAYS, LAUNCH, TERMS, VERSIONS
 
 CLIENT_VERSIONS: Final = (
     Path(__file__).resolve().parents[3] / "client" / "src" / "study" / "versions.json"
@@ -45,3 +46,13 @@ def test_withdrawing_closes_at_the_end_of_the_texts_last_day_in_eastern_time(
     assert text.closes == midnight.replace(tzinfo=ZoneInfo("America/New_York"))
     assert text.withdrawal_open(text.closes - timedelta(microseconds=1))
     assert not text.withdrawal_open(text.closes)
+
+
+def test_the_study_never_opens_with_stand_in_bot_delays() -> None:
+    """R.8.8: from the day the study opens, its bots wait as the pilot's people did. Until
+    the pilot report exists (6 or 7 December) ``BOT_DELAYS`` names a stand-in; this test
+    starts failing on 8 December if it still does (docs/runbooks/pilot.md §4 step 3)."""
+    table = load(BOT_DELAYS)
+    assert table.percentiles is not None  # a percentile table, never the pilot's uniform wait
+    if datetime.now(UTC).date() >= LAUNCH:
+        assert not table.stand_in, f"{BOT_DELAYS} is a stand-in: make the pilot's table"
