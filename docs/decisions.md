@@ -1179,3 +1179,33 @@ both sending domains from Resend's API (`open_tracking`, `click_tracking`) and r
 make a broadcast while either is on. The sign-in domain's emails go out from the server with a
 sending-only key that can't read domains, so the broadcast check, run before every study
 email, covers that domain too.
+
+**D109 · 2026-11-07 · Requests about an address, and the 31 March deletion, have a command (T3.8).**
+The privacy policy promises answers within 30 days: what is held, a corrected address, or an
+address deleted sooner. It also promises every address is deleted on 31 March 2027, in the
+database as well as at Resend. `python -m fish_server.contacts` does each one, from the
+Render Shell, as the owner, since the server's login may only add to these tables:
+- `show` prints everything the study database holds about the address, to send the person;
+- `correct` changes it (never to another player's) and deletes the links to the old one;
+- `forget` deletes it from `player_contacts` and `sign_in_links` and ends the person's
+  sign-ins, keeping their games and acceptances;
+- `forget-everyone --yes` deletes every address and sign-in record.
+
+None of these touches an append-only table or the corpus. `docs/runbooks/requests.md` says
+when to use each and how to check that a request is genuine. Alternatives: SQL typed in the
+Shell, which is untested and easy to get wrong on the day; leaving the sign-in links, which
+also hold addresses, which the policy rules out.
+
+**D110 · 2026-11-07 · T3.8 close-out: terms of use and a privacy policy, both true of the site.**
+Dr. Hany approved the Terms of Use v1.0 and Privacy Policy v1.0, with their pilot versions
+(Terms and Privacy tab) and the laptop-copy sentence in consent v1.0. What makes each promise
+true:
+- the logs hold no addresses or sign-in links (D105);
+- the terms version is recorded with each acceptance and re-asked on a change (D106);
+- `/terms` and `/privacy`, the footer links and the agreement line are on the site, and a
+  browser test checks the cookie, outside requests and storage claims (D107);
+- every email links the policy, and broadcasts refuse while Resend tracks opens or clicks
+  (D108);
+- requests and the 31 March deletion have a command and a runbook (D109).
+
+Still done by hand: the live check on staging before the pilot, and each request as it comes.
