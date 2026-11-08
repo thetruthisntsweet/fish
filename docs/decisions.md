@@ -1277,3 +1277,17 @@ With `flushSync` removed, all of them fail: in the browser, every update appeare
 Alternatives: timing from the server's send to a screenshot, which measures the network and
 the machine more than the client; a rule against batching only in review, which nothing
 enforces.
+
+**D115 · 2026-11-08 · T3.7 close-out: nothing the server sends tells a player more than the rules do.**
+The audit (`docs/leaks.md`, D111) covered every WebSocket message, every HTTP response, and
+when each is sent. It found two leaks, both in when things are sent, not in what:
+- updates announcing a declaration or a vote to every seat;
+- ping numbers counting the other seats' pings.
+
+Both are fixed (D112). They are guarded by tests that failed on the old code, by the wire
+leak test over whole random games (D113, 1,250 nightly), and by checks that every update is
+drawn before the next message is read (D114). No game with people had yet been played on the
+website, so no recorded game was affected.
+Live checking needs nothing beyond `scripts/try_server.py` after the deploy. The leaks are
+properties of the code, and the tests exercise the same code: real sockets, six real
+browsers. The first game night of the pilot is the live run.
