@@ -34,7 +34,7 @@ import json
 import secrets
 import sys
 import uuid
-from collections.abc import Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Final, Literal, cast
@@ -236,15 +236,21 @@ def membership(conn: Connection) -> dict[uuid.UUID, Standing]:
     return standing
 
 
-def records(conn: Connection, summary: Summary) -> Iterator[dict[str, object]]:
+def records(
+    conn: Connection, summary: Summary, only: Collection[uuid.UUID] | None = None
+) -> Iterator[dict[str, object]]:
     """Every corpus game as a record, in order of start time, one at a time; ``summary``
-    counts them as they go, and is complete once the last is taken (§6, §7)."""
+    counts them as they go, and is complete once the last is taken (§6, §7). With ``only``,
+    just the stored games it names are considered (``fish_server.pilot_report``)."""
     standing = membership(conn)
-    games = conn.execute(
+    query = (
         select(db.games, db.game_endings.c.completion)
         .outerjoin(db.game_endings, db.games.c.game_id == db.game_endings.c.game_id)
         .order_by(db.games.c.started_at, db.games.c.game_id)
-    ).mappings()
+    )
+    if only is not None:
+        query = query.where(db.games.c.game_id.in_(list(only)))
+    games = conn.execute(query).mappings()
     for game in games.all():  # one small row a game; each record is read on its own
         summary.games += 1
         where = standing[game["game_id"]]

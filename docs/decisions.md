@@ -1303,3 +1303,22 @@ recruitment.md and to the consent screen. The pilot report counts only games sta
 1 December, so test games are left out. The last pilot night is Saturday 5 December.
 Alternatives: a feedback email after the last night, which would change three approved texts
 for what one more table can check.
+
+**D117 · 2026-11-08 · The pilot report reads corpus records (T4.2).**
+`python -m fish_server.pilot_report` takes every time from the corpus records of the games
+started on or after `--since` (Eastern), through the export's own `records` and
+`fish_rules.corpus.response_times`. So the pilot's figures use the same games and the same
+definitions the analyses will:
+- game length is deal to last action, of finished games, as `fish_server.stats` has it;
+- the share of time in call windows runs from each press to its window's close, over the
+  same games;
+- response times are a person's only, never a bot's, including after a handover.
+
+They are split into the four kinds the bots will draw delays for (R.8.8): a turn
+(an ask or a call), a Call press, an assignment, and an after-call choice or vote. A turn's
+call is grouped with its asks because it is the same decision, and on its own it would have
+too few times for 101 percentiles. `--out` writes every percentile as JSON, aggregates only,
+for subtask 3. The report reads only. It names no game, seat or person, and refuses to
+overwrite a file.
+Alternatives: computing times in SQL, which would be a second definition of a response time;
+a separate kind for calls.
