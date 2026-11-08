@@ -19,6 +19,7 @@ from typing import Final
 from sqlalchemy import Connection, func, insert, select, text
 from sqlalchemy.dialects.postgresql import insert as upsert
 
+from fish_agents.delays import UNIFORM
 from fish_rules.codec import ACTION_ENCODING
 from fish_rules.state import STATE_ENCODING
 from fish_rules.version import RULESET_VERSION
@@ -33,7 +34,13 @@ def new_seed() -> int:
 
 
 def start_game(
-    conn: Connection, table: Formed, *, seed: int, server_commit: str, started_at: datetime
+    conn: Connection,
+    table: Formed,
+    *,
+    seed: int,
+    server_commit: str,
+    started_at: datetime,
+    bot_delays: str = UNIFORM,
 ) -> uuid.UUID:
     """Write ``table``'s game and seats; returns the new game's id."""
     game = uuid.uuid4()
@@ -46,6 +53,7 @@ def start_game(
             state_encoding=STATE_ENCODING,
             server_commit=server_commit,
             protocol_version=PROTOCOL_VERSION,
+            bot_delays=bot_delays,
             matchmaking=table.matchmaking,
             cohort_table=table.cohort_table,
             started_at=started_at,

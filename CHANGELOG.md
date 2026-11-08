@@ -15,8 +15,16 @@ name: a change to one is never silent, and is always listed here.
   game started (the text's `version`, and `us_resident_adult`, `agrees` and
   `no_outside_communication`, all true), and a bot's seat has none; `SeatInfo.consent` reads
   it as a `SeatConsent`. `fish-corpus-v1` is retired: no game was ever recorded in it.
+- Its `game` also carries `bot_delays`, the version of the bots' delay table the game was
+  played with (`GameInfo.bot_delays`), so a game's bot waits follow from its seed and it.
 
 ### fish-agents
+
+- The website bots' waits (`fish_agents.delays`, [docs/agents.md](docs/agents.md)): delay
+  tables by version, `uniform-1.5-4s-v1` and percentile tables of people's response times by
+  kind of decision (`KINDS`, `KIND_OF_PHASE`), shipped as files in
+  `fish_agents/delay_tables/`; `DelayTable.draw(rng, kind)`, `load`, `versions`, `check` and
+  `from_report`, which builds a table from the pilot report.
 
 - B1 (`b1-v1`, `fish_agents.b1`, [docs/agents.md](docs/agents.md)), the exact-inference
   baseline: `b1(setting)` plays with full, last-k or no memory, calls a set only when Layer 1

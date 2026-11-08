@@ -189,6 +189,7 @@ def _record(
         "cohort_table": game["cohort_table"],
         "server_commit": game["server_commit"],
         "protocol_version": game["protocol_version"],
+        "bot_delays": game["bot_delays"],
     }
     try:
         return corpus_record(

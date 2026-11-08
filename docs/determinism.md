@@ -45,10 +45,13 @@ shifts another. A stream is identified by the game seed, a name and an index.
 
 Run-out (R.6.2) uses `priority` with the run-out window's index; it has no stream of its own.
 
-A website bot's wait (R.8.8) is `1_500_000 + below(2_500_001)` microseconds, 1.5 to 4
-seconds, from `bot_delay` (`fish_server.bots`). A seat that waits more than once before the
-next event, for example after a wait the game overtook, keeps drawing from the same
-generator. Pilot data (T4.2) will replace the uniform draw; the stream and its index stay.
+A website bot's wait (R.8.8) is drawn from `bot_delay` (`fish_server.bots`) by the game's
+delay table, whose version the game records (`fish_agents.delays`, D118):
+`uniform-1.5-4s-v1` is `1_500_000 + below(2_500_001)` microseconds, 1.5 to 4 seconds; a
+percentile table draws `x = below(100_000_000)` and returns
+`p[i] + (p[i+1] - p[i]) * f // 1_000_000` for `i, f = divmod(x, 1_000_000)`, from the row
+of the decision's kind. A seat that waits more than once before the next event, for example
+after a wait the game overtook, keeps drawing from the same generator.
 
 `fish_rules.cohort` (`fish-cohort-v1`) takes the first 3 entries of `shuffled(range(20))`
 from stream `cohort` with the block number as the index, sorted: those positions of the block

@@ -6,7 +6,8 @@ plus:
 
 - ``corpus``: ``"fish-corpus-v2"``;
 - ``game``: ``id``, ``month`` (``YYYY-MM``), ``completion``, ``matchmaking``,
-  ``cohort_table``, ``server_commit``, ``protocol_version`` (§3);
+  ``cohort_table``, ``server_commit``, ``protocol_version``, ``bot_delays`` (§3: the version
+  of the bots' waits, R.8.8);
 - ``seats``: six entries, seat 0 first, each ``person``, ``cohort``, ``agent``, ``memory``,
   ``k``, ``note`` and ``consent`` (§2.2, §4): a person has a pseudonym, a cohort flag, memory
   ``human``, a note answer and the consent flags their seat copied when the game started
@@ -68,7 +69,7 @@ HANDOVER_REASONS: Final = ("turn_timeout", "disconnect")
 
 _GAME_KEYS: Final = frozenset(
     {"id", "month", "completion", "matchmaking", "cohort_table", "server_commit",
-     "protocol_version"}
+     "protocol_version", "bot_delays"}
 )  # fmt: skip
 _SEAT_KEYS: Final = frozenset({"person", "cohort", "agent", "memory", "k", "note", "consent"})
 CONFIRMATIONS: Final = ("us_resident_adult", "agrees", "no_outside_communication")
@@ -104,6 +105,8 @@ class GameInfo:
     cohort_table: bool
     server_commit: str
     protocol_version: int
+    bot_delays: str
+    """The version of the bots' waits the game was played with (R.8.8)."""
 
 
 @dataclass(frozen=True)
@@ -279,6 +282,7 @@ def _game_info(value: object, outcome: Outcome | None) -> GameInfo:
         cohort_table=_bool(data["cohort_table"], "game cohort_table"),
         server_commit=_name(data["server_commit"], "game server_commit"),
         protocol_version=_int(data["protocol_version"], "game protocol_version", low=1),
+        bot_delays=_name(data["bot_delays"], "game bot_delays"),
     )
 
 

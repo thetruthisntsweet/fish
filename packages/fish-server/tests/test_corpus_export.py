@@ -78,6 +78,7 @@ def add_game(
     log: Sequence[dict[str, object]] = (),
     notes: dict[int, str] | None = None,
     ruleset: str = RULESET_VERSION,
+    bot_delays: str = "uniform-1.5-4s-v1",
 ) -> tuple[uuid.UUID, State]:
     """Write one website game. ``seats[s]`` is a person or None for a B1 bot. ``ending`` is
     the completion to record, "rules" for whatever the game reached, or None for no ending."""
@@ -95,6 +96,7 @@ def add_game(
             state_encoding="fish-state-v1",
             server_commit="abc1234",
             protocol_version=1,
+            bot_delays=bot_delays,
             matchmaking="solo",
             cohort_table=False,
             started_at=START + timedelta(minutes=minutes),
@@ -173,7 +175,7 @@ def test_every_corpus_game_becomes_a_record_that_replays(app: Engine) -> None:
     with app.begin() as conn:
         regulars = table(conn)
         played = [
-            add_game(conn, 30, regulars, minutes=20)[1],
+            add_game(conn, 30, regulars, minutes=20, bot_delays="stand-in-v1")[1],
             add_game(conn, 10, regulars, minutes=0)[1],
             add_game(conn, 20, [*regulars[:3], *people(conn, 3)], minutes=10)[1],
         ]
@@ -187,6 +189,11 @@ def test_every_corpus_game_becomes_a_record_that_replays(app: Engine) -> None:
         assert state_hash(game.final) == state_hash(by_seed[game.seed])
         assert game.game.month == "2026-12"
     assert [read_corpus_record(r).seed for r in records] == [10, 20, 30]
+    assert [read_corpus_record(r).game.bot_delays for r in records] == [
+        "uniform-1.5-4s-v1",
+        "uniform-1.5-4s-v1",
+        "stand-in-v1",
+    ]  # each game's own bots' waits (R.8.8)
     first, second, _ = (read_corpus_record(r).seats for r in records)
     assert [s.person for s in first[:3]] == [s.person for s in second[:3]]
     assert [s.person for s in first[3:]] != [s.person for s in second[3:]]

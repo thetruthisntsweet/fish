@@ -55,6 +55,7 @@ from typing import Final
 from sqlalchemy import Engine, insert
 from sqlalchemy.dialects.postgresql import insert as upsert
 
+from fish_agents.delays import UNIFORM, DelayTable, load
 from fish_server import db
 from fish_server.consent import Shown, standing
 from fish_server.game import (
@@ -280,10 +281,13 @@ class Hub:
         server_commit: str,
         shown: Shown = DEFAULT_SHOWN,
         sweep_s: float = SWEEP_S,
+        delays: DelayTable | None = None,
     ) -> None:
         self.engine = engine
         self.server_commit = server_commit
         self.shown = shown
+        self.delays = delays or load(UNIFORM)
+        """The bots' waits in every game started here (R.8.8; ``settings.bot_delays``)."""
         self.lobby = Lobby()
         self.connections: dict[uuid.UUID, Connection] = {}
         self.games: dict[uuid.UUID, Running] = {}  # player -> the game they are in
@@ -433,7 +437,7 @@ class Hub:
             return
         for player in formed.seats:  # playing on without answering: unanswered
             self.notes.pop(player.id, None)
-        game = Game(game_id, seed, [p.id for p in formed.seats])
+        game = Game(game_id, seed, [p.id for p in formed.seats], self.delays)
         running = Running(self, game, formed.seats, start_ns)
         for player in formed.seats:
             self.games[player.id] = running
@@ -474,7 +478,12 @@ class Hub:
     def _write_start(self, formed: Formed, seed: int, started: datetime) -> uuid.UUID:
         with self.engine().begin() as conn:
             return start_game(
-                conn, formed, seed=seed, server_commit=self.server_commit, started_at=started
+                conn,
+                formed,
+                seed=seed,
+                server_commit=self.server_commit,
+                started_at=started,
+                bot_delays=self.delays.version,
             )
 
     def write_rows(self, actions: list[dict[str, object]], log: list[dict[str, object]]) -> None:

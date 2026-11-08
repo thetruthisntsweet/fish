@@ -213,6 +213,7 @@ games = Table(
     Column("state_encoding", Text, nullable=False),
     Column("server_commit", Text, nullable=False),
     Column("protocol_version", Integer, nullable=False),
+    Column("bot_delays", Text, nullable=False),
     Column("matchmaking", Text, nullable=False),
     Column("cohort_table", Boolean, nullable=False),
     _timestamp("created_at"),
@@ -220,6 +221,7 @@ games = Table(
     CheckConstraint("seed >= 0 AND seed < 18446744073709551616", name="seed"),
     CheckConstraint("matchmaking IN ('solo', 'group')", name="matchmaking"),
     CheckConstraint("protocol_version >= 1", name="protocol_version"),
+    CheckConstraint("bot_delays ~ '^[a-z0-9][a-z0-9.-]*$'", name="bot_delays"),
 )
 
 game_endings = Table(

@@ -85,7 +85,7 @@ counts its own pings, 1, 2, 3 and so on, and a pong is matched by its seat and n
 
 | Address | Says | To whom |
 |---|---|---|
-| `/health` | `ok`, and the server, ruleset, RNG and protocol versions | anyone: no game or account |
+| `/health` | `ok`, the server, ruleset, RNG and protocol versions, and the bots' delay table | anyone: no game or account |
 | `/health/db` | whether the database answers, and its migration number, never error details | anyone: no game or account |
 | `/study` | the versions of the consent text and terms shown, the last day to withdraw, and whether that is still open | anyone: the same for everyone |
 | `/auth/me` | whether this browser is signed in, and the person's own standing (versions accepted, withdrawn, may play) | the person only, by their session cookie |

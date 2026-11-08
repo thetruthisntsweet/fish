@@ -11,14 +11,15 @@ from collections.abc import Sequence
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from fish_agents.delays import UNIFORM_MAX_US, UNIFORM_MIN_US, DelayTable
 from fish_agents.memory import MemorySetting
 from fish_rules.action_index import encode
 from fish_rules.cards import SEATS, set_cards, team_of
 from fish_rules.corpus import read_corpus_record
-from fish_rules.events import Ask, CallEvent, Declare, OpenWindow
+from fish_rules.events import Ask, Assign, Call, CallEvent, Choose, Declare, OpenWindow, Vote
 from fish_rules.rng import SplitMix64
 from fish_rules.state import CallSource, Phase
-from fish_server.bots import BOT_DELAY_MAX_US, BOT_DELAY_MIN_US, DelayStreams
+from fish_server.bots import DelayStreams
 from fish_server.game import (
     BOT,
     PING_US,
@@ -220,8 +221,8 @@ def test_r8_4_a_handover_releases_its_person_and_a_bot_plays_on() -> None:
     due = game.next_wake()
     assert due is not None
     wait = due - TURN_US
-    assert BOT_DELAY_MIN_US <= wait <= BOT_DELAY_MAX_US  # R.8.8
-    assert wait == DelayStreams(1).delay(seat, game.table.state.events)  # from the seed
+    assert UNIFORM_MIN_US <= wait <= UNIFORM_MAX_US  # R.8.8, until pilot data
+    assert wait == DelayStreams(1).delay(seat, game.table.state.events, "turn")  # from the seed
     events = len(game.table.entries)
     game.wake(due - 1)
     assert len(game.table.entries) == events  # not yet
@@ -426,16 +427,45 @@ def test_whole_games_end_and_their_rows_are_the_log(game_seed: int, policy_seed:
     check_bot_waits(game)
 
 
-def check_bot_waits(game: Game) -> None:
-    """R.8.8: each action a bot took came straight after a wait of 1.5 to 4 seconds that was
-    not dropped, and every wait is recorded for a bot's seat; the game reads back as a corpus
-    record."""
+BANDS: dict[str, int] = {"turn": 2_000_000, "press": 3_000_000, "assign": 4_000_000,
+                         "choice": 5_000_000}  # fmt: skip
+"""A table that marks each kind: its waits are its band's start plus at most 10 ms, all
+shorter than the assignment and choice timers."""
+MARKED = DelayTable(
+    "marked-v1", {kind: tuple(start + 100 * p for p in range(101)) for kind, start in BANDS.items()}
+)
+WAITED_FOR: dict[type, str] = {Ask: "turn", Call: "turn", OpenWindow: "press", Declare: "press",
+                               Assign: "assign", Choose: "choice", Vote: "choice"}  # fmt: skip
+"""The kind of decision behind each action a bot can take after a wait (a press's wait comes
+before its ``OpenWindow``, or before its ``Declare`` in an open window)."""
+
+
+def test_a_bot_waits_as_long_as_people_take_for_that_kind_of_decision() -> None:
+    """With a percentile table, each wait is drawn from the row for the decision the bot
+    faces (R.8.8, fish_agents.delays): over whole games, every action a bot took came after a
+    wait in its own kind's band, and every kind came up."""
+    seen: set[str] = set()
+    for seed in range(8):
+        game = Game(uuid.uuid4(), seed, [uuid.uuid4() for _ in SEATS], MARKED)
+        play(SplitMix64(seed), game, 3_000)
+        for kind, delay in check_bot_waits(game, MARKED):
+            assert BANDS[kind] <= delay <= BANDS[kind] + 10_000, (kind, delay)
+            seen.add(kind)
+    assert seen == set(BANDS)
+
+
+def check_bot_waits(game: Game, table_used: DelayTable | None = None) -> list[tuple[str, int]]:
+    """R.8.8: each action a bot took came straight after a wait that was not dropped (of 1.5
+    to 4 seconds, unless the game used another table), and every wait is recorded for a bot's
+    seat; the game reads back as a corpus record. Returns each action's kind and wait."""
     table = game.table
     waits = [row for row in table.log if row["type"] == "bot_delay"]
     bot_from = {row["seat"]: row["after"] for row in table.log if row["type"] == "handover"}
     for row in waits:
         assert row["seat"] in bot_from
-        assert BOT_DELAY_MIN_US <= int(str(row["delay_us"])) <= BOT_DELAY_MAX_US
+        if table_used is None:
+            assert UNIFORM_MIN_US <= int(str(row["delay_us"])) <= UNIFORM_MAX_US
+    kinds: list[tuple[str, int]] = []
     for seq, entry in enumerate(table.entries):
         seat = entry.cause.get("seat")
         start = bot_from.get(seat)
@@ -445,6 +475,7 @@ def check_bot_waits(game: Game) -> None:
             continue  # the second half of a press: its wait came before the OpenWindow
         taken = [r for r in waits if r["after"] == seq and r["seat"] == seat and not r["dropped"]]
         assert [r["at_us"] for r in taken] == [entry.received_us], (seq, seat)
+        kinds.append((WAITED_FOR[type(entry.action)], int(str(taken[0]["delay_us"]))))
     for seq, entry in enumerate(table.entries):
         for record in entry.records:
             if not isinstance(record, CallEvent) or record.source is CallSource.RUNOUT:
@@ -461,11 +492,13 @@ def check_bot_waits(game: Game) -> None:
     seats = [person(s) if s in table.seated else bot() for s in SEATS]
     record = table.record(game=GAME | {"completion": completion}, seats=seats)
     read_corpus_record(record)
+    return kinds
 
 
 OPEN = OpenWindow()
 GAME = {"id": "g-test", "month": "2026-12", "matchmaking": "solo", "cohort_table": False,
-        "server_commit": "test", "protocol_version": 1}  # fmt: skip
+        "server_commit": "test", "protocol_version": 1,
+        "bot_delays": "uniform-1.5-4s-v1"}  # fmt: skip
 CONSENT = {"version": "v1.0", "us_resident_adult": True, "agrees": True,
            "no_outside_communication": True}  # fmt: skip
 

@@ -55,6 +55,7 @@ GAME: Final = {
     "cohort_table": False,
     "server_commit": "test",
     "protocol_version": 1,
+    "bot_delays": "uniform-1.5-4s-v1",
 }
 STAND_IN: Final = Controller("b0-v1", NONE)
 """The bot that takes over a seat in these tests (T3.5 supplies B1 for the website)."""

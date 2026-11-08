@@ -64,6 +64,7 @@ The age gate is the screen's first confirmation; nothing else about age is kept.
 | `seed` | the game seed (64 bits) | replay; the hands |
 | `ruleset`, `action_encoding`, `state_encoding` | versions the game was played under | replay (R.10.2) |
 | `server_commit`, `protocol_version` | the code that ran it | reproducibility (T1.1 §5.5) |
+| `bot_delays` | the version of the bots' delay table (R.8.8; `fish_agents.delays`): `uniform-1.5-4s-v1` on the pilot site, the pilot's percentiles on the study's | reproducibility: a game's bot waits follow from its seed and this |
 | `matchmaking` | `solo` or `group` | analysis sets (§6) |
 | `cohort_table` | the table was formed by cohort matchmaking | cohort test set |
 | `created_at`, `started_at`, `ended_at` | wall-clock times | operations; release keeps the month only |

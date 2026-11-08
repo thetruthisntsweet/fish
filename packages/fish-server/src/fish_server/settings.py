@@ -20,8 +20,9 @@ from pathlib import Path
 
 from sqlalchemy import make_url
 
+from fish_agents.delays import UNIFORM, DelayTable, load, versions
 from fish_server.consent import Shown
-from fish_server.study import TERMS, VERSIONS
+from fish_server.study import BOT_DELAYS, TERMS, VERSIONS
 
 ADMIN_DATABASE_URL_VAR = "FISH_ADMIN_DATABASE_URL"
 APP_PASSWORD_VAR = "FISH_APP_DB_PASSWORD"
@@ -215,6 +216,23 @@ def terms_version() -> str:
 def shown() -> Shown:
     """What this site asks people to accept: the consent text and the terms."""
     return Shown(consent_version(), terms_version())
+
+
+# ---------------------------------------------------------------- the bots' waits (T4.2)
+
+BOT_DELAYS_VAR = "FISH_BOT_DELAYS"
+
+
+def bot_delays() -> DelayTable:
+    """The bots' waits in this site's games (R.8.8; ``fish_agents.delays``): unless
+    FISH_BOT_DELAYS names another table, ``uniform-1.5-4s-v1`` on a site showing a pilot
+    consent text, and the study's table (``fish_server.study.BOT_DELAYS``) on the study's."""
+    default = UNIFORM if consent_version().endswith("-pilot") else BOT_DELAYS
+    version = os.environ.get(BOT_DELAYS_VAR, "").strip() or default
+    if version not in versions():
+        known = ", ".join(versions())
+        raise ValueError(f"{BOT_DELAYS_VAR} is one of {known}, not {version!r}")
+    return load(version)
 
 
 # ---------------------------------------------------------------- the web client (T3.3)

@@ -33,20 +33,13 @@ from typing import Final
 
 from sqlalchemy import Connection, Engine, create_engine, pool, text
 
+from fish_agents.delays import KINDS
 from fish_rules.corpus import CorpusGame, read_corpus_record, response_times
 from fish_rules.events import Ask, Assign, Call, Choose, CloseWindow, Declare, OpenWindow, Vote
 from fish_server.corpus_export import Standing, Summary, membership, records
 from fish_server.settings import database_url
 
 ZONE: Final = "America/New_York"
-
-KINDS: Final[dict[str, str]] = {
-    "turn": "a turn: ask or call",
-    "press": "a Call press",
-    "assign": "an assignment",
-    "choice": "an after-call choice or vote",
-}
-"""The kinds of decision a response time belongs to, as the bots' delays are drawn by kind."""
 
 KIND_OF: Final[dict[type, str]] = {
     Ask: "turn",
@@ -56,6 +49,8 @@ KIND_OF: Final[dict[type, str]] = {
     Choose: "choice",
     Vote: "choice",
 }
+"""The kind (``fish_agents.delays.KINDS``) of each action a person's response time belongs
+to: the same kinds a bot's wait is drawn for."""
 
 SHOWN: Final = (10, 25, 50, 75, 90)
 """The percentiles the printed report shows; ``--out`` has all 101."""

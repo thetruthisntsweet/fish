@@ -36,6 +36,7 @@ from typing import Final
 
 from fish_agents.b1 import B1_VERSION, b1, would_call
 from fish_agents.base import PolicyStreams
+from fish_agents.delays import KIND_OF_PHASE, DelayTable
 from fish_agents.memory import MemorySetting
 from fish_rules.action_index import decode, encode
 from fish_rules.cards import SEATS, Seat
@@ -164,6 +165,7 @@ class Game:
         game_id: uuid.UUID,
         seed: int,
         seats: Sequence[uuid.UUID],
+        delays: DelayTable | None = None,
     ) -> None:
         self.game_id = game_id
         self.seats = tuple(seats)
@@ -174,7 +176,7 @@ class Game:
         self._pings: dict[tuple[Seat, int], int] = {}  # (seat, nonce) -> when sent
         self._nonces: dict[Seat, int] = {}  # each seat's own count (docs/leaks.md §4)
         self._shown: dict[Seat, object] = {}  # what each seat was last sent (§3)
-        self._delays = DelayStreams(seed)
+        self._delays = DelayStreams(seed, delays)
         self._bot_due: dict[Seat, Waiting] = {}
         self._press_due: dict[Seat, Pressing] = {}
         self._decided_at = 0  # the events the bots last decided their presses after
@@ -348,7 +350,8 @@ class Game:
                 if not over:  # the game moved on before the wait was over
                     table.bot_waited(seat, waiting.delay_us, dropped=True, now=now)
             if seat not in table.people and not over and table.actions(seat):
-                delay = self._delays.delay(seat, table.state.events)
+                kind = KIND_OF_PHASE[table.state.phase]
+                delay = self._delays.delay(seat, table.state.events, kind)
                 self._bot_due[seat] = Waiting(now + delay, version, delay)
         if (over or not table.people) and not self.ended:
             self.ended = True
@@ -384,5 +387,5 @@ class Game:
             rng = self._policy.for_decision(seat, events)
             set_id = would_call(table.view(seat), self._bot.memory(seat).deduction, rng)
             if set_id is not None:
-                delay = self._delays.delay(seat, events)
+                delay = self._delays.delay(seat, events, "press")
                 self._press_due[seat] = Pressing(now + delay, events, delay, set_id)

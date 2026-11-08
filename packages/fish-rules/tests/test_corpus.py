@@ -48,6 +48,7 @@ GAME: dict[str, object] = {
     "cohort_table": False,
     "server_commit": "abc1234",
     "protocol_version": 1,
+    "bot_delays": "uniform-1.5-4s-v1",
 }
 
 

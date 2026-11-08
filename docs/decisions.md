@@ -1322,3 +1322,31 @@ for subtask 3. The report reads only. It names no game, seat or person, and refu
 overwrite a file.
 Alternatives: computing times in SQL, which would be a second definition of a response time;
 a separate kind for calls.
+
+**D118 · 2026-11-08 · The bots wait as long as the pilot's people did, by kind of decision (T4.2).**
+`fish_agents.delays` holds the bots' delay tables, by version. Each game records the version it
+used (`games.bot_delays`, migration 0008, and `bot_delays` in the corpus record's `game`), so
+its bot waits follow from its seed and that version.
+- `uniform-1.5-4s-v1` is the old wait, 1.5 to 4 seconds. It draws exactly as before, so games
+  already played keep their waits; staging's earlier games are filled with it. The pilot site
+  keeps it; production uses the pilot's table from 8 December.
+- A percentile table holds each kind's 101 percentiles of people's response times (the pilot
+  report's `--out`, D117), with any below zero raised to zero. A wait is drawn from the row of
+  the decision the bot faces, by its inverse distribution function, linear between
+  neighbouring percentiles and in integers. The kind is the phase's: a turn or run-out, a
+  window (a press), an assignment, a choice or vote.
+- No network allowance is subtracted: a person's time runs to their input reaching the server,
+  so a bot that waits as long looks the same to the others.
+- A table is a file, never changed once used, and needs at least 50 times of each kind
+  (`scripts/make_bot_delays.py`). The study's site uses `fish_server.study.BOT_DELAYS`. Until
+  the pilot it names `stand-in-v1` (1.5 to 4 seconds spread evenly), and three checks keep the
+  study from opening with it: `test_study.py` fails from 8 December,
+  `scripts/try_server.py` fails against the study's site, and `/health` names the table.
+
+`fish-corpus-v2` takes the new field without a new name: it has never been released, and no
+record of it has left the server (D45 freezes a format when it is released). The H1c placebo
+will draw its B0 games' timing from the same tables (T5.5).
+Alternatives: one distribution for every decision, which would make a bot's assignment as quick
+as its asks; fitting a parametric distribution, which smooths away the tails the percentiles
+keep; a per-site environment variable, which would leave the study's table outside the code
+and its review.
