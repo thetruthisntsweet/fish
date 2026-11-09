@@ -1,0 +1,66 @@
+# Deploy the study's site (T4.3). Pushing a tag site-YYYY.MM.DD moves the `production` branch to
+# the tagged commit, and Render deploys it to fish-production (render.yaml). The tag must be on
+# main, and CI must have passed on its commit. Run by hand (Actions > Deploy > Run workflow), it
+# checks a tag that way but moves nothing: a rehearsal. A deploy ends any game in progress, so
+# tag between game nights.
+name: Deploy
+
+on:
+  push:
+    tags: ["site-*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "A site tag to check, e.g. site-2026.12.07 (nothing is deployed)"
+        required: true
+
+# One deploy at a time, and one in progress is never cancelled.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Move production to the tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # to move the production branch, only on a tag push
+      actions: read # to read CI's runs
+    env:
+      TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # main's history, to check the tag is on it
+      - name: The tag is a site tag, on main
+        run: |
+          commit=$(git rev-list -n 1 "refs/tags/$TAG")
+          echo "COMMIT=$commit" >> "$GITHUB_ENV"
+          python3 scripts/check_deploy.py "$TAG" --commit "$commit"
+      - name: CI passed on its commit
+        run: |
+          passed=$(gh run list --workflow ci.yml --commit "$COMMIT" --event push \
+            --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')
+          if [ "$passed" -eq 0 ]; then
+            echo "CI has not passed on $COMMIT as a push to main (a run cancelled by a newer"
+            echo "push does not count): tag a commit whose CI passed."
+            exit 1
+          fi
+      - name: Move production
+        if: github.event_name == 'push'
+        run: |
+          before=$(git rev-parse --verify -q origin/production || echo "none")
+          git push --force origin "$COMMIT:refs/heads/production"
+          {
+            echo "### $TAG"
+            echo "production: \`$before\` → \`$COMMIT\`"
+            echo "Render deploys it to fish-production once its checks pass."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Nothing moved (a rehearsal)
+        if: github.event_name != 'push'
+        run: echo "### $TAG would deploy \`$COMMIT\`; nothing was moved" >> "$GITHUB_STEP_SUMMARY"

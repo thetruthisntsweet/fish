@@ -1418,3 +1418,26 @@ T4.2's code and runbooks are done:
 What remains is to run them: the rehearsal by 22 November, the three pilot nights from 1 to
 5 December, and on 6 and 7 December the report, M3's game length, the bots' table and
 `docs/mde.md` §3, all before the study opens on 8 December.
+
+**D122 · 2026-11-08 · The study's site is `fish-production`, deployed only by a site tag (T4.3).**
+`render.yaml` adds `fish-production` and `fish-production-db`, alike staging but with:
+- the study's address;
+- consent and terms v1.0;
+- a sign-in limit of 1,500 a day (Resend Pro);
+- its own cohort seed, Resend key and generated database password.
+
+Render deploys its `production` branch once CI's checks pass. Only `.github/workflows/deploy.yml`
+moves that branch. Pushing a tag `site-YYYY.MM.DD` (`.2` and on for a second that day) runs it,
+and it moves the branch only if:
+- `scripts/check_deploy.py` finds the tag well formed and its commit on main;
+- CI passed on that commit as a push to main.
+
+The move is forced, so a rollback is a new tag on an older commit of main. Run by hand, the
+workflow checks a tag and moves nothing. So every study deploy is a named, reviewed version of
+main, chosen for a moment between game nights, and never a side effect of a merge.
+
+The database is 5 GB. A game with six people takes about 0.6 MB, mostly pings (measured: 20
+40-minute games with 2,880 pings each), so 1,000 games need about 0.6 GB. Storage can grow but
+never shrink. The plans match staging's and can be raised in the dashboard.
+Alternatives: deploying production from main, where a merge on a game night would end games; a
+manual deploy in Render, which records the version nowhere but Render.

@@ -1,7 +1,9 @@
 # Render Blueprint (T2.1 subtasks 12-14). Render reads this file from the repository root.
 # Reference: https://render.com/docs/blueprint-spec
 #
-# Staging only for now; production (deployed from tagged releases) is added before launch.
+# Two sites (T4.3): staging, the pilot site, deploys every commit on main once CI passes;
+# production, the study's site, deploys the `production` branch, which only the Deploy workflow
+# moves, to a `site-*` tag on main that passed CI (.github/workflows/deploy.yml). Each site has its own database, address, cohort seed and email key.
 services:
   - type: web
     name: fish-staging
@@ -44,6 +46,43 @@ services:
       - key: FISH_COHORT_SEED # 64-bit; never changed once anyone has signed up (corpus.md §2.1)
         sync: false
 
+  - type: web
+    name: fish-production
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: 0.5c-512mb # as staging; the plan can be raised in the dashboard at any time
+    region: virginia
+    branch: production # moved only by the Deploy workflow, to a tagged commit on main
+    autoDeployTrigger: checksPass
+    healthCheckPath: /health
+    # The study's address (docs/runbooks/domains.md): a CNAME from fish to this service.
+    domains:
+      - fish.thedefinitivesanjeevexperience.com
+    renderSubdomainPolicy: disabled
+    preDeployCommand: python -m fish_server.deploy
+    envVars:
+      - key: FISH_ADMIN_DATABASE_URL # the owner's private URL: migrations and admin tools only
+        fromDatabase:
+          name: fish-production-db
+          property: connectionString
+      - key: FISH_APP_DB_PASSWORD
+        generateValue: true
+      - key: FISH_PUBLIC_URL
+        value: https://fish.thedefinitivesanjeevexperience.com
+      - key: FISH_EMAIL
+        value: resend
+      - key: FISH_EMAIL_FROM
+        value: Fish <signin@mail.thedefinitivesanjeevexperience.com>
+      - key: FISH_RESEND_API_KEY # its own Resend key, sending from that domain only
+        sync: false
+      - key: FISH_CONSENT_VERSION # the study's text (Consent Screen §1), with terms v1.0
+        value: v1.0
+      - key: FISH_SIGNIN_DAILY_LIMIT # Resend Pro has no daily limit (email.md §2)
+        value: "1500"
+      - key: FISH_COHORT_SEED # its own; never changed once anyone has signed up (corpus.md §2.1)
+        sync: false
+
 databases:
   - name: fish-staging-db # cannot be renamed later
     plan: 0.1c-256mb # $6/month; paid plans include point-in-time recovery
@@ -53,3 +92,12 @@ databases:
     databaseName: fish
     user: fish
     ipAllowList: [] # no connections from outside Render at all
+
+  - name: fish-production-db # the study's corpus; cannot be renamed later
+    plan: 0.1c-256mb # as staging; point-in-time recovery for 3 days on Hobby (backups.md)
+    diskSizeGB: 5 # about 0.6 MB a game, measured (pings dominate): 1,000 games need 0.6 GB
+    region: virginia
+    postgresMajorVersion: "17"
+    databaseName: fish
+    user: fish
+    ipAllowList: []

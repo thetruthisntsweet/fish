@@ -57,9 +57,9 @@ export RESEND_BROADCAST_KEY="$(security find-generic-password -a "$USER" -s fish
 
 - **Sign-in links.** The free transactional plan stops at 100 emails a day, and the server
   stops itself at 90 (`FISH_SIGNIN_DAILY_LIMIT`). On launch day more people than that will
-  ask for links. Move to **Pro** (50,000 a month, no daily limit) and give the production
-  service `FISH_SIGNIN_DAILY_LIMIT=1500` in `render.yaml` (T4.3). Staging keeps 90: the pilot
-  is small.
+  ask for links. Move to **Pro** (50,000 a month, no daily limit). `render.yaml` gives the
+  production service `FISH_SIGNIN_DAILY_LIMIT=1500` (T4.3). Staging keeps 90: the pilot is
+  small.
 - **Invitations stay on the free plan.** It holds 1,000 contacts and three segments, and
   every contact counts once, whichever segments it is in. About 950 are invited, which leaves
   room for players who sign up with another address: `fish_server.audience` adds them as new
