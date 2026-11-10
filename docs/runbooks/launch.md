@@ -14,6 +14,7 @@ checked without anyone playing on it early. Don't play on it yourself, before or
 | When | What | Section |
 |---|---|---|
 | By Sun 29 Nov | Create the site, give it its address, check it, monitor it | §1, §2 |
+| By Sun 6 Dec | Rehearse launch week on it while it is closed | §2, "Rehearsing launch week" |
 | Sat 5 – Mon 7 Dec | The pilot's figures, bot delays and MDEs are merged | [pilot.md](pilot.md) §4 |
 | Mon 7 Dec | Resend Pro, the full Invited list, the launch deploy, M3 scheduled | §3 |
 | Tue 8 Dec | The site opens at midnight; M3 at 9:00 am | §3 |
@@ -111,6 +112,60 @@ Once §1 is done, and again after every deploy that changes what people see:
 - [ ] **Monitors.** Add `Fish study: server` and `Fish study: database` to UptimeRobot
   ([monitoring.md](monitoring.md) §1), and check that both are up.
 - [ ] Record it in §6.
+
+`try_server` also checks the site against the calendar (`check_calendar`). The study's site
+shows v1.0 and is closed before 8 December and open from then on. The pilot site shows the
+pilot's texts and is open until 6 December and closed after it. A site on the wrong day fails.
+On the pilot site after 6 December it asks whether `FISH_TABLES_OPEN` was left set.
+
+### Rehearsing launch week, by Sunday 6 December
+
+Between §1 and 7 December the study's site is closed and holds no games, so every step of
+launch week that has not yet been done once can be tried on it safely. About an hour, on a day
+with no pilot night.
+
+1. **A tag that is refused.** Push a tag that names no real day, and watch the workflow stop
+   before anything moves:
+
+   ```bash
+   git tag site-2026.13.01 && git push origin site-2026.13.01
+   ```
+
+   **Actions → Deploy** fails at "The tag is a site tag, on main", and **Events** shows no
+   deploy. Delete the tag again:
+
+   ```bash
+   git push origin :refs/tags/site-2026.13.01 && git tag -d site-2026.13.01
+   ```
+
+2. **A dry run.** **Actions → Deploy → Run workflow**, with the tag from §1 step 5. Its
+   summary says what it would deploy, and nothing moves.
+3. **A rollback, and back** (§5). Pick a commit of main from after the T4.3 merge, so the site
+   stays closed, with the same newest migration as the running one. Tag it `site-YYYY.MM.DD.2`
+   and push it. When **Events** shows it live, `try_server` prints PASS with tables
+   `not_open`. Then tag main's newest commit `site-YYYY.MM.DD.3`, push it, and run
+   `try_server` once more.
+4. **The Monday commands, once**, in `fish-production`'s Shell:
+
+   ```bash
+   python -m fish_server.stats                      # its Database section, and your one sign-up
+   python -m fish_server.audience --dry-run         # what 14 December's copy would change
+   python -m fish_server.corpus_export --out /tmp/corpus-rehearsal.jsonl.gz
+   ```
+
+   Then the copy on your laptop ([backups.md](backups.md) §2), with `fish-production`'s SSH
+   address (**Connect → SSH**): `scp` it to `~/FishBackups/`, and run
+   `scripts/check_export.py` on it. It prints PASS with `exported: 0`. Delete both copies.
+5. **An M3 draft.** On your laptop ([email.md](email.md) §3):
+
+   ```bash
+   uv run python scripts/broadcast.py M3 --segment Invited --fill N=30 --create
+   ```
+
+   In Resend, **Send test email** to yourself from the draft. Check that its links go to the
+   study's site, and its footer to the study's privacy policy. Then **delete the draft**: the
+   real M3 is made on 7 December with the pilot's game length.
+6. A row in §6.
 
 ## 3. Launch week
 

@@ -4,7 +4,7 @@ and fails, saying why, one that cannot reach its database or whose deploy has no
 
 import importlib.util
 import json
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import ModuleType
 
@@ -92,3 +92,45 @@ def test_a_stand_in_fails_on_the_study_s_site_from_the_day_it_opens(
     try_server.check_bot_delays("https://site", LAUNCH - timedelta(days=1))
     with pytest.raises(RuntimeError, match="stand-in-v1 is a stand-in"):
         try_server.check_bot_delays("https://site", LAUNCH)
+
+
+STUDY = {"version": "v1.0", "terms_version": "v1.0"}
+PILOT = {"version": "v1.0-pilot", "terms_version": "v1.0-pilot"}
+NOT_OPEN = {"tables": {"reason": "not_open", "message": "Not yet.", "link": None}}
+OVER = {"tables": {"reason": "pilot_over", "message": "Over.", "link": "https://fish.x"}}
+OPEN = {"tables": None}
+
+
+@pytest.mark.parametrize(
+    ("study", "when"),
+    [
+        (STUDY | NOT_OPEN, datetime(2026, 12, 8, 4, 59, tzinfo=UTC)),  # 11:59 pm on the 7th
+        (STUDY | OPEN, datetime(2026, 12, 8, 5, tzinfo=UTC)),  # midnight Eastern
+        (PILOT | OPEN, datetime(2026, 12, 6, 4, 59, tzinfo=UTC)),
+        (PILOT | OVER, datetime(2026, 12, 6, 5, tzinfo=UTC)),
+    ],
+)
+def test_each_site_is_checked_against_its_own_days(
+    try_server: ModuleType, study: dict[str, object], when: datetime
+) -> None:
+    try_server.check_calendar(study, when)
+
+
+@pytest.mark.parametrize(
+    ("study", "when", "message"),
+    [
+        (STUDY | OPEN, datetime(2026, 11, 29, tzinfo=UTC), "should be not_open today, not open"),
+        (STUDY | NOT_OPEN, datetime(2026, 12, 9, tzinfo=UTC), "should be open today"),
+        (PILOT | OPEN, datetime(2026, 12, 9, tzinfo=UTC), "is FISH_TABLES_OPEN still set"),
+        (
+            {"version": "v1.0", "terms_version": "v1.0-pilot"} | OPEN,
+            datetime(2026, 12, 9, tzinfo=UTC),
+            "shows texts",
+        ),
+    ],
+)
+def test_a_site_on_the_wrong_day_or_texts_fails(
+    try_server: ModuleType, study: dict[str, object], when: datetime, message: str
+) -> None:
+    with pytest.raises(RuntimeError, match=message):
+        try_server.check_calendar(study, when)

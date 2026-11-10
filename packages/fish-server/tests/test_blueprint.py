@@ -21,7 +21,7 @@ from fish_server.settings import (
     terms_version,
 )
 from fish_server.stats import DISK_GB
-from fish_server.study import BOT_DELAYS, LAUNCH
+from fish_server.study import BOT_DELAYS, LAUNCH, PILOT_ENDED
 
 BLUEPRINT: Final = Path(__file__).resolve().parents[3] / "render.yaml"
 SITES: Final = {"fish-staging": "fish-pilot", "fish-production": "fish"}
@@ -156,6 +156,12 @@ def test_each_site_takes_tables_only_on_its_days(
     for key, value in values(service(name)).items():
         monkeypatch.setenv(key, value)
     assert "FISH_TABLES_OPEN" not in values(service(name))  # only ever set by hand, briefly
+    days = {
+        "fish-staging": ("FISH_PILOT_ENDED", PILOT_ENDED),
+        "fish-production": ("FISH_OPENS", LAUNCH),
+    }
+    key, day = days[name]
+    assert values(service(name))[key] == day.isoformat()  # what try_server checks against
     second = timedelta(seconds=1)
     if first_open is not None:
         assert first_open.astimezone(EASTERN).date() == LAUNCH

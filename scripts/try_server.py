@@ -12,7 +12,9 @@ It checks that ``/`` serves the web client and ``/study`` names the text the sit
 that ``/health`` reports protocol 3, that ``/health/db`` reaches the database and finds it
 at this checkout's newest migration (so run it from an up-to-date main), that the bots wait as
 this checkout says the site's bots should (``uniform-1.5-4s-v1`` on the pilot site, the study's
-table on the study's, never a stand-in from 8 December), that ``/auth/me``
+table on the study's, never a stand-in from 8 December), that the site shows its own texts
+and takes tables exactly on its days (the study's from 8 December, the pilot's until 6
+December: ``check_calendar``), that ``/auth/me``
 says signed in and allowed to play (the study information accepted, not withdrawn), and over
 ``/ws`` that the server says hello, shows the lobby, makes a room and leaves it. While the
 site takes no tables (before the study opens, or after the pilot: ``/study``'s ``tables``), it
@@ -27,7 +29,7 @@ import json
 import sys
 import urllib.error
 import urllib.request
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import cast
 
@@ -36,7 +38,8 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 from fish_agents.delays import UNIFORM, load
-from fish_server.study import BOT_DELAYS, LAUNCH
+from fish_server.opening import EASTERN
+from fish_server.study import BOT_DELAYS, LAUNCH, PILOT_ENDED
 
 PROTOCOL_VERSION = 3
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
@@ -100,6 +103,33 @@ def check_bot_delays(base: str, today: date | None = None) -> None:
 def page(url: str) -> str:
     with urllib.request.urlopen(url, timeout=15) as response:
         return response.read().decode()
+
+
+def check_calendar(study: dict[str, object], now: datetime | None = None) -> None:
+    """The site shows its own texts, and takes tables exactly on its days: the study's site
+    v1.0 and closed before ``LAUNCH``; the pilot site the pilot's texts and closed from
+    ``PILOT_ENDED`` (unless FISH_TABLES_OPEN was left set). Raises RuntimeError."""
+    today = (now or datetime.now(UTC)).astimezone(EASTERN).date()
+    pilot = str(study.get("version", "")).endswith("-pilot")
+    texts = (study.get("version"), study.get("terms_version"))
+    tables = study.get("tables")
+    reason = tables.get("reason") if isinstance(tables, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    if pilot:
+        wanted = ("v1.0-pilot", "v1.0-pilot")
+        closed = "pilot_over" if today >= PILOT_ENDED else None
+    else:
+        wanted = ("v1.0", "v1.0")
+        closed = "not_open" if today < LAUNCH else None
+    print(
+        "site:  ", "the pilot" if pilot else "the study", f"on {today}: tables {closed or 'open'}"
+    )
+    if texts != wanted:
+        raise RuntimeError(f"the site shows texts {texts}, not {wanted}")
+    if reason != closed:
+        hint = " (is FISH_TABLES_OPEN still set?)" if pilot and closed and not reason else ""
+        raise RuntimeError(
+            f"tables should be {closed or 'open'} today, not {reason or 'open'}{hint}"
+        )
 
 
 def tables_notice(base: str) -> str | None:
@@ -179,6 +209,7 @@ def main() -> int:
         print("study: ", status, study)
         if status != 200 or not study.get("version"):
             raise RuntimeError("/study should name the text this site shows")
+        check_calendar(study)
         check_health(base)
         check_bot_delays(base)
         status, me = get(f"{base}/auth/me", args.session)

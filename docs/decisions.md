@@ -1511,3 +1511,22 @@ During collection, game code changes only to fix a fault, recorded with the firs
 affects, so the corpus stays one study.
 Alternatives: a daily emailed report from a Render cron job, declined for now (no new service);
 no written lines, which leaves each Monday's judgement to be remade.
+
+**D126 · 2026-11-10 · Launch week is rehearsed on the closed study site (T4.3).**
+Between creating the study's site (by 29 November) and 7 December, it is closed and holds no
+games. So `docs/runbooks/launch.md` §2 rehearses there every launch-week step not yet done
+once:
+- a tag the Deploy workflow refuses;
+- a dry run;
+- a rollback and back, to a commit that keeps the site closed;
+- the Monday commands on an empty corpus;
+- an M3 draft sent as a test, then deleted.
+
+`scripts/try_server.py` now also checks each site against the calendar:
+- the study's site shows v1.0, and is closed before `study.LAUNCH` and open from it;
+- the pilot site shows the pilot's texts, and is closed from `study.PILOT_ENDED`.
+
+A forgotten `FISH_TABLES_OPEN` fails it. `test_blueprint.py` ties both days to `render.yaml`.
+So the same command checks a site on any day, before, during or after launch.
+Alternatives: rehearsing on staging, which is the pilot during these weeks; no rehearsal,
+leaving the first rollback and the first Monday copy to the study's first week.
