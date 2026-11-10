@@ -1590,3 +1590,23 @@ against `fish_rules.corpus.analysis_flags` on the exported records, so there is 
 definition.
 Alternatives: building every record to count its flags, which takes minutes each Monday;
 reporting only the corpus total, which hides a primary set that grows slower.
+
+**D130 · 2026-11-10 · Each week's copy is checked against the last (T4.4).**
+`scripts/check_export.py --previous <last week's copy>` checks, on the laptop, that every game
+collected by last week is in this week's copy and unchanged. Each export draws new pseudonyms,
+and release ids move up when a withdrawal removes a game, so the files never match byte for
+byte. A game is found by its seed, and compared by a hash of its record without the release
+id, the pseudonyms and the note answers. The people must still line up: last week's pseudonyms
+map one to one onto this week's, across all games.
+
+Two differences are allowed:
+- a note-taking answer arriving for a seat that was `unanswered`, since a person is asked until
+  they answer;
+- games gone because a person withdrew. Their number is given with `--gone`, from the rise in
+  the server's count of withdrawn games, so a game can't disappear unnoticed.
+
+Anything else fails, naming games by seed. The integrity check (D128) shows the database is
+consistent now. This shows it hasn't been changed since, which an append-only database
+shouldn't allow, but only a second copy can show.
+Alternatives: comparing files or their hashes, which differ every week by design; a manifest
+of hashes kept on the server, which whatever changed the games could change too.

@@ -74,7 +74,7 @@ night, so the last copy holds the whole corpus. Use the production service.
    ```
 
    It builds one game at a time, so it's safe beside games in progress. Note the
-   `exported:`, `people:` and `sha256:` lines it prints.
+   `exported:`, `people:` and `sha256:` lines it prints, and "left out, a person withdrew".
 2. **Copy and check**, on your laptop, from the repository:
 
    ```bash
@@ -84,6 +84,22 @@ night, so the last copy holds the whole corpus. Use the production service.
 
    It reads and replays every game. Go on only if it prints `PASS` and the same `exported`,
    `people` and `sha256` as step 1.
+
+   From the second Monday on, also compare it with last week's copy, before deleting that:
+
+   ```bash
+   uv run python scripts/check_export.py ~/FishBackups/corpus-2026-12-21.jsonl.gz \
+       --previous ~/FishBackups/corpus-2026-12-14.jsonl.gz
+   ```
+
+   It checks that every game collected by last week is still there and unchanged, and prints
+   a line like `since corpus-2026-12-14.jsonl.gz: 96 games unchanged, 112 new, 0 gone, 3 note
+   answers added`. The two files never match byte for byte, because each export draws new
+   pseudonyms. If it says games are gone, compare the number with the rise in "left out, a
+   person withdrew" since last Monday's export (the record in
+   [collection.md](collection.md) §5). If they agree, run it again with `--gone N`. If they
+   don't, or it says a game has changed, stop: keep both copies, and treat it as a fault
+   ([collection.md](collection.md)).
 3. **Keep only this week's**, on both sides:
 
    ```bash
