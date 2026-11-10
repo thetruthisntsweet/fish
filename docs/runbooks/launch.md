@@ -141,8 +141,7 @@ Each is merged to main, so staging runs it first.
 
 **Sun 13 December, opening night, 8 – 10 pm.** Watch as on a pilot night ([pilot.md](pilot.md)
 §2), on `fish-production`, but don't play. Afterwards, `stats` once more, and a row in §6. Then
-the collection routine takes over: every Monday from 14 December ([email.md](email.md),
-[backups.md](backups.md) §2).
+the collection routine takes over ([collection.md](collection.md)).
 
 ## 4. Deploying a change
 

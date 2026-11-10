@@ -20,6 +20,7 @@ from fish_server.settings import (
     tables_closed,
     terms_version,
 )
+from fish_server.stats import DISK_GB
 from fish_server.study import BOT_DELAYS, LAUNCH
 
 BLUEPRINT: Final = Path(__file__).resolve().parents[3] / "render.yaml"
@@ -124,6 +125,10 @@ def test_the_databases_are_alike_but_the_studys_has_room() -> None:
     for key in ("region", "postgresMajorVersion", "databaseName", "user", "ipAllowList"):
         assert staging[key] == production[key]
     assert production["diskSizeGB"] >= 2  # about 0.6 GB for 1,000 games
+    assert (staging["diskSizeGB"], production["diskSizeGB"]) == (
+        DISK_GB["pilot"],
+        DISK_GB["study"],
+    )  # what fish_server.stats measures against
 
 
 def test_only_production_may_wait_for_its_address() -> None:

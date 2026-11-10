@@ -15,7 +15,7 @@ from sqlalchemy import Engine, create_engine, pool
 
 from fish_server.corpus_export import Standing, export
 from fish_server.settings import CONSENT_VERSION_VAR, database_url
-from fish_server.stats import Game, People, main, read, report
+from fish_server.stats import DISK_GB, FULL, Game, People, main, read, report
 
 
 def _games_writer() -> ModuleType:
@@ -40,8 +40,9 @@ def game(
     cohort_table: bool = False,
     bot: bool = False,
     minutes: float | None = None,
+    handovers: tuple[str, ...] = (),
 ) -> Game:
-    return Game(uuid.uuid4(), day, standing, cohort_table, bot, minutes)
+    return Game(uuid.uuid4(), day, standing, cohort_table, bot, minutes, handovers)
 
 
 def week_of(
@@ -161,6 +162,35 @@ def app(server_env: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
     engine.dispose()
 
 
+def test_handovers_are_counted_by_why() -> None:
+    games = [
+        game(date(2026, 12, 13), bot=True, handovers=("disconnect", "turn_timeout")),
+        game(date(2026, 12, 13), bot=True, handovers=("disconnect",)),
+        game(date(2026, 12, 13), "abandoned", bot=True, handovers=("disconnect",)),
+    ]
+    assert "  seats handed to a bot        4  (a person dropped out 3, a turn ran out 1)" in shown(
+        games, date(2026, 12, 14)
+    )
+    assert "seats handed to a bot" not in shown([game(date(2026, 12, 13))], date(2026, 12, 14))
+
+
+def test_the_database_size_is_shown_against_the_disk_and_the_target() -> None:
+    games = [game(date(2026, 12, 13)) for _ in range(200)]
+    mb = 1024**2
+    report_ = "\n".join(report(PEOPLE, games, date(2026, 12, 14), "v1.0", 120 * mb))
+    assert "\nDatabase\n  size, MB                   120  (2% of the disk)" in report_
+    assert "  at 1,000 corpus games, about 600 MB" in report_
+    assert "raise diskSizeGB" not in report_
+    full = int(FULL * DISK_GB["study"] * 1024**3)
+    assert "past 80%: raise diskSizeGB in render.yaml" in "\n".join(
+        report(PEOPLE, games, date(2026, 12, 14), "v1.0", full)
+    )
+    pilot = "\n".join(report(PEOPLE, games, date(2026, 12, 6), "v1.0-pilot", 512 * mb))
+    assert "  size, MB                   512  (50% of the disk)" in pilot  # staging's 1 GB
+    assert "corpus games, about" not in pilot
+    assert "Database" not in shown(games, date(2026, 12, 14))  # without a size
+
+
 def test_the_database_is_read_as_the_export_reads_it(app: Engine) -> None:
     late = 12 * 24 * 60 + 7 * 60  # from 1 Dec, 20:00 UTC: 03:00 UTC on 14 Dec, 13 Dec Eastern
     handover = {
@@ -191,6 +221,8 @@ def test_the_database_is_read_as_the_export_reads_it(app: Engine) -> None:
     assert (by_id[gone].standing, by_id[playing].standing) == ("withdrawn", "not_ended")
     assert by_id[kept].day == date(2026, 12, 13)
     assert (by_id[with_bot].bot, by_id[short].bot, by_id[kept].bot) == (True, True, False)
+    assert by_id[with_bot].handovers == ("turn_timeout",)
+    assert by_id[short].handovers == ()  # a bot from the start is no handover
     minutes = [g.minutes for g in games if g.minutes is not None]
     assert minutes
     assert all(0 < m < 120 for m in minutes)
@@ -202,4 +234,5 @@ def test_the_command_prints_the_report(app: Engine, capsys: pytest.CaptureFixtur
     assert main([], create_engine(database_url(), poolclass=pool.NullPool)) == 0
     out = capsys.readouterr().out
     assert "study information v1.0" in out
+    assert "\nDatabase\n  size, MB" in out
     assert "  signed up                    6  (group 1: 6, group 2: 0)" in out

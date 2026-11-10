@@ -1,5 +1,6 @@
-"""How the study is going (T4.1, T4.4): sign-ups, the corpus against its target of 1,000 games,
-each week's pace, bot handovers, and how long games take. Counts only, never an address.
+"""How the study is going (T4.1, T4.3, T4.4): sign-ups, the corpus against its target of 1,000
+games, each week's pace, bot handovers and why, how long games take, and how full the database
+is. Counts only, never an address (docs/runbooks/collection.md).
 
     python -m fish_server.stats
 
@@ -32,6 +33,11 @@ FIRST_FULL_WEEK: Final = date(2026, 12, 14)
 LAST_DAY: Final = date(2027, 2, 14)
 ZONE: Final = "America/New_York"
 DAYS_SHOWN: Final = 14
+DISK_GB: Final = {"pilot": 1, "study": 5}
+"""Each site's database disk (render.yaml's ``diskSizeGB``; test_blueprint.py checks they
+agree). It can grow but never shrink: raise it once the database passes ``FULL``."""
+FULL: Final = 0.8
+HANDOVER_REASONS: Final = {"disconnect": "a person dropped out", "turn_timeout": "a turn ran out"}
 
 LEFT_OUT: Final[dict[Standing, str]] = {
     "abandoned": "abandoned",
@@ -75,6 +81,8 @@ class Game:
     """A bot held a seat at some point: from the start, or after a handover."""
     minutes: float | None
     """How long a finished game took, start to last action."""
+    handovers: tuple[str, ...] = ()
+    """Why each seat in it was handed to a bot (R.8.4): ``disconnect`` or ``turn_timeout``."""
 
     @property
     def week(self) -> date:
@@ -90,9 +98,18 @@ class People:
     withdrawn: int
 
 
+_HANDOVERS: Final = """
+    SELECT game_id, data->>'reason' AS reason FROM server_log WHERE type = 'handover'
+    ORDER BY game_id, row_id
+"""
+
+
 def read(conn: Connection, current: str) -> tuple[People, list[Game], date]:
     """Everyone, every game, and today's date, Eastern."""
     standing = membership(conn)
+    handed: dict[uuid.UUID, list[str]] = {}
+    for row in conn.execute(text(_HANDOVERS)):
+        handed.setdefault(row.game_id, []).append(row.reason)
     games = [
         Game(
             row.game_id,
@@ -101,6 +118,7 @@ def read(conn: Connection, current: str) -> tuple[People, list[Game], date]:
             row.cohort_table,
             row.bot,
             row.length_us / 60_000_000 if row.finished and row.length_us is not None else None,
+            tuple(handed.get(row.game_id, ())),
         )
         for row in conn.execute(text(_GAMES))
     ]
@@ -108,6 +126,11 @@ def read(conn: Connection, current: str) -> tuple[People, list[Game], date]:
     people = People(*counted)
     today = conn.execute(text(f"SELECT (now() AT TIME ZONE '{ZONE}')::date")).scalar_one()
     return people, sorted(games, key=lambda g: (g.day, str(g.id))), today
+
+
+def database_bytes(conn: Connection) -> int:
+    """How much disk the database takes now."""
+    return conn.execute(text("SELECT pg_database_size(current_database())")).scalar_one()
 
 
 def _day(day: date) -> str:
@@ -122,7 +145,9 @@ def _share(part: int, whole: int) -> str:
     return f"{round(100 * part / whole)}%" if whole else "-"
 
 
-def report(people: People, games: list[Game], today: date, current: str) -> list[str]:
+def report(
+    people: People, games: list[Game], today: date, current: str, size: int | None = None
+) -> list[str]:
     pilot = current.endswith("-pilot")
     corpus = [g for g in games if g.standing == "exported"]
     lines = [
@@ -143,6 +168,14 @@ def report(people: People, games: list[Game], today: date, current: str) -> list
     lines.append(_row("ended, left out", sum(out.values())) + (f"  ({why})" if why else ""))
     bots = sum(g.bot for g in corpus)
     lines.append(_row("a bot held a seat", bots) + f"  ({_share(bots, len(corpus))} of corpus)")
+    reasons = [r for g in games for r in g.handovers]
+    if reasons:
+        told = ", ".join(
+            f"{label} {reasons.count(why)}"
+            for why, label in HANDOVER_REASONS.items()
+            if reasons.count(why)
+        )
+        lines.append(_row("seats handed to a bot", len(reasons)) + f"  ({told})")
     lengths = sorted(g.minutes for g in games if g.minutes is not None)
     if lengths:
         quarters = statistics.quantiles(lengths, n=4) if len(lengths) > 1 else lengths * 3
@@ -187,6 +220,22 @@ def report(people: People, games: list[Game], today: date, current: str) -> list
         else:
             lines.append("  no full week yet")
 
+    if size is not None:
+        disk = DISK_GB["pilot" if pilot else "study"] * 1024**3
+        used = size / disk
+        lines += [
+            "",
+            "Database",
+            _row("size, MB", round(size / 1024**2)) + f"  ({used:.0%} of the disk)",
+        ]
+        if corpus and not pilot:
+            at_target = size / len(corpus) * TARGET
+            lines.append(f"  at {TARGET:,} corpus games, about {at_target / 1024**2:,.0f} MB")
+        if used >= FULL:
+            lines.append(
+                f"  past {FULL:.0%}: raise diskSizeGB in render.yaml (docs/runbooks/collection.md)"
+            )
+
     recent_days = [today - timedelta(days=d) for d in range(DAYS_SHOWN - 1, -1, -1)]
     played = [d for d in recent_days if any(g.day == d for g in games)]
     if played:
@@ -208,9 +257,10 @@ def main(argv: list[str] | None = None, engine: Engine | None = None) -> int:
     try:
         with engine.connect() as conn:
             people, games, today = read(conn, current)
+            size = database_bytes(conn)
     finally:
         engine.dispose()
-    print("\n".join(report(people, games, today, current)))
+    print("\n".join(report(people, games, today, current, size)))
     return 0
 
 

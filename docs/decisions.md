@@ -1488,3 +1488,26 @@ While closed:
 Unset, as in development and tests, tables are open.
 Alternatives: switching sites by hand on the day, which can be forgotten; closing sign-up too,
 which would stop pilot players from withdrawing on the site.
+
+**D125 · 2026-11-10 · Collection is watched by hand, against written lines (T4.3).**
+`docs/runbooks/collection.md` gives the Monday routine (stats, segments and M4, the corpus
+copy, a record row) and what to watch on each game night. Its §3 table gives each signal, where
+to read it, the line past which to act, and what to do:
+- pace: two short weeks, then a Friday night;
+- group 2's tables;
+- bots in more than 20% of a week's corpus games, since those games are left out of RQ1's
+  primary set;
+- abandoned games above 10%;
+- the database at 80% of its disk;
+- server load on game nights;
+- errors, the site down, email, and requests.
+
+`fish_server.stats` gains the two it lacked: seats handed to a bot by reason (a person dropped
+out, or a turn ran out, which point to different fixes), and the database's size against its
+disk with a projection to 1,000 corpus games. It warns past 80%. The disk sizes it measures
+against are checked against `render.yaml`.
+
+During collection, game code changes only to fix a fault, recorded with the first game it
+affects, so the corpus stays one study.
+Alternatives: a daily emailed report from a Render cron job, declined for now (no new service);
+no written lines, which leaves each Monday's judgement to be remade.

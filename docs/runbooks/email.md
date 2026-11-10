@@ -12,8 +12,9 @@ All times below are Eastern; from 1 November to 13 March that is UTC−5, so `-0
 
 **Every Monday, 14 December to 8 February**, in this order:
 
-1. In the production service's **Shell**: `python -m fish_server.stats`. If it says two full
-   weeks in a row were short, add a Friday night ([recruitment.md](../recruitment.md) §3) first.
+1. In the production service's **Shell**: `python -m fish_server.stats`, checked against
+   [collection.md](collection.md) §3. If it says two full weeks in a row were short, add a
+   Friday night ([recruitment.md](../recruitment.md) §3) first.
 2. In the same Shell: `python -m fish_server.audience` (§4).
 3. On your computer: M4 for `Players: group 1`, then for `Players: group 2` (§3), for 9:00 am.
 4. The weekly corpus copy ([backups.md](backups.md) §2): export in the Shell, copy it to your
