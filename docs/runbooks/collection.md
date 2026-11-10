@@ -113,5 +113,5 @@ One row per Monday, and one for anything acted on in between.
 
 On **Monday 15 February**: the last `stats`, M7 ([email.md](email.md) §3), and the last
 weekly corpus copy. Withdrawing through the website closes at the end of 14 February (Consent
-Screen §2.7). Then the corpus is checked and frozen (T4.4, T4.5, by 28 February), which also
+Screen §2.7). Then the corpus is given its last integrity check and frozen (T4.5, by 28 February), which also
 decides what the site does after the last night.

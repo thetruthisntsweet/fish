@@ -1632,3 +1632,20 @@ export's withdrawn games (which the copy check's `--gone` needs), and both check
 Alternatives: skipping games that fail to build, which would hide faults; deleting or
 repairing rows, which the append-only tables refuse by design; a list of excluded games in
 the code, which needs a deploy and puts game IDs in the repository.
+
+**D132 · 2026-11-10 · T4.4 close-out: corpus integrity is checked every week.**
+T4.4's code and runbooks are done:
+- the integrity check of everything stored (D128);
+- the analysis sets and each week's handover share in `stats` (D129);
+- each week's copy compared with the last (D130);
+- fault responses and recorded exclusions, in the Monday routine (D131).
+
+Games with a bot in a seat are flagged by the record itself (`analysis_flags`), not by a
+stored mark. `stats` counts them by week, and they stay in the corpus, outside the primary set.
+
+The datasheet plan now says what the datasheet will report from this: the sets' counts, the
+weekly checks, and every fault and exclusion with its decision.
+
+T4.4 is built on the T4.3 branch and reaches main with it, at `docs/runbooks/launch.md` §1
+step 4. What remains is to run it: once on the pilot's games (6 or 7 December), then every
+Monday from 14 December to 15 February, and a last time before the freeze (T4.5).
