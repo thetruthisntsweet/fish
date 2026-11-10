@@ -233,7 +233,7 @@ checks a copy against them ([runbooks/backups.md](runbooks/backups.md)).
 | T3.2 | consent, seat flags and withdrawals (§2.2); the logging pipeline and completion status |
 | T3.3 | the consent screen, whose first confirmation is the age gate |
 | T3.5 | handovers to B1 (`b1-v1`, last-8 memory), bot waits (`bot_delay`) |
-| T4.4 | weekly integrity checks and the handover share |
+| T4.4 | weekly integrity checks (`fish_server.integrity`) and the handover share |
 | T4.5 | the freeze, the split seed, anonymisation |
 | T7.1 | the release datasheet, following [datasheet-plan.md](datasheet-plan.md) |
 

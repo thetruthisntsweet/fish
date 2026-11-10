@@ -1548,3 +1548,26 @@ What remains is to run them:
 - rehearsing launch week by 6 December;
 - the launch week itself, from 5 to 13 December;
 - the collection routine from 14 December to 15 February.
+
+**D128 · 2026-11-10 · A weekly integrity check of everything stored (T4.4).**
+`python -m fish_server.integrity` reads every stored game, in the corpus or not, and exits 1 if
+any check finds a fault:
+- `seats`, `actions`, `stale`: six seats, a completed game's actions numbered with no gap, and
+  no game left without an ending for an hour;
+- `consent`, `cohort`, `draw`: consent flags on every person's seat, tables holding the group
+  their matchmaking says, and every player in the group the cohort seed gives their sign-up
+  number;
+- `versions`, `seeds`, `notes`, `two tables`: known encodings and bot delay tables, no game
+  under another ruleset since the study opened, no shared seed, no answer on a bot's seat, and
+  nobody seated in two games at once;
+- `records`: every completed game of this ruleset builds into a record that reads and
+  replays, withdrawn games included.
+
+The export checks only the games it writes and stops at the first that fails. This reports
+every fault, with the game's ID and nothing else that names anyone. It never repairs: what to
+do about a fault is decided and recorded each time. `two tables` counts a person as seated
+until their handover or the game's last action, with five seconds' allowance, since a person
+a bot replaced may join another table. Tests damage stored games as the database's owner, one
+way per check, and each is found in its game.
+Alternatives: relying on the export and the laptop check, which see only corpus games and one
+fault at a time; repairing in the command, which would change the record of what happened.
