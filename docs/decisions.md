@@ -1571,3 +1571,22 @@ a bot replaced may join another table. Tests damage stored games as the database
 way per check, and each is found in its game.
 Alternatives: relying on the export and the laptop check, which see only corpus games and one
 fault at a time; repairing in the command, which would change the record of what happened.
+
+**D129 · 2026-11-10 · `stats` counts the analysis sets and the weekly handover share (T4.4).**
+On the study's site, `python -m fish_server.stats` now shows, within the corpus:
+- the primary set, split by group;
+- the held-out test set, which is group 2's primary games;
+- games with a bot handover, as a count and a share;
+- rooms, games with a yes to note-taking, games with a note answer missing, and finished
+  games.
+
+A second weekly table gives each week's corpus, primary, group 2 primary and
+handover games with their share: the share T4.4 tracks.
+
+The corpus target is 1,000 games, but RQ1's headline is computed on primary-set games of each
+test set (Research Questions §2, §5.1), so those are the counts that say whether the study will
+have enough. The sets are counted in SQL, for speed. `test_stats.py` checks them game by game
+against `fish_rules.corpus.analysis_flags` on the exported records, so there is still one
+definition.
+Alternatives: building every record to count its flags, which takes minutes each Monday;
+reporting only the corpus total, which hides a primary set that grows slower.

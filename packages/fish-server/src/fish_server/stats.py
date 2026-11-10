@@ -1,5 +1,6 @@
 """How the study is going (T4.1, T4.3, T4.4): sign-ups, the corpus against its target of 1,000
-games, each week's pace, bot handovers and why, how long games take, and how full the database
+games, the analysis sets within it (docs/corpus.md §6), each week's pace and share of games
+with a bot handover, why seats were handed over, how long games take, and how full the database
 is. Counts only, never an address (docs/runbooks/collection.md).
 
     python -m fish_server.stats
@@ -19,7 +20,7 @@ import sys
 import uuid
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Final
+from typing import Final, Literal
 
 from sqlalchemy import Connection, Engine, create_engine, pool, text
 
@@ -37,6 +38,8 @@ DISK_GB: Final = {"pilot": 1, "study": 5}
 """Each site's database disk (render.yaml's ``diskSizeGB``; test_blueprint.py checks they
 agree). It can grow but never shrink: raise it once the database passes ``FULL``."""
 FULL: Final = 0.8
+UNFINISHED_AT: Final = 1_000
+"""Asks at which the engine ends a game unfinished (R.8.2)."""
 HANDOVER_REASONS: Final = {"disconnect": "a person dropped out", "turn_timeout": "a turn ran out"}
 
 LEFT_OUT: Final[dict[Standing, str]] = {
@@ -53,7 +56,17 @@ _GAMES: Final = f"""
            OR (SELECT count(*) FROM seats s WHERE s.game_id = g.game_id
                AND s.player_id IS NOT NULL) < 6 AS bot,
            e.completion = 'finished' AS finished,
-           (SELECT max(a.sent_us) FROM actions a WHERE a.game_id = g.game_id) AS length_us
+           (SELECT max(a.sent_us) FROM actions a WHERE a.game_id = g.game_id) AS length_us,
+           g.matchmaking = 'solo' AS solo,
+           EXISTS (SELECT 1 FROM note_answers n WHERE n.game_id = g.game_id
+                   AND n.answer = 'yes') AS note_yes,
+           (SELECT count(*) FROM seats s WHERE s.game_id = g.game_id AND s.player_id IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM note_answers n WHERE n.game_id = s.game_id
+                               AND n.seat = s.seat AND n.answer IN ('yes', 'no'))) > 0
+               AS note_missing,
+           (SELECT count(*) FILTER (WHERE p.cohort) || '/' || count(*)
+              FROM seats s JOIN players p USING (player_id) WHERE s.game_id = g.game_id)
+               AS held_out
     FROM games g LEFT JOIN game_endings e USING (game_id)
 """
 
@@ -83,6 +96,27 @@ class Game:
     """How long a finished game took, start to last action."""
     handovers: tuple[str, ...] = ()
     """Why each seat in it was handed to a bot (R.8.4): ``disconnect`` or ``turn_timeout``."""
+    finished: bool = True
+    solo: bool = True
+    note_yes: bool = False
+    """Somebody answered yes to the note-taking question."""
+    note_missing: bool = False
+    """Somebody's answer is declined or missing."""
+    people: Literal["group 1", "group 2", "mixed"] = "group 1"
+    """Whose game it was: all from one group, or both (possible only in a room)."""
+
+    @property
+    def primary(self) -> bool:
+        """In the primary set (docs/corpus.md §6), as ``fish_rules.corpus.AnalysisFlags`` has
+        it: a corpus game that finished, from solo matchmaking, with no bot at any point and
+        no yes to the note-taking question."""
+        return (
+            self.standing == "exported"
+            and self.finished
+            and self.solo
+            and not self.bot
+            and not self.note_yes
+        )
 
     @property
     def week(self) -> date:
@@ -119,6 +153,11 @@ def read(conn: Connection, current: str) -> tuple[People, list[Game], date]:
             row.bot,
             row.length_us / 60_000_000 if row.finished and row.length_us is not None else None,
             tuple(handed.get(row.game_id, ())),
+            bool(row.finished),
+            row.solo,
+            row.note_yes,
+            row.note_missing,
+            _people(row.held_out),
         )
         for row in conn.execute(text(_GAMES))
     ]
@@ -126,6 +165,12 @@ def read(conn: Connection, current: str) -> tuple[People, list[Game], date]:
     people = People(*counted)
     today = conn.execute(text(f"SELECT (now() AT TIME ZONE '{ZONE}')::date")).scalar_one()
     return people, sorted(games, key=lambda g: (g.day, str(g.id))), today
+
+
+def _people(held_out: str) -> Literal["group 1", "group 2", "mixed"]:
+    """From "held-out people/people" in a game."""
+    cohort, everyone = (int(n) for n in held_out.split("/"))
+    return "group 1" if cohort == 0 else "group 2" if cohort == everyone else "mixed"
 
 
 def database_bytes(conn: Connection) -> int:
@@ -185,7 +230,38 @@ def report(
             f" {len(lengths)} finished games)"
         )
 
+    if not pilot:
+        primary = [g for g in corpus if g.primary]
+        ours = sum(g.people == "group 2" for g in primary)
+        handed = sum(bool(g.handovers) for g in corpus)
+        lines += [
+            "",
+            "Analysis sets (of the corpus)",
+            _row("primary set", len(primary))
+            + f"  ({_share(len(primary), len(corpus))} of corpus; group 1: {len(primary) - ours},"
+            f" group 2: {ours})",
+            _row("held-out test set", ours) + "  (group 2's primary games)",
+            _row("with a bot handover", handed) + f"  ({_share(handed, len(corpus))} of corpus)",
+            _row("joined as a room", sum(not g.solo for g in corpus)),
+            _row("a yes to note-taking", sum(g.note_yes for g in corpus)),
+            _row("a note answer missing", sum(g.note_missing for g in corpus)),
+            _row("finished", sum(g.finished for g in corpus))
+            + f"  (the rest reached {UNFINISHED_AT:,} asks, R.8.2)",
+        ]
+
     weeks = sorted({g.week for g in games})
+    if weeks and not pilot:
+        head = "corpus  primary  group 2 primary  with a handover"
+        lines += ["", f"  {'Week, analysis sets':<24}{head}"]
+        for week in weeks:
+            kept = [g for g in corpus if g.week == week]
+            first = [g for g in kept if g.primary]
+            handed = sum(bool(g.handovers) for g in kept)
+            lines.append(
+                f"  {_day(week) + ' - ' + _day(week + timedelta(days=6)):<24}{len(kept):>6}"
+                f"{len(first):>9}{sum(g.people == 'group 2' for g in first):>17}"
+                f"{f'{handed} ({_share(handed, len(kept))})':>17}"
+            )
     if weeks:
         lines += ["", f"  {'Week (Mon - Sun)':<24}corpus  started  group 2 tables  bot held a seat"]
         for week in weeks:

@@ -5,14 +5,17 @@ FISH_TEST_DATABASE_URL."""
 
 import importlib.util
 import uuid
+from collections import Counter
 from collections.abc import Iterator
 from datetime import date, timedelta
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 from sqlalchemy import Engine, create_engine, pool
 
+from fish_rules.corpus import analysis_flags, read_corpus_record
 from fish_server.corpus_export import Standing, export
 from fish_server.settings import CONSENT_VERSION_VAR, database_url
 from fish_server.stats import DISK_GB, FULL, Game, People, main, read, report
@@ -41,8 +44,9 @@ def game(
     bot: bool = False,
     minutes: float | None = None,
     handovers: tuple[str, ...] = (),
+    **sets: Any,
 ) -> Game:
-    return Game(uuid.uuid4(), day, standing, cohort_table, bot, minutes, handovers)
+    return Game(uuid.uuid4(), day, standing, cohort_table, bot, minutes, handovers, **sets)
 
 
 def week_of(
@@ -174,6 +178,38 @@ def test_handovers_are_counted_by_why() -> None:
     assert "seats handed to a bot" not in shown([game(date(2026, 12, 13))], date(2026, 12, 14))
 
 
+def test_the_analysis_sets_are_counted_within_the_corpus() -> None:
+    sunday, later = date(2026, 12, 13), date(2026, 12, 20)
+    games = [
+        *[game(sunday) for _ in range(5)],  # primary, group 1
+        *[game(sunday, people="group 2", cohort_table=True) for _ in range(2)],
+        game(sunday, bot=True, handovers=("disconnect",)),
+        game(sunday, solo=False, people="mixed"),  # a room
+        game(sunday, note_yes=True),
+        game(sunday, finished=False),  # 1,000 asks
+        game(sunday, "withdrawn"),  # not in the corpus, so in no set
+        game(sunday, "abandoned", bot=True, handovers=("turn_timeout",)),
+        game(later, note_missing=True),  # still primary
+        game(later, bot=True, handovers=("turn_timeout", "disconnect")),
+    ]
+    report_ = shown(games, date(2026, 12, 28))
+    for line in (
+        "Analysis sets (of the corpus)",
+        "  primary set                  8  (62% of corpus; group 1: 6, group 2: 2)",
+        "  held-out test set            2  (group 2's primary games)",
+        "  with a bot handover          2  (15% of corpus)",
+        "  joined as a room             1",
+        "  a yes to note-taking         1",
+        "  a note answer missing        1",
+        "  finished                    12  (the rest reached 1,000 asks, R.8.2)",
+        "  Week, analysis sets     corpus  primary  group 2 primary  with a handover",
+        "  Mon 7 Dec - Sun 13 Dec      11        7                2           1 (9%)",
+        "  Mon 14 Dec - Sun 20 Dec      2        1                0          1 (50%)",
+    ):
+        assert line in report_, line
+    assert "Analysis sets" not in shown(games, date(2026, 12, 6), "v1.0-pilot")
+
+
 def test_the_database_size_is_shown_against_the_disk_and_the_target() -> None:
     games = [game(date(2026, 12, 13)) for _ in range(200)]
     mb = 1024**2
@@ -212,11 +248,40 @@ def test_the_database_is_read_as_the_export_reads_it(app: Engine) -> None:
         written.withdraw(conn, withdrew[0])
         playing, _ = written.add_game(conn, 15, written.table(conn), ending=None)
         written.add_person(conn, cohort=True, consented=False)
+        ours = [written.add_person(conn, cohort=True) for _ in range(6)]
+        held_out, _ = written.add_game(conn, 16, ours, cohort_table=True, notes={0: "no"})
+        both = [*written.table(conn, persons=5)[:5], ours[0]]
+        room, _ = written.add_game(conn, 17, both, matchmaking="group", notes={2: "yes"})
+        answered = dict.fromkeys(range(6), "no")
+        whole, _ = written.add_game(conn, 18, written.table(conn), notes=answered)
+        noted, _ = written.add_game(conn, 19, written.table(conn), notes=answered | {3: "yes"})
     with app.connect() as conn:
         people, games, _ = read(conn, "v1.0")
-        _, summary = export(conn)
+        records, summary = export(conn)
     by_id = {g.id: g for g in games}
-    assert people == People(signed_up=30, group_1=29, group_2=1, accepted=29, withdrawn=1)
+    assert people == People(signed_up=53, group_1=46, group_2=7, accepted=52, withdrawn=1)
+    # The sets, as the records' own flags give them (fish_rules.corpus.analysis_flags).
+    flags = [analysis_flags(read_corpus_record(r)) for r in records]
+    theirs = Counter(
+        (f.primary, f.solo, f.bot_seat, f.note_yes, f.note_missing, f.all_cohort, f.mixed_cohort)
+        for f in flags
+    )
+    mine = Counter(
+        (g.primary, g.solo, g.bot, g.note_yes, g.note_missing, g.people == "group 2",
+         g.people == "mixed")
+        for g in games
+        if g.standing == "exported"
+    )  # fmt: skip
+    assert mine == theirs
+    assert (by_id[held_out].people, by_id[room].people) == ("group 2", "mixed")
+    assert (by_id[room].solo, by_id[room].note_yes, by_id[room].primary) == (False, True, False)
+    assert (by_id[whole].note_missing, by_id[held_out].note_missing) == (False, True)
+    assert by_id[held_out].primary
+    assert (by_id[noted].note_yes, by_id[noted].primary, by_id[whole].primary) == (
+        True,
+        False,
+        by_id[whole].finished,
+    )
     assert sum(g.standing == "exported" for g in games) == summary.exported
     assert (by_id[gone].standing, by_id[playing].standing) == ("withdrawn", "not_ended")
     assert by_id[kept].day == date(2026, 12, 13)

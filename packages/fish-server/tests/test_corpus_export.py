@@ -87,6 +87,8 @@ def add_game(
     notes: dict[int, str] | None = None,
     ruleset: str = RULESET_VERSION,
     bot_delays: str = "uniform-1.5-4s-v1",
+    matchmaking: str = "solo",
+    cohort_table: bool = False,
 ) -> tuple[uuid.UUID, State]:
     """Write one website game. ``seats[s]`` is a person or None for a B1 bot. ``ending`` is
     the completion to record, "rules" for whatever the game reached, or None for no ending."""
@@ -105,8 +107,8 @@ def add_game(
             server_commit="abc1234",
             protocol_version=1,
             bot_delays=bot_delays,
-            matchmaking="solo",
-            cohort_table=False,
+            matchmaking=matchmaking,
+            cohort_table=cohort_table,
             started_at=START + timedelta(minutes=minutes),
         )
     )
