@@ -45,6 +45,8 @@ services:
         value: v1.0-pilot
       - key: FISH_COHORT_SEED # 64-bit; never changed once anyone has signed up (corpus.md §2.1)
         sync: false
+      - key: FISH_PILOT_ENDED # no new tables from this Eastern day; FISH_TABLES_OPEN=yes reopens
+        value: "2026-12-06" # them for a test (fish_server.opening; pilot.md §4)
 
   - type: web
     name: fish-production
@@ -83,6 +85,8 @@ services:
         value: "1500"
       - key: FISH_COHORT_SEED # its own; never changed once anyone has signed up (corpus.md §2.1)
         sync: false
+      - key: FISH_OPENS # no new tables before this Eastern day (fish_server.opening; study.LAUNCH)
+        value: "2026-12-08"
 
 databases:
   - name: fish-staging-db # cannot be renamed later

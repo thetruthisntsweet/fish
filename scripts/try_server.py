@@ -14,7 +14,9 @@ at this checkout's newest migration (so run it from an up-to-date main), that th
 this checkout says the site's bots should (``uniform-1.5-4s-v1`` on the pilot site, the study's
 table on the study's, never a stand-in from 8 December), that ``/auth/me``
 says signed in and allowed to play (the study information accepted, not withdrawn), and over
-``/ws`` that the server says hello, shows the lobby, makes a room and leaves it. Exits 0
+``/ws`` that the server says hello, shows the lobby, makes a room and leaves it. While the
+site takes no tables (before the study opens, or after the pilot: ``/study``'s ``tables``), it
+checks instead that the room is refused in the words ``/study`` gives. Exits 0
 and prints PASS, or 1 with what failed. It never joins the solo queue, so it cannot start a
 game.
 """
@@ -100,7 +102,24 @@ def page(url: str) -> str:
         return response.read().decode()
 
 
-async def socket(base: str, session: str) -> None:
+def tables_notice(base: str) -> str | None:
+    """What the site says when asked for a table while it takes none (``/study``'s
+    ``tables``, T4.3), or None while it takes them."""
+    _, study = get(f"{base}/study")
+    tables = study.get("tables")
+    if tables is None:
+        return None
+    if not isinstance(tables, dict):
+        raise RuntimeError(f"/study's tables is neither null nor an object: {tables!r}")
+    shut = cast(dict[str, object], tables)
+    message, link = shut.get("message"), shut.get("link")
+    print("tables:", shut.get("reason"), "-", message, link or "")
+    return f"{message} {link}" if link else str(message)
+
+
+async def socket(base: str, session: str, closed: str | None = None) -> None:
+    """Hello, the lobby, then a room made and left; or, with ``closed`` (the site takes no
+    tables now), the room refused in exactly those words."""
     url = base.replace("https://", "wss://").replace("http://", "ws://") + "/ws"
     async with websockets.connect(
         url, additional_headers={"Cookie": f"fish_session={session}"}
@@ -120,6 +139,18 @@ async def socket(base: str, session: str) -> None:
         print("hello:", await next_message("server_hello"))
         print("lobby:", await next_message("lobby"))
         await ws.send(json.dumps({"type": "create_room"}))
+        if closed is not None:
+            refused = json.loads(await asyncio.wait_for(ws.recv(), timeout=15))
+            while refused["type"] == "ping":
+                refused = json.loads(await asyncio.wait_for(ws.recv(), timeout=15))
+            print("room: ", refused)
+            if (refused.get("type"), refused.get("code"), refused.get("message")) != (
+                "error",
+                "not_now",
+                closed,
+            ):
+                raise RuntimeError("a closed site did not refuse the room as /study says")
+            return
         room = await next_message("lobby")
         print("room: ", room)
         if room["waiting"] != "group" or not room["code"]:
@@ -157,7 +188,7 @@ def main() -> int:
         study = cast(dict[str, object], me["study"])
         if not study["may_play"]:
             raise RuntimeError(f"this player may not play yet: {study}")
-        asyncio.run(socket(base, args.session))
+        asyncio.run(socket(base, args.session, tables_notice(base)))
     except Exception as problem:  # one line, whatever went wrong
         print(f"FAIL: {problem}")
         return 1

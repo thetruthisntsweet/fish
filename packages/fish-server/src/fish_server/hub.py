@@ -74,6 +74,7 @@ from fish_server.game import (
 from fish_server.games import abandon_quiet, new_seed, start_game, write_ending
 from fish_server.lobby import Formed, Lobby, NotNowError, Player
 from fish_server.logs import LOGGER
+from fish_server.opening import Closed
 from fish_server.protocol import (
     NOTE_QUESTION_VERSION,
     Act,
@@ -90,6 +91,7 @@ from fish_server.protocol import (
     parse_client_message,
 )
 from fish_server.protocol import Lobby as LobbyMessage
+from fish_server.settings import tables_closed
 
 type Sender = Callable[[str], Awaitable[None]]
 
@@ -282,8 +284,11 @@ class Hub:
         shown: Shown = DEFAULT_SHOWN,
         sweep_s: float = SWEEP_S,
         delays: DelayTable | None = None,
+        tables: Callable[[], Closed | None] = tables_closed,
     ) -> None:
         self.engine = engine
+        self.tables = tables
+        """Why no new tables may be made now, or None (``fish_server.opening``)."""
         self.server_commit = server_commit
         self.shown = shown
         self.delays = delays or load(UNIFORM)
@@ -370,6 +375,10 @@ class Hub:
     async def _lobby(self, connection: Connection, message: Message) -> None:
         player = connection.player
         if not isinstance(message, Leave):
+            shut = self.tables()
+            if shut is not None:
+                connection.send(error("not_now", shut.sentence()))
+                return
             refused = await asyncio.to_thread(self.refusal, player)
             if refused is not None:
                 connection.send(error("not_now", refused))

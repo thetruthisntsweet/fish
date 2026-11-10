@@ -8,7 +8,7 @@ it, checking it, the launch week, and every deploy after.
 
 Anyone signed up can play at any time ([recruitment.md](../recruitment.md) §3). So every game on
 this site is a study game, from the day it opens to the last. Until **Tuesday 8 December** the
-site refuses new tables and says when the study opens (T4.3 subtask 3), so it can be built and
+site refuses new tables and says when the study opens (`FISH_OPENS`, `fish_server.opening`), so it can be built and
 checked without anyone playing on it early. Don't play on it yourself, before or after.
 
 | When | What | Section |
@@ -105,7 +105,9 @@ Once §1 is done, and again after every deploy that changes what people see:
 
   It prints PASS, the schema revision of main's newest migration, and `bots:` with the study's
   table. That is `stand-in-v1` until the pilot's table is merged: fine before 8 December, a
-  FAIL from then on.
+  FAIL from then on. Until 8 December it also prints `tables: not_open - The study opens on
+  Tuesday 8 December 2026…`, and checks that making a room is refused in those words. From 8
+  December it makes a room and leaves it.
 - [ ] **Monitors.** Add `Fish study: server` and `Fish study: database` to UptimeRobot
   ([monitoring.md](monitoring.md) §1), and check that both are up.
 - [ ] Record it in §6.

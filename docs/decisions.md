@@ -1463,3 +1463,28 @@ site is therefore built well before launch, but refuses new tables until 8 Decem
 Deploys after launch go through staging first and are tagged outside 7:30 to 10:30 pm on game
 nights. A rollback is a tag on an older commit with the same newest migration. Otherwise the
 pre-deploy step refuses an unknown database revision, and the fix goes forward.
+
+**D124 · 2026-11-10 · Each site takes tables only on its own days (T4.3).**
+Anyone signed up may play at any time, so each site states when it takes new tables, by
+Eastern day (`fish_server.opening`):
+- `FISH_OPENS=2026-12-08` on the study's site, so it can be built and checked from late
+  November with no one playing on it early;
+- `FISH_PILOT_ENDED=2026-12-06` on the pilot site, so no one plays pilot games after the pilot.
+  Its lobby links to the study.
+
+The days are in `render.yaml`, read at every request, so each site opens or closes at midnight
+by itself, with no deploy or setting to remember. `test_blueprint.py` checks the study's day
+against `fish_server.study.LAUNCH`, and both sites' boundaries to the second.
+`FISH_TABLES_OPEN=yes` reopens only an ended pilot site, for a test on staging. The server
+refuses it on the study's site, so that site can't open early.
+
+While closed:
+- finding a table, making a room and joining one are refused in the same words `/study` gives
+  in `tables`, which the lobby shows instead of its buttons;
+- signing in, the study information, withdrawing and games already being played are
+  unaffected;
+- `scripts/try_server.py` expects the refusal and passes on it.
+
+Unset, as in development and tests, tables are open.
+Alternatives: switching sites by hand on the day, which can be forgotten; closing sign-up too,
+which would stop pilot players from withdrawing on the site.

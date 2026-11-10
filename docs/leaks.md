@@ -87,7 +87,7 @@ counts its own pings, 1, 2, 3 and so on, and a pong is matched by its seat and n
 |---|---|---|
 | `/health` | `ok`, the server, ruleset, RNG and protocol versions, and the bots' delay table | anyone: no game or account |
 | `/health/db` | whether the database answers, and its migration number, never error details | anyone: no game or account |
-| `/study` | the versions of the consent text and terms shown, the last day to withdraw, and whether that is still open | anyone: the same for everyone |
+| `/study` | the versions of the consent text and terms shown, the last day to withdraw, whether that is still open, and, while the site takes no new tables, why (`tables`) | anyone: the same for everyone |
 | `/auth/me` | whether this browser is signed in, and the person's own standing (versions accepted, withdrawn, may play) | the person only, by their session cookie |
 | `POST /auth/link` | 202 whether or not the address has an account; 422 for a bad address or acceptance; 429 past the hourly or daily limit | says nothing about any other person, or about whether the address has played |
 | `/sign-in`, `POST /auth/verify` | the page that signs in with a link, and the session cookie, or a sentence that the link has expired or been used | the link's holder |

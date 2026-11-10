@@ -15,6 +15,8 @@ export interface FakeServer {
   /** The terms shown; unset, the pilot's on a pilot text, else v1.0. */
   terms?: string;
   withdrawalOpen: boolean;
+  /** Why the site takes no tables now, as /study says it; null while it does. */
+  tables: { reason: string; message: string; link: string | null } | null;
   /** Null: no one signed in. ``termsAccepted`` unset: the terms shown now. */
   standing: { accepted: string | null; termsAccepted?: string | null; withdrawn: boolean } | null;
   /** Answers to give instead, by "METHOD /path", once each. */
@@ -35,6 +37,7 @@ export function fakeServer(): FakeServer {
     sent: [],
     version: "v1.0",
     withdrawalOpen: true,
+    tables: null,
     standing: null,
     next: new Map(),
     reachable: true,
@@ -62,6 +65,7 @@ export function fakeServer(): FakeServer {
             terms_version: terms(),
             withdraw_until: server.version === "v1.0" ? "2027-02-14" : "2027-03-31",
             withdrawal_open: server.withdrawalOpen,
+            tables: server.tables,
           }),
         );
       case "GET /auth/me": {

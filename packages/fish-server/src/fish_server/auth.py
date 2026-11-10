@@ -37,7 +37,15 @@ from starlette.concurrency import run_in_threadpool
 from fish_server.consent import Acceptance, accept, problem, standing, withdraw
 from fish_server.database import get_engine
 from fish_server.mailer import Mailer, MailError, mailer
-from fish_server.settings import cohort_seed, consent_version, daily_link_limit, public_url, shown
+from fish_server.opening import as_json
+from fish_server.settings import (
+    cohort_seed,
+    consent_version,
+    daily_link_limit,
+    public_url,
+    shown,
+    tables_closed,
+)
 from fish_server.signin import (
     LINK_LIFETIME,
     SESSION_LIFETIME,
@@ -199,7 +207,8 @@ def signed_in(token: str | None) -> uuid.UUID | None:
 def study(now: Annotated[datetime, Depends(clock)]) -> JSONResponse:
     """The version of the study information this site shows (Consent Screen §1, §4), the
     version of the terms of use and privacy policy (T3.8), the last day to withdraw on the
-    website (§2.7), and whether withdrawing is still open."""
+    website (§2.7), whether withdrawing is still open, and, if the site takes no new tables
+    now, why (T4.3; ``fish_server.opening``)."""
     site = shown()
     version = VERSIONS[site.consent]
     return JSONResponse(
@@ -208,6 +217,7 @@ def study(now: Annotated[datetime, Depends(clock)]) -> JSONResponse:
             "terms_version": site.terms,
             "withdraw_until": version.withdraw_until.isoformat(),
             "withdrawal_open": version.withdrawal_open(now),
+            "tables": as_json(tables_closed(now)),
         }
     )
 

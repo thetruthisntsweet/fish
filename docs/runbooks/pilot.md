@@ -90,6 +90,13 @@ games took or how people responded. If it did, leave those games out of the repo
 
 ## 4. After the last night: Saturday 5 – Monday 7 December
 
+From midnight after the last night (Sunday 6 December, Eastern), the pilot site takes no new
+tables. Its lobby says the pilot is over and links to the study (`FISH_PILOT_ENDED` in
+`render.yaml`, `fish_server.opening`), so no one plays pilot games that no one will use.
+Signing in, the study information and withdrawing still work, and the commands below run in
+its Shell as before. To try something on staging afterwards, set `FISH_TABLES_OPEN=yes` in
+`fish-staging` → **Environment**, and delete it when you're done.
+
 In this order:
 
 1. **The report**, in `fish-staging`'s Shell:

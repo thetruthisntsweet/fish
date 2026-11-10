@@ -4,6 +4,7 @@ links pointing at that address over HTTPS, its own database, and settings the se
 Staging, the pilot site, deploys main; production, the study's, only the production branch that
 the Deploy workflow moves."""
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Final
 from urllib.parse import urlsplit
@@ -11,12 +12,29 @@ from urllib.parse import urlsplit
 import pytest
 import yaml
 
-from fish_server.settings import bot_delays, consent_version, daily_link_limit, terms_version
-from fish_server.study import BOT_DELAYS
+from fish_server.opening import EASTERN
+from fish_server.settings import (
+    bot_delays,
+    consent_version,
+    daily_link_limit,
+    tables_closed,
+    terms_version,
+)
+from fish_server.study import BOT_DELAYS, LAUNCH
 
 BLUEPRINT: Final = Path(__file__).resolve().parents[3] / "render.yaml"
 SITES: Final = {"fish-staging": "fish-pilot", "fish-production": "fish"}
 """Each web service, and the first label of its address."""
+SETTINGS: Final = (
+    "FISH_CONSENT_VERSION",
+    "FISH_TERMS_VERSION",
+    "FISH_SIGNIN_DAILY_LIMIT",
+    "FISH_BOT_DELAYS",
+    "FISH_OPENS",
+    "FISH_PILOT_ENDED",
+    "FISH_TABLES_OPEN",
+)
+"""Settings a test clears first, so only the Blueprint's values count."""
 ADDRESS_PENDING: Final[set[str]] = {"fish-production"}
 """Services whose own address is not yet verified, so whose `onrender.com` address is still on:
 Render switches it off only once the custom one works. Emptied by docs/runbooks/launch.md §1
@@ -91,8 +109,7 @@ def test_staging_deploys_main_and_production_only_its_branch() -> None:
 def test_the_server_reads_each_sites_settings_as_meant(
     monkeypatch: pytest.MonkeyPatch, name: str, consent: str, terms: str, limit: int, delays: str
 ) -> None:
-    for key in ("FISH_CONSENT_VERSION", "FISH_TERMS_VERSION", "FISH_SIGNIN_DAILY_LIMIT",
-                "FISH_BOT_DELAYS"):  # fmt: skip
+    for key in SETTINGS:
         monkeypatch.delenv(key, raising=False)
     for key, value in values(service(name)).items():
         monkeypatch.setenv(key, value)
@@ -112,3 +129,33 @@ def test_the_databases_are_alike_but_the_studys_has_room() -> None:
 def test_only_production_may_wait_for_its_address() -> None:
     assert set(SITES) >= ADDRESS_PENDING
     assert "fish-staging" not in ADDRESS_PENDING
+
+
+@pytest.mark.parametrize(
+    ("name", "first_open", "last_open"),
+    [
+        ("fish-staging", None, datetime(2026, 12, 6, 4, 59, 59, tzinfo=UTC)),  # Sat 5 Dec, Eastern
+        ("fish-production", datetime(2026, 12, 8, 5, tzinfo=UTC), None),  # Tue 8 Dec, Eastern
+    ],
+)
+def test_each_site_takes_tables_only_on_its_days(
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    first_open: datetime | None,
+    last_open: datetime | None,
+) -> None:
+    """The pilot site until its last night, the study's from the day it opens (T4.3): the day
+    the server reads from the Blueprint is the study's own launch day."""
+    for key in SETTINGS:
+        monkeypatch.delenv(key, raising=False)
+    for key, value in values(service(name)).items():
+        monkeypatch.setenv(key, value)
+    assert "FISH_TABLES_OPEN" not in values(service(name))  # only ever set by hand, briefly
+    second = timedelta(seconds=1)
+    if first_open is not None:
+        assert first_open.astimezone(EASTERN).date() == LAUNCH
+        assert tables_closed(first_open - second) is not None
+        assert tables_closed(first_open) is None
+    if last_open is not None:
+        assert tables_closed(last_open) is None
+        assert tables_closed(last_open + second) is not None

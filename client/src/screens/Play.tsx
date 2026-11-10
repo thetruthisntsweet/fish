@@ -1,5 +1,6 @@
 // Playing (T3.4): the signed-in front page holds the game connection, and shows the lobby,
 // the table, or what happened to the connection.
+import type { TablesClosed } from "../api.ts";
 import { useGame } from "../game/useGame.ts";
 import type { Closed, Status } from "../game/connection.ts";
 import { Ending, Question } from "./AfterGame.tsx";
@@ -9,9 +10,11 @@ import { Table } from "./Table.tsx";
 interface Props {
   /** The server no longer knows this browser: ask the site again, which shows sign-in. */
   onSignedOut: () => void;
+  /** Why the site takes no new tables now (/study), or null while it does. */
+  tables?: TablesClosed | null;
 }
 
-export function Play({ onSignedOut }: Props) {
+export function Play({ onSignedOut, tables = null }: Props) {
   const game = useGame();
   const { status } = game.state;
 
@@ -48,6 +51,7 @@ export function Play({ onSignedOut }: Props) {
               />
             ) : (
               <Lobby
+                closed={tables}
                 lobby={game.state.lobby}
                 error={game.state.error}
                 send={(message) => {

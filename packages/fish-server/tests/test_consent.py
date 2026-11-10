@@ -26,6 +26,7 @@ from fish_server.mailer import MemoryMailer, mailer
 from fish_server.settings import (
     COHORT_SEED_VAR,
     CONSENT_VERSION_VAR,
+    OPENS_VAR,
     TERMS_VERSION_VAR,
     consent_version,
     database_url,
@@ -163,6 +164,7 @@ def test_the_screen_s_acceptance_is_recorded_when_the_link_is_used(
         "terms_version": "v1.0",
         "withdraw_until": "2027-02-14",
         "withdrawal_open": True,
+        "tables": None,  # open: no FISH_OPENS or FISH_PILOT_ENDED here
     }
     assert sign_in(http, mail, "new@example.org", ACCEPTED) == 202
     (row,) = consents(app)
@@ -292,6 +294,7 @@ def test_the_pilot_site_says_its_own_last_day(
         "terms_version": "v1.0-pilot",
         "withdraw_until": "2027-03-31",
         "withdrawal_open": True,
+        "tables": None,
     }
 
 
@@ -351,3 +354,20 @@ def test_the_lobby_lets_in_only_those_who_may_play(app: Engine) -> None:
     assert "withdrawn" in (hub.refusal(Player(gone, False)) or "")
     with app.connect() as conn:
         assert standing(conn, uuid.uuid4(), STUDY) == Standing(None, None, False, STUDY)
+
+
+def test_the_site_says_when_it_takes_no_tables(
+    client: tuple[TestClient, MemoryMailer], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``/study``'s ``tables``, by the server's clock (T4.3; fish_server.opening)."""
+    http, _ = client
+    monkeypatch.setenv(OPENS_VAR, "2026-12-08")
+    server.dependency_overrides[clock] = lambda: datetime(2026, 12, 8, 4, 59, tzinfo=UTC)
+    assert http.get("/study").json()["tables"] == {
+        "reason": "not_open",
+        "message": "The study opens on Tuesday 8 December 2026. Until then, no games can be"
+        " played here.",
+        "link": None,
+    }
+    server.dependency_overrides[clock] = lambda: datetime(2026, 12, 8, 5, tzinfo=UTC)
+    assert http.get("/study").json()["tables"] is None  # midnight, Eastern

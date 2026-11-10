@@ -5,7 +5,8 @@ site, with test players instead of people: whole games over the internet, a play
 away, then every command of the pilot runbook's §4 on those games. It finds what would
 otherwise go wrong on 1 December, while there is still a week to fix it.
 
-**When:** by **Sunday 22 November**, once T4.2 is merged.
+**When:** by **Sunday 22 November**, once T4.2 is merged. A rehearsal after the pilot needs
+`FISH_TABLES_OPEN=yes` on `fish-staging` while it runs ([pilot.md](pilot.md) §4).
 **Time needed:** about an hour: 15 minutes signing in six test accounts, half an hour of
 games, 15 minutes of commands.
 

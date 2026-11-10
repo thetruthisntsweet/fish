@@ -52,3 +52,31 @@ test("without a clipboard, the link is there to copy by hand", () => {
   expect(screen.getByLabelText("Room link")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
 });
+
+test("a site taking no tables says why, with its link, and offers no way to one", () => {
+  const sent: ClientMessage[] = [];
+  const closed = {
+    reason: "pilot_over",
+    message: "The pilot is over: thank you for playing. The study itself is at",
+    link: "https://fish.thedefinitivesanjeevexperience.com",
+  } as const;
+  render(
+    <Lobby
+      lobby={AWAY}
+      error={null}
+      closed={closed}
+      send={(message) => {
+        sent.push(message);
+        return true;
+      }}
+    />,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "The pilot is over: thank you for playing. The study itself is at " +
+      "https://fish.thedefinitivesanjeevexperience.com.",
+  );
+  expect(screen.getByRole("link")).toHaveAttribute("href", closed.link);
+  expect(screen.queryByRole("button")).toBeNull();
+  expect(screen.queryByPlaceholderText("Room code")).toBeNull();
+  expect(sent).toEqual([]);
+});
