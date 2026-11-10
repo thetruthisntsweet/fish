@@ -7,7 +7,8 @@ Run it in the service's **Shell** every Monday. It checks every stored game, in 
 not, and prints each check with ``ok`` or how many faults it found, then each fault with its
 game's ID, so the game can be found. Nothing else is named. Exits 0 if every check is ok and 1
 otherwise. A fault is reported and never repaired here: what to do about one is decided and
-recorded (docs/runbooks/collection.md).
+recorded (docs/runbooks/collection.md §4). A game excluded by such a decision
+(``fish_server.exclude``) is counted, and its faults are counted as known without failing.
 
 The checks, by name:
 
@@ -67,8 +68,12 @@ class Report:
     replayed: int = 0
     other_ruleset: int = 0
     """Games under another ruleset, which are left out of the corpus (R.10.2)."""
+    excluded: int = 0
+    """Games left out by a recorded decision (``fish_server.exclude``)."""
     checks: list[str] = field(default_factory=list[str])
     faults: list[Fault] = field(default_factory=list[Fault])
+    known: list[Fault] = field(default_factory=list[Fault])
+    """Faults in excluded games: already decided, so they are listed but do not fail."""
 
     def count(self, check: str) -> int:
         return sum(f.check == check for f in self.faults)
@@ -223,6 +228,10 @@ def check(conn: Connection, seed: int | None) -> Report:
     for name, step in steps:
         report.checks.append(name)
         step()
+    excluded = set(conn.execute(text("SELECT game_id FROM game_exclusions")).scalars())
+    report.excluded = len(excluded)
+    report.known = [f for f in report.faults if f.game in excluded]
+    report.faults = [f for f in report.faults if f.game not in excluded]
     return report
 
 
@@ -238,6 +247,11 @@ def lines(report: Report, today: date) -> list[str]:
     ]
     if report.other_ruleset:
         out.append(f"  {'under another ruleset':<30}{report.other_ruleset:>6}  (not in the corpus)")
+    if report.excluded:
+        out.append(
+            f"  {'excluded after a fault':<30}{report.excluded:>6}"
+            f"  ({len(report.known)} known faults in them)"
+        )
     out += ["", "Checks"]
     for name in report.checks:
         found = report.count(name)
@@ -249,7 +263,7 @@ def lines(report: Report, today: date) -> list[str]:
             out.append(f"  {fault.check}: {where}: {fault.detail}")
         if len(report.faults) > SHOWN:
             out.append(f"  and {len(report.faults) - SHOWN} more")
-        out += ["", f"FAIL: {len(report.faults)} faults (docs/runbooks/collection.md)"]
+        out += ["", f"FAIL: {len(report.faults)} faults (docs/runbooks/collection.md §4)"]
     else:
         out += ["", "PASS"]
     return out

@@ -1571,3 +1571,81 @@ a bot replaced may join another table. Tests damage stored games as the database
 way per check, and each is found in its game.
 Alternatives: relying on the export and the laptop check, which see only corpus games and one
 fault at a time; repairing in the command, which would change the record of what happened.
+
+**D129 · 2026-11-10 · `stats` counts the analysis sets and the weekly handover share (T4.4).**
+On the study's site, `python -m fish_server.stats` now shows, within the corpus:
+- the primary set, split by group;
+- the held-out test set, which is group 2's primary games;
+- games with a bot handover, as a count and a share;
+- rooms, games with a yes to note-taking, games with a note answer missing, and finished
+  games.
+
+A second weekly table gives each week's corpus, primary, group 2 primary and
+handover games with their share: the share T4.4 tracks.
+
+The corpus target is 1,000 games, but RQ1's headline is computed on primary-set games of each
+test set (Research Questions §2, §5.1), so those are the counts that say whether the study will
+have enough. The sets are counted in SQL, for speed. `test_stats.py` checks them game by game
+against `fish_rules.corpus.analysis_flags` on the exported records, so there is still one
+definition.
+Alternatives: building every record to count its flags, which takes minutes each Monday;
+reporting only the corpus total, which hides a primary set that grows slower.
+
+**D130 · 2026-11-10 · Each week's copy is checked against the last (T4.4).**
+`scripts/check_export.py --previous <last week's copy>` checks, on the laptop, that every game
+collected by last week is in this week's copy and unchanged. Each export draws new pseudonyms,
+and release ids move up when a withdrawal removes a game, so the files never match byte for
+byte. A game is found by its seed, and compared by a hash of its record without the release
+id, the pseudonyms and the note answers. The people must still line up: last week's pseudonyms
+map one to one onto this week's, across all games.
+
+Two differences are allowed:
+- a note-taking answer arriving for a seat that was `unanswered`, since a person is asked until
+  they answer;
+- games gone because a person withdrew. Their number is given with `--gone`, from the rise in
+  the server's count of withdrawn games, so a game can't disappear unnoticed.
+
+Anything else fails, naming games by seed. The integrity check (D128) shows the database is
+consistent now. This shows it hasn't been changed since, which an append-only database
+shouldn't allow, but only a second copy can show.
+Alternatives: comparing files or their hashes, which differ every week by design; a manifest
+of hashes kept on the server, which whatever changed the games could change too.
+
+**D131 · 2026-11-10 · A fault is answered by a recorded exclusion, never a repair (T4.4).**
+`docs/runbooks/collection.md` puts the integrity check (D128) and the copy comparison (D130)
+into the Monday routine. Its §4 says what each fault means, where to look, and the steps:
+keep the copies, find the cause, fix it by a PR, decide about the games in `decisions.md`,
+and only then leave a game out.
+
+Leaving a game out is new. `python -m fish_server.exclude <game id> --reason "…"` adds a row
+to `game_exclusions` (migration 0009), which is append-only like every corpus table. The game
+then stands `excluded`: left out of the export and counted in its summary, in `stats` and in
+the pilot report. The integrity check counts its faults as known and passes again. The game's
+own rows are never touched, and an exclusion can't be changed or undone, even by the owner.
+
+Without this, one corpus game that doesn't replay would stop every export, and so the weekly
+copy and the freeze, until someone edited the database by hand.
+
+The record in §6 gains the primary set, group 2's primary games, the handover share, the
+export's withdrawn games (which the copy check's `--gone` needs), and both checks' results.
+§3 gains a line for the primary set: under 70% of a full week's corpus games.
+Alternatives: skipping games that fail to build, which would hide faults; deleting or
+repairing rows, which the append-only tables refuse by design; a list of excluded games in
+the code, which needs a deploy and puts game IDs in the repository.
+
+**D132 · 2026-11-10 · T4.4 close-out: corpus integrity is checked every week.**
+T4.4's code and runbooks are done:
+- the integrity check of everything stored (D128);
+- the analysis sets and each week's handover share in `stats` (D129);
+- each week's copy compared with the last (D130);
+- fault responses and recorded exclusions, in the Monday routine (D131).
+
+Games with a bot in a seat are flagged by the record itself (`analysis_flags`), not by a
+stored mark. `stats` counts them by week, and they stay in the corpus, outside the primary set.
+
+The datasheet plan now says what the datasheet will report from this: the sets' counts, the
+weekly checks, and every fault and exclusion with its decision.
+
+T4.4 is built on the T4.3 branch and reaches main with it, at `docs/runbooks/launch.md` §1
+step 4. What remains is to run it: once on the pilot's games (6 or 7 December), then every
+Monday from 14 December to 15 February, and a last time before the freeze (T4.5).

@@ -149,6 +149,7 @@ with no pilot night.
 
    ```bash
    python -m fish_server.stats                      # its Database section, and your one sign-up
+   python -m fish_server.integrity                  # PASS, with no games stored
    python -m fish_server.audience --dry-run         # what 14 December's copy would change
    python -m fish_server.corpus_export --out /tmp/corpus-rehearsal.jsonl.gz
    ```
