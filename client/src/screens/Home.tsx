@@ -104,7 +104,7 @@ export function Home({ site, onChange }: Props) {
         />
       );
     case "signed-in":
-      return <Play onSignedOut={onChange} />;
+      return <Play onSignedOut={onChange} tables={site.study.tables} />;
     case "withdrawn":
       return <Withdrawn />;
   }

@@ -10,6 +10,31 @@ export interface Study {
   readonly termsVersion: string;
   readonly withdrawUntil: string;
   readonly withdrawalOpen: boolean;
+  /** Why the site takes no new tables now (fish_server.opening), or null while it does. */
+  readonly tables: TablesClosed | null;
+}
+
+/** The study's site before it opens, or the pilot site after the pilot (T4.3). */
+export interface TablesClosed {
+  readonly reason: "not_open" | "pilot_over";
+  readonly message: string;
+  /** An address the message refers people to, shown as a link after it. */
+  readonly link: string | null;
+}
+
+function tablesClosed(value: unknown): TablesClosed | null | undefined {
+  if (value === null) {
+    return null;
+  }
+  if (
+    !isRecord(value) ||
+    (value.reason !== "not_open" && value.reason !== "pilot_over") ||
+    typeof value.message !== "string" ||
+    !(typeof value.link === "string" || value.link === null)
+  ) {
+    return undefined;
+  }
+  return { reason: value.reason, message: value.message, link: value.link };
 }
 
 /** Where a signed-in player stands with the study (GET /auth/me). */
@@ -71,11 +96,16 @@ export async function getStudy(): Promise<Study> {
   ) {
     throw new UnexpectedAnswer(`GET /study answered ${String(status)}`);
   }
+  const tables = tablesClosed(body.tables);
+  if (tables === undefined) {
+    throw new UnexpectedAnswer("GET /study answered tables in an unknown form");
+  }
   return {
     version: body.version,
     termsVersion: body.terms_version,
     withdrawUntil: body.withdraw_until,
     withdrawalOpen: body.withdrawal_open,
+    tables,
   };
 }
 

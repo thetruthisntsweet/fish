@@ -39,7 +39,10 @@ BOT_DELAYS: Final = "stand-in-v1"
 report exists it is a stand-in, which the study must never open with: on 6 or 7 December it
 becomes the table built from the pilot (docs/runbooks/pilot.md §4)."""
 LAUNCH: Final = date(2026, 12, 8)
-"""The day the study opens (docs/recruitment.md §2)."""
+"""The day the study opens (docs/recruitment.md §2): the study's site's ``FISH_OPENS``."""
+PILOT_ENDED: Final = date(2026, 12, 6)
+"""The day after the last pilot night (docs/recruitment.md §3): the pilot site's
+``FISH_PILOT_ENDED``."""
 
 
 TERMS: Final[tuple[str, ...]] = ("v1.0", "v1.0-pilot")

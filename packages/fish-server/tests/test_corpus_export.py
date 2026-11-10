@@ -10,10 +10,11 @@ import gzip
 import importlib.util
 import json
 import uuid
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 from sqlalchemy import Connection, Engine, create_engine, insert, pool, select
@@ -87,6 +88,8 @@ def add_game(
     notes: dict[int, str] | None = None,
     ruleset: str = RULESET_VERSION,
     bot_delays: str = "uniform-1.5-4s-v1",
+    matchmaking: str = "solo",
+    cohort_table: bool = False,
 ) -> tuple[uuid.UUID, State]:
     """Write one website game. ``seats[s]`` is a person or None for a B1 bot. ``ending`` is
     the completion to record, "rules" for whatever the game reached, or None for no ending."""
@@ -105,8 +108,8 @@ def add_game(
             server_commit="abc1234",
             protocol_version=1,
             bot_delays=bot_delays,
-            matchmaking="solo",
-            cohort_table=False,
+            matchmaking=matchmaking,
+            cohort_table=cohort_table,
             started_at=START + timedelta(minutes=minutes),
         )
     )
@@ -488,3 +491,97 @@ def test_a_copy_that_is_cut_short_or_altered_fails(
     reordered.write_text(lines[1], encoding="utf-8")
     assert check.main([str(reordered)]) == 1
     assert "game g-000002, not g-000001" in capsys.readouterr().out
+
+
+def _lines(path: Path) -> list[dict[str, object]]:
+    with gzip.open(path, "rt", encoding="utf-8") as file:
+        return [json.loads(line) for line in file]
+
+
+def _write(path: Path, games: list[dict[str, object]]) -> Path:
+    path.write_text("".join(json.dumps(game) + "\n" for game in games), encoding="utf-8")
+    return path
+
+
+@pytest.mark.usefixtures("server_env")
+def test_this_weeks_copy_holds_last_weeks_games_unchanged(
+    app: Engine, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """T4.4: from one export to the next a game keeps everything but its release id and
+    pseudonyms; an answer may arrive, and a withdrawal takes whole games out."""
+    check = _check_export()
+    with app.begin() as conn:
+        regulars = table(conn)
+        leaving = table(conn)
+        add_game(conn, 51, regulars)
+        add_game(conn, 52, leaving, minutes=1)
+        late, _ = add_game(conn, 53, regulars, minutes=2, notes={0: "no"})
+    first = tmp_path / "corpus-2026-12-14.jsonl.gz"
+    assert main(["--out", str(first)]) == 0
+    with app.begin() as conn:
+        assert leaving[0] is not None
+        withdraw(conn, leaving[0])  # game 52 goes, and every later id moves up
+        conn.execute(
+            insert(db.note_answers).values(
+                game_id=late, seat=1, question_version="v1", answer="yes"
+            )
+        )
+        add_game(conn, 54, regulars, minutes=3)
+    second = tmp_path / "corpus-2026-12-21.jsonl.gz"
+    assert main(["--out", str(second)]) == 0
+    capsys.readouterr()
+    old, new = _lines(first), _lines(second)
+    assert old[0]["seats"] != new[0]["seats"]  # new pseudonyms: the files differ throughout
+
+    assert check.main([str(second), "--previous", str(first), "--gone", "1"]) == 0
+    printed = capsys.readouterr().out
+    assert (
+        "since corpus-2026-12-14.jsonl.gz: 2 games unchanged, 1 new, 1 gone, 1 note answers added"
+    ) in printed
+
+    assert check.main([str(second), "--previous", str(first)]) == 1  # a game gone, unexplained
+    assert "1 games are gone since corpus-2026-12-14.jsonl.gz, not 0 (seeds: 52)" in (
+        capsys.readouterr().out
+    )
+    assert check.main([str(first), "--previous", str(first)]) == 0  # nothing changed
+
+
+@pytest.mark.usefixtures("server_env")
+def test_a_game_changed_since_last_week_fails(
+    app: Engine, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    check = _check_export()
+    with app.begin() as conn:
+        regulars = table(conn)
+        add_game(conn, 61, regulars, notes={0: "no"})
+        add_game(conn, 62, regulars, minutes=1)
+    out = tmp_path / "corpus.jsonl.gz"
+    assert main(["--out", str(out)]) == 0
+    capsys.readouterr()
+    games = _lines(out)
+    last_week = _write(tmp_path / "last.jsonl", games)
+
+    def fails(change: Callable[[list[Any]], None], message: str) -> None:
+        changed = json.loads(json.dumps(games))
+        change(changed)
+        now = _write(tmp_path / "now.jsonl", changed)
+        assert check.main([str(now), "--previous", str(last_week)]) == 1
+        assert message in capsys.readouterr().out
+
+    def slower(g: list[Any]) -> None:  # still a record that reads and replays
+        g[1]["times"][-1][1] += 1
+
+    def swapped(g: list[Any]) -> None:  # two people trade seats in one game only
+        seats = g[1]["seats"]
+        seats[0]["person"], seats[1]["person"] = seats[1]["person"], seats[0]["person"]
+
+    def unsaid(g: list[Any]) -> None:
+        g[0]["seats"][0]["note"] = "yes"
+
+    def merged(g: list[Any]) -> None:  # one person of the second game becomes a stranger
+        g[1]["seats"][2]["person"] = "p-0000000000000000"
+
+    fails(slower, "the game with seed 62 has changed")
+    fails(swapped, "the game with seed 62 seats a different person")
+    fails(unsaid, "the game with seed 61 has a note answer changed from no")
+    fails(merged, "the game with seed 62 seats a different person")

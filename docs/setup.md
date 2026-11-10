@@ -75,6 +75,8 @@ All from the repository root.
 | Check a copy of an export | `uv run python scripts/check_export.py corpus.jsonl.gz` |
 | What the pilot measured (runbooks/pilot.md §4) | `python -m fish_server.pilot_report --since 2026-12-01 --out /tmp/pilot.json`, in `fish-staging`'s Shell |
 | The minimum detectable effects (docs/mde.md) | `python -m fish_server.mde --since 2026-12-01`, in `fish-staging`'s Shell |
+| The weekly integrity check (T4.4) | `python -m fish_server.integrity`, in the service's Shell: PASS, or each fault with its game |
+| Leave a game out after a fault (collection.md §4) | `python -m fish_server.exclude <game id> --reason "D…: why"`, in the service's Shell. It can't be undone |
 | Answer a request about an address, or delete the email list (runbooks/requests.md) | `python -m fish_server.contacts show\|correct\|forget\|forget-everyone …`, in the Render Shell |
 | Regenerate client types after changing `protocol.py` | `scripts/gen_types.sh` |
 | Create a migration after changing `fish_server/db.py` | `uv run --env-file .env alembic revision --autogenerate --rev-id 0003 -m "what changed"` (next free number; read the file it writes) |
@@ -125,6 +127,9 @@ The test suite creates and drops its own throwaway databases and its own login
 | `FISH_PUBLIC_URL` | the server | where sign-in links point: the site's own address, set in `render.yaml`; defaults to `RENDER_EXTERNAL_URL` (Render sets it), else `http://127.0.0.1:8000` |
 | `FISH_CONSENT_VERSION` | the server | the study information shown and accepted: `v1.0` (default) or `v1.0-pilot` (staging) |
 | `FISH_TERMS_VERSION` | the server | the terms of use and privacy policy agreed to with it (T3.8); unset, `v1.0`, or `v1.0-pilot` with a pilot text, which is what both sites use |
+| `FISH_OPENS` | the server | no new tables before this Eastern day, `YYYY-MM-DD` (T4.3, `fish_server.opening`); the study's site: `2026-12-08`. Unset: open |
+| `FISH_PILOT_ENDED` | the server | no new tables from this Eastern day, and the lobby points to the study; the pilot site: `2026-12-06`. Unset: open |
+| `FISH_TABLES_OPEN` | the server | `yes` takes tables again on a pilot site that has ended, to test on staging. Refused anywhere else |
 | `FISH_BOT_DELAYS` | the server | the bots' delay table (R.8.8, D118); unset: `uniform-1.5-4s-v1` with a pilot text, the study's table (`fish_server.study.BOT_DELAYS`) otherwise. Set it only to rehearse another table on staging |
 | `FISH_SIGNIN_DAILY_LIMIT` | the server | most sign-in emails sent in 24 hours; default 90, under Resend's free 100 a day |
 

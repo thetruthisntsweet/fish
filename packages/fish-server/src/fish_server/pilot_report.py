@@ -215,6 +215,7 @@ def report(pilot: Pilot) -> list[str]:
     ]
     other = {
         "another ruleset": counts["other_ruleset"],
+        "excluded after a fault": counts["excluded"],
         "no person played": counts["no_person"],
         "a seat without consent": counts["unconsented"],
         "a person withdrew": counts["withdrawn"],

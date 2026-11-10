@@ -1,7 +1,7 @@
 // The website's first screens (Consent Screen §2), against a stand-in server: the consent
 // screen first, nothing sent or stored before Continue, the acceptance carried with the
 // sign-in link, a new version accepted again, and the screens around them.
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "./App.tsx";
 import { fakeServer, type FakeServer } from "./test/server.ts";
@@ -151,6 +151,24 @@ test("a signed-in player who accepted the text shown is not asked again", async 
   render(<App />);
   expect(await screen.findByRole("heading", { name: "Play Fish" })).toBeInTheDocument();
   expect(screen.queryByRole("checkbox")).toBeNull();
+});
+
+test("a signed-in player on a site taking no tables is told why, with no way to a table", async () => {
+  const latest = fakeSockets();
+  server.standing = { accepted: "v1.0", withdrawn: false };
+  server.tables = {
+    reason: "not_open",
+    message: "The study opens on Tuesday 8 December 2026. Until then, no games can be played here.",
+    link: null,
+  };
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Play Fish" })).toBeInTheDocument();
+  act(() => {
+    latest().hello();
+    latest().push({ type: "lobby", waiting: null, code: null, people: 0 });
+  });
+  expect(screen.getByRole("status")).toHaveTextContent("The study opens on Tuesday 8 December");
+  expect(screen.queryByRole("button", { name: "Find a table" })).toBeNull();
 });
 
 test("a new version is read and accepted again before the next game", async () => {

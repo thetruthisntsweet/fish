@@ -12,9 +12,13 @@ It checks that ``/`` serves the web client and ``/study`` names the text the sit
 that ``/health`` reports protocol 3, that ``/health/db`` reaches the database and finds it
 at this checkout's newest migration (so run it from an up-to-date main), that the bots wait as
 this checkout says the site's bots should (``uniform-1.5-4s-v1`` on the pilot site, the study's
-table on the study's, never a stand-in from 8 December), that ``/auth/me``
+table on the study's, never a stand-in from 8 December), that the site shows its own texts
+and takes tables exactly on its days (the study's from 8 December, the pilot's until 6
+December: ``check_calendar``), that ``/auth/me``
 says signed in and allowed to play (the study information accepted, not withdrawn), and over
-``/ws`` that the server says hello, shows the lobby, makes a room and leaves it. Exits 0
+``/ws`` that the server says hello, shows the lobby, makes a room and leaves it. While the
+site takes no tables (before the study opens, or after the pilot: ``/study``'s ``tables``), it
+checks instead that the room is refused in the words ``/study`` gives. Exits 0
 and prints PASS, or 1 with what failed. It never joins the solo queue, so it cannot start a
 game.
 """
@@ -25,7 +29,7 @@ import json
 import sys
 import urllib.error
 import urllib.request
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import cast
 
@@ -34,7 +38,8 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 from fish_agents.delays import UNIFORM, load
-from fish_server.study import BOT_DELAYS, LAUNCH
+from fish_server.opening import EASTERN
+from fish_server.study import BOT_DELAYS, LAUNCH, PILOT_ENDED
 
 PROTOCOL_VERSION = 3
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
@@ -100,7 +105,51 @@ def page(url: str) -> str:
         return response.read().decode()
 
 
-async def socket(base: str, session: str) -> None:
+def check_calendar(study: dict[str, object], now: datetime | None = None) -> None:
+    """The site shows its own texts, and takes tables exactly on its days: the study's site
+    v1.0 and closed before ``LAUNCH``; the pilot site the pilot's texts and closed from
+    ``PILOT_ENDED`` (unless FISH_TABLES_OPEN was left set). Raises RuntimeError."""
+    today = (now or datetime.now(UTC)).astimezone(EASTERN).date()
+    pilot = str(study.get("version", "")).endswith("-pilot")
+    texts = (study.get("version"), study.get("terms_version"))
+    tables = study.get("tables")
+    reason = tables.get("reason") if isinstance(tables, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    if pilot:
+        wanted = ("v1.0-pilot", "v1.0-pilot")
+        closed = "pilot_over" if today >= PILOT_ENDED else None
+    else:
+        wanted = ("v1.0", "v1.0")
+        closed = "not_open" if today < LAUNCH else None
+    print(
+        "site:  ", "the pilot" if pilot else "the study", f"on {today}: tables {closed or 'open'}"
+    )
+    if texts != wanted:
+        raise RuntimeError(f"the site shows texts {texts}, not {wanted}")
+    if reason != closed:
+        hint = " (is FISH_TABLES_OPEN still set?)" if pilot and closed and not reason else ""
+        raise RuntimeError(
+            f"tables should be {closed or 'open'} today, not {reason or 'open'}{hint}"
+        )
+
+
+def tables_notice(base: str) -> str | None:
+    """What the site says when asked for a table while it takes none (``/study``'s
+    ``tables``, T4.3), or None while it takes them."""
+    _, study = get(f"{base}/study")
+    tables = study.get("tables")
+    if tables is None:
+        return None
+    if not isinstance(tables, dict):
+        raise RuntimeError(f"/study's tables is neither null nor an object: {tables!r}")
+    shut = cast(dict[str, object], tables)
+    message, link = shut.get("message"), shut.get("link")
+    print("tables:", shut.get("reason"), "-", message, link or "")
+    return f"{message} {link}" if link else str(message)
+
+
+async def socket(base: str, session: str, closed: str | None = None) -> None:
+    """Hello, the lobby, then a room made and left; or, with ``closed`` (the site takes no
+    tables now), the room refused in exactly those words."""
     url = base.replace("https://", "wss://").replace("http://", "ws://") + "/ws"
     async with websockets.connect(
         url, additional_headers={"Cookie": f"fish_session={session}"}
@@ -120,6 +169,18 @@ async def socket(base: str, session: str) -> None:
         print("hello:", await next_message("server_hello"))
         print("lobby:", await next_message("lobby"))
         await ws.send(json.dumps({"type": "create_room"}))
+        if closed is not None:
+            refused = json.loads(await asyncio.wait_for(ws.recv(), timeout=15))
+            while refused["type"] == "ping":
+                refused = json.loads(await asyncio.wait_for(ws.recv(), timeout=15))
+            print("room: ", refused)
+            if (refused.get("type"), refused.get("code"), refused.get("message")) != (
+                "error",
+                "not_now",
+                closed,
+            ):
+                raise RuntimeError("a closed site did not refuse the room as /study says")
+            return
         room = await next_message("lobby")
         print("room: ", room)
         if room["waiting"] != "group" or not room["code"]:
@@ -148,6 +209,7 @@ def main() -> int:
         print("study: ", status, study)
         if status != 200 or not study.get("version"):
             raise RuntimeError("/study should name the text this site shows")
+        check_calendar(study)
         check_health(base)
         check_bot_delays(base)
         status, me = get(f"{base}/auth/me", args.session)
@@ -157,7 +219,7 @@ def main() -> int:
         study = cast(dict[str, object], me["study"])
         if not study["may_play"]:
             raise RuntimeError(f"this player may not play yet: {study}")
-        asyncio.run(socket(base, args.session))
+        asyncio.run(socket(base, args.session, tables_notice(base)))
     except Exception as problem:  # one line, whatever went wrong
         print(f"FAIL: {problem}")
         return 1

@@ -34,14 +34,14 @@ writes a script that prints them all; the datasheet quotes its output.
 | Question | Answer | When |
 |---|---|---|
 | What does an instance represent? | One complete game of Fish played by adults on the project's website, as one `fish-corpus-v2` record ([corpus.md](corpus.md) §7). | now |
-| How many instances? | Games exported, and games left out by reason (not ended, abandoned, no person, a person not eligible). Target: 1,000 or more adult games. | freeze |
+| How many instances? | Games exported, and games left out by reason (not ended, abandoned, another ruleset version, excluded after a fault, no person, a person not eligible, a person withdrew). The analysis sets within them: primary, held-out test set, rooms, note-flagged, with a handover (`fish_server.stats`, tracked weekly in docs/runbooks/collection.md §6). Target: 1,000 or more adult games. | weekly; final at freeze |
 | All possible instances, or a sample? | Every game played on the site during collection that ended under the rules and in which every person was eligible (corpus.md §6). Not a random sample of Fish players: people chose to take part (§3). | now; counts at freeze |
 | What data does each instance consist of? | The seed (which determines every hand), every action in order with its cause and its received and sent times on the server clock, the six seats (a pseudonymous person with a cohort flag and note answer, or a bot with its version and memory setting), handovers, round-trip times, rejected inputs, connections, bot delays, matchmaking, completion, the month played, and the ruleset, encodings and server commit. | now |
 | Is there a label or target? | No labels are added. The outcome and winner are part of each game, and every hidden card's holder at every moment follows from the seed and the actions, which is what the belief models are scored against. | now |
 | Is any information missing? | Note answers a person did not give (`unanswered`, `declined`); games that never ended or were abandoned are left out; bot-filled and handed-over seats have no human behaviour. All are flagged per game, and their counts are reported. | now; counts at freeze |
 | Are relationships between instances explicit? | Yes, through pseudonyms: the same person has the same pseudonym in every game of one release, and different pseudonyms in different releases. | now |
 | Are there recommended splits? | Yes. The held-out cohort's games are the cohort test set; all other games are split 70/15/15 into train, validation and test by game, with the split seed published (T1.1 §5.1). | now; seed at freeze |
-| Errors, noise or redundancies? | Response times include network delay; round-trip samples are provided to allow for it. Server timestamps are on one monotonic clock per game. No game appears twice. | now |
+| Errors, noise or redundancies? | Response times include network delay; round-trip samples are provided to allow for it. Server timestamps are on one monotonic clock per game. No game appears twice. Every stored game was checked weekly during collection (`fish_server.integrity`: whole logs that replay, consent flags, cohort tables, one seed per game), and each week's copy was compared with the last. Faults found, and the games excluded for them with the decision that excluded each, are listed from docs/runbooks/collection.md §6 and docs/decisions.md. | now; the list at freeze |
 | Self-contained, or does it rely on external resources? | Self-contained, but replaying a game to recover hands and states needs the rules engine, `fish-rules` (Apache-2.0), at the ruleset version recorded in each game. | now |
 | Confidential data? | None: no free text is collected (there is no chat), and contact data never leaves the server. | now |
 | Offensive or distressing content? | None: games contain only card-game actions. | now |
@@ -68,7 +68,7 @@ writes a script that prints them all; the datasheet quotes its output.
 
 | Question | Answer | When |
 |---|---|---|
-| What preprocessing was done? | Anonymisation only (T4.5): random pseudonyms per release, dates coarsened to the month, contact data and internal ids dropped. Games are not edited, filtered by quality or relabelled; games are left out only by the membership rules. | now |
+| What preprocessing was done? | Anonymisation only (T4.5): random pseudonyms per release, dates coarsened to the month, contact data and internal ids dropped. Games are not edited, filtered by quality or relabelled; games are left out only by the membership rules. One of those rules is an exclusion after a fault in how a game was played or stored: each is a recorded decision with its reason (`game_exclusions`), never a judgement of how well people played. | now |
 | Is the raw data saved? | Yes, on the project's server, in append-only tables with point-in-time backups (D14), and not released. A weekly copy of the corpus export, the latest only, is kept on the researcher's encrypted laptop until 30 June 2027 (D103). | now |
 | Is the software available? | Yes: `fish_server.corpus_export` produces the release, and `fish_rules.corpus` reads, checks and replays it, both in the public repository. | now |
 

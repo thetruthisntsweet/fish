@@ -10,7 +10,7 @@ nobody can sign in).
 |---|---|---|---|
 | `Fish pilot: server` | https://fish-pilot.thedefinitivesanjeevexperience.com/health | `"status":"ok"` | the site can't be reached |
 | `Fish pilot: database` | https://fish-pilot.thedefinitivesanjeevexperience.com/health/db | `"database":"ok"` | the server can't reach `fish-staging-db` |
-| `Fish study: server` | https://fish.thedefinitivesanjeevexperience.com/health | `"status":"ok"` | the same, for production (T4.3, by 7 Dec) |
+| `Fish study: server` | https://fish.thedefinitivesanjeevexperience.com/health | `"status":"ok"` | the same, for production ([launch.md](launch.md) §2, by 29 Nov) |
 | `Fish study: database` | https://fish.thedefinitivesanjeevexperience.com/health/db | `"database":"ok"` | the same, for production |
 
 These are keyword checks, not plain "is it up" checks, because a reply that isn't this
@@ -50,7 +50,7 @@ written, and games and the corpus are unaffected.
    to your contacts, so real alerts reach your inbox. Then delete `Alert test`.
 6. **Record it** in the table in §4: the date, and "set up; test alert received".
 
-**Production (T4.3, by 7 December):** once the study's address works
+**Production ([launch.md](launch.md) §2, by 29 November):** once the study's address works
 ([domains.md](domains.md)), add `Fish study: server` and `Fish study: database` the same
 way. Keep the pilot's two until the pilot site is switched off.
 

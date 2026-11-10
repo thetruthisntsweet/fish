@@ -122,6 +122,8 @@ the [changelog](CHANGELOG.md).
 - [Monitoring](docs/runbooks/monitoring.md): the uptime checks, and what to do when one fails
 - [Pilot](docs/runbooks/pilot.md): the three pilot nights, 1 – 5 December, and what follows from them
 - [Rehearsal](docs/runbooks/rehearsal.md): the pilot run once on staging with test players, by 22 November
+- [Launch](docs/runbooks/launch.md): creating the study's site, launch week, and every deploy and rollback after
+- [Collection](docs/runbooks/collection.md): what to check each Monday and game night, 13 December to 14 February, and when to act
 - [Releasing](docs/runbooks/release.md): publishing a new version
 
 ## Citing and licence

@@ -12,9 +12,12 @@ All times below are Eastern; from 1 November to 13 March that is UTC−5, so `-0
 
 **Every Monday, 14 December to 8 February**, in this order:
 
-1. In the production service's **Shell**: `python -m fish_server.stats`. If it says two full
-   weeks in a row were short, add a Friday night ([recruitment.md](../recruitment.md) §3) first.
-2. In the same Shell: `python -m fish_server.audience` (§4).
+1. In the production service's **Shell**: `python -m fish_server.stats`, checked against
+   [collection.md](collection.md) §3. If it says two full weeks in a row were short, add a
+   Friday night ([recruitment.md](../recruitment.md) §3) first.
+2. In the same Shell: `python -m fish_server.integrity`. It prints PASS, or faults to deal
+   with the same day ([collection.md](collection.md) §4). Then `python -m fish_server.audience`
+   (§4).
 3. On your computer: M4 for `Players: group 1`, then for `Players: group 2` (§3), for 9:00 am.
 4. The weekly corpus copy ([backups.md](backups.md) §2): export in the Shell, copy it to your
    laptop, check it, and delete last week's. It goes on one more Monday, 15 February.
@@ -57,9 +60,9 @@ export RESEND_BROADCAST_KEY="$(security find-generic-password -a "$USER" -s fish
 
 - **Sign-in links.** The free transactional plan stops at 100 emails a day, and the server
   stops itself at 90 (`FISH_SIGNIN_DAILY_LIMIT`). On launch day more people than that will
-  ask for links. Move to **Pro** (50,000 a month, no daily limit) and give the production
-  service `FISH_SIGNIN_DAILY_LIMIT=1500` in `render.yaml` (T4.3). Staging keeps 90: the pilot
-  is small.
+  ask for links. Move to **Pro** (50,000 a month, no daily limit). `render.yaml` gives the
+  production service `FISH_SIGNIN_DAILY_LIMIT=1500` (T4.3). Staging keeps 90: the pilot is
+  small.
 - **Invitations stay on the free plan.** It holds 1,000 contacts and three segments, and
   every contact counts once, whichever segments it is in. About 950 are invited, which leaves
   room for players who sign up with another address: `fish_server.audience` adds them as new
@@ -106,8 +109,8 @@ Every message goes at 9:00 am Eastern on its day:
 | M6, Tue 9 Feb | `M6 --segment Invited --create --send-at 2027-02-09T09:00:00-05:00` |
 | M7, Mon 15 Feb | `M7 --segment "Players: group 1" ...`, then `"Players: group 2"` |
 
-M3's `<minutes>` is the pilot's median game length, rounded to five minutes ("minutes a game
-takes" from `python -m fish_server.stats` in the pilot service's Shell). Before each M4, copy
+M3's `<minutes>` is the pilot's median game length, rounded to five minutes: "M3's {N}" in
+the pilot report ([pilot.md](pilot.md) §4). Before each M4, copy
 the players into their segments (§4) and check the week's pace with `python -m
 fish_server.stats` ([recruitment.md](../recruitment.md) §3).
 

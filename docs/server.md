@@ -181,7 +181,8 @@ Games are held in the one server process's memory, so a game that cannot go on e
 - **A deploy or restart:** every player's connection closes with code 1012 (service
   restart), which the client shows as the server restarting; the server then stops every
   game, writes what it has, and ends it `abandoned`. Deploying during real games cuts them
-  off, so deploy between game nights.
+  off, so deploy between game nights: the study's site only by a tag, outside 7:30 – 10:30
+  pm on game nights ([runbooks/launch.md](runbooks/launch.md) §4).
 - **Nobody left:** once a bot has replaced every person (R.8.4), the game stops at once
   and ends `abandoned`. A table of bots would play on unwatched, and with last-8 memory often
   to 1,000 asks (D85); it would never enter the corpus.

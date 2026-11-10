@@ -1418,3 +1418,234 @@ T4.2's code and runbooks are done:
 What remains is to run them: the rehearsal by 22 November, the three pilot nights from 1 to
 5 December, and on 6 and 7 December the report, M3's game length, the bots' table and
 `docs/mde.md` §3, all before the study opens on 8 December.
+
+**D122 · 2026-11-08 · The study's site is `fish-production`, deployed only by a site tag (T4.3).**
+`render.yaml` adds `fish-production` and `fish-production-db`, alike staging but with:
+- the study's address;
+- consent and terms v1.0;
+- a sign-in limit of 1,500 a day (Resend Pro);
+- its own cohort seed, Resend key and generated database password.
+
+Render deploys its `production` branch once CI's checks pass. Only `.github/workflows/deploy.yml`
+moves that branch. Pushing a tag `site-YYYY.MM.DD` (`.2` and on for a second that day) runs it,
+and it moves the branch only if:
+- `scripts/check_deploy.py` finds the tag well formed and its commit on main;
+- CI passed on that commit as a push to main.
+
+The move is forced, so a rollback is a new tag on an older commit of main. Run by hand, the
+workflow checks a tag and moves nothing. So every study deploy is a named, reviewed version of
+main, chosen for a moment between game nights, and never a side effect of a merge.
+
+The database is 5 GB. A game with six people takes about 0.6 MB, mostly pings (measured: 20
+40-minute games with 2,880 pings each), so 1,000 games need about 0.6 GB. Storage can grow but
+never shrink. The plans match staging's and can be raised in the dashboard.
+Alternatives: deploying production from main, where a merge on a game night would end games; a
+manual deploy in Render, which records the version nowhere but Render.
+
+**D123 · 2026-11-09 · The study's site is built by 29 November and opens on 8 December (T4.3).**
+`docs/runbooks/launch.md` sets the order of the one-time steps, so none fails for want of an
+earlier one:
+1. its own Resend key and a new cohort seed;
+2. the `production` branch, pushed once by hand, since Render needs it to exist;
+3. the merge that makes the Blueprint create the service and database;
+4. the first tag deploy, so the site refuses tables before its address works;
+5. the address;
+6. then a second change switching the `onrender.com` address off.
+
+Render won't switch that address off before the custom one is verified, so `render.yaml`
+leaves `renderSubdomainPolicy` out for production until then. `test_blueprint.py` names it in
+`ADDRESS_PENDING`, which the second change empties.
+
+Anyone signed up may play at any time, so every game on the study's site is a study game. The
+site is therefore built well before launch, but refuses new tables until 8 December (subtask
+3), and its author never plays on it.
+
+Deploys after launch go through staging first and are tagged outside 7:30 to 10:30 pm on game
+nights. A rollback is a tag on an older commit with the same newest migration. Otherwise the
+pre-deploy step refuses an unknown database revision, and the fix goes forward.
+
+**D124 · 2026-11-10 · Each site takes tables only on its own days (T4.3).**
+Anyone signed up may play at any time, so each site states when it takes new tables, by
+Eastern day (`fish_server.opening`):
+- `FISH_OPENS=2026-12-08` on the study's site, so it can be built and checked from late
+  November with no one playing on it early;
+- `FISH_PILOT_ENDED=2026-12-06` on the pilot site, so no one plays pilot games after the pilot.
+  Its lobby links to the study.
+
+The days are in `render.yaml`, read at every request, so each site opens or closes at midnight
+by itself, with no deploy or setting to remember. `test_blueprint.py` checks the study's day
+against `fish_server.study.LAUNCH`, and both sites' boundaries to the second.
+`FISH_TABLES_OPEN=yes` reopens only an ended pilot site, for a test on staging. The server
+refuses it on the study's site, so that site can't open early.
+
+While closed:
+- finding a table, making a room and joining one are refused in the same words `/study` gives
+  in `tables`, which the lobby shows instead of its buttons;
+- signing in, the study information, withdrawing and games already being played are
+  unaffected;
+- `scripts/try_server.py` expects the refusal and passes on it.
+
+Unset, as in development and tests, tables are open.
+Alternatives: switching sites by hand on the day, which can be forgotten; closing sign-up too,
+which would stop pilot players from withdrawing on the site.
+
+**D125 · 2026-11-10 · Collection is watched by hand, against written lines (T4.3).**
+`docs/runbooks/collection.md` gives the Monday routine (stats, segments and M4, the corpus
+copy, a record row) and what to watch on each game night. Its §3 table gives each signal, where
+to read it, the line past which to act, and what to do:
+- pace: two short weeks, then a Friday night;
+- group 2's tables;
+- bots in more than 20% of a week's corpus games, since those games are left out of RQ1's
+  primary set;
+- abandoned games above 10%;
+- the database at 80% of its disk;
+- server load on game nights;
+- errors, the site down, email, and requests.
+
+`fish_server.stats` gains the two it lacked: seats handed to a bot by reason (a person dropped
+out, or a turn ran out, which point to different fixes), and the database's size against its
+disk with a projection to 1,000 corpus games. It warns past 80%. The disk sizes it measures
+against are checked against `render.yaml`.
+
+During collection, game code changes only to fix a fault, recorded with the first game it
+affects, so the corpus stays one study.
+Alternatives: a daily emailed report from a Render cron job, declined for now (no new service);
+no written lines, which leaves each Monday's judgement to be remade.
+
+**D126 · 2026-11-10 · Launch week is rehearsed on the closed study site (T4.3).**
+Between creating the study's site (by 29 November) and 7 December, it is closed and holds no
+games. So `docs/runbooks/launch.md` §2 rehearses there every launch-week step not yet done
+once:
+- a tag the Deploy workflow refuses;
+- a dry run;
+- a rollback and back, to a commit that keeps the site closed;
+- the Monday commands on an empty corpus;
+- an M3 draft sent as a test, then deleted.
+
+`scripts/try_server.py` now also checks each site against the calendar:
+- the study's site shows v1.0, and is closed before `study.LAUNCH` and open from it;
+- the pilot site shows the pilot's texts, and is closed from `study.PILOT_ENDED`.
+
+A forgotten `FISH_TABLES_OPEN` fails it. `test_blueprint.py` ties both days to `render.yaml`.
+So the same command checks a site on any day, before, during or after launch.
+Alternatives: rehearsing on staging, which is the pilot during these weeks; no rehearsal,
+leaving the first rollback and the first Monday copy to the study's first week.
+
+**D127 · 2026-11-10 · T4.3 close-out: the study's site is ready to create.**
+T4.3's code and runbooks are done:
+- `fish-production` and its database in the Blueprint, deployed only by a site tag (D122);
+- the launch runbook, with the order of the one-time steps (D123);
+- each site taking tables only on its own days (D124);
+- watching collection against written lines (D125);
+- launch week rehearsed on the closed study site, with `try_server` checking each site
+  against the calendar (D126).
+
+The T4.3 pull request stays a draft until `docs/runbooks/launch.md` §1 step 4, because merging
+it makes the Blueprint create the study's site.
+
+What remains is to run them:
+- creating the site by 29 November, after the pilot rehearsal;
+- rehearsing launch week by 6 December;
+- the launch week itself, from 5 to 13 December;
+- the collection routine from 14 December to 15 February.
+
+**D128 · 2026-11-10 · A weekly integrity check of everything stored (T4.4).**
+`python -m fish_server.integrity` reads every stored game, in the corpus or not, and exits 1 if
+any check finds a fault:
+- `seats`, `actions`, `stale`: six seats, a completed game's actions numbered with no gap, and
+  no game left without an ending for an hour;
+- `consent`, `cohort`, `draw`: consent flags on every person's seat, tables holding the group
+  their matchmaking says, and every player in the group the cohort seed gives their sign-up
+  number;
+- `versions`, `seeds`, `notes`, `two tables`: known encodings and bot delay tables, no game
+  under another ruleset since the study opened, no shared seed, no answer on a bot's seat, and
+  nobody seated in two games at once;
+- `records`: every completed game of this ruleset builds into a record that reads and
+  replays, withdrawn games included.
+
+The export checks only the games it writes and stops at the first that fails. This reports
+every fault, with the game's ID and nothing else that names anyone. It never repairs: what to
+do about a fault is decided and recorded each time. `two tables` counts a person as seated
+until their handover or the game's last action, with five seconds' allowance, since a person
+a bot replaced may join another table. Tests damage stored games as the database's owner, one
+way per check, and each is found in its game.
+Alternatives: relying on the export and the laptop check, which see only corpus games and one
+fault at a time; repairing in the command, which would change the record of what happened.
+
+**D129 · 2026-11-10 · `stats` counts the analysis sets and the weekly handover share (T4.4).**
+On the study's site, `python -m fish_server.stats` now shows, within the corpus:
+- the primary set, split by group;
+- the held-out test set, which is group 2's primary games;
+- games with a bot handover, as a count and a share;
+- rooms, games with a yes to note-taking, games with a note answer missing, and finished
+  games.
+
+A second weekly table gives each week's corpus, primary, group 2 primary and
+handover games with their share: the share T4.4 tracks.
+
+The corpus target is 1,000 games, but RQ1's headline is computed on primary-set games of each
+test set (Research Questions §2, §5.1), so those are the counts that say whether the study will
+have enough. The sets are counted in SQL, for speed. `test_stats.py` checks them game by game
+against `fish_rules.corpus.analysis_flags` on the exported records, so there is still one
+definition.
+Alternatives: building every record to count its flags, which takes minutes each Monday;
+reporting only the corpus total, which hides a primary set that grows slower.
+
+**D130 · 2026-11-10 · Each week's copy is checked against the last (T4.4).**
+`scripts/check_export.py --previous <last week's copy>` checks, on the laptop, that every game
+collected by last week is in this week's copy and unchanged. Each export draws new pseudonyms,
+and release ids move up when a withdrawal removes a game, so the files never match byte for
+byte. A game is found by its seed, and compared by a hash of its record without the release
+id, the pseudonyms and the note answers. The people must still line up: last week's pseudonyms
+map one to one onto this week's, across all games.
+
+Two differences are allowed:
+- a note-taking answer arriving for a seat that was `unanswered`, since a person is asked until
+  they answer;
+- games gone because a person withdrew. Their number is given with `--gone`, from the rise in
+  the server's count of withdrawn games, so a game can't disappear unnoticed.
+
+Anything else fails, naming games by seed. The integrity check (D128) shows the database is
+consistent now. This shows it hasn't been changed since, which an append-only database
+shouldn't allow, but only a second copy can show.
+Alternatives: comparing files or their hashes, which differ every week by design; a manifest
+of hashes kept on the server, which whatever changed the games could change too.
+
+**D131 · 2026-11-10 · A fault is answered by a recorded exclusion, never a repair (T4.4).**
+`docs/runbooks/collection.md` puts the integrity check (D128) and the copy comparison (D130)
+into the Monday routine. Its §4 says what each fault means, where to look, and the steps:
+keep the copies, find the cause, fix it by a PR, decide about the games in `decisions.md`,
+and only then leave a game out.
+
+Leaving a game out is new. `python -m fish_server.exclude <game id> --reason "…"` adds a row
+to `game_exclusions` (migration 0009), which is append-only like every corpus table. The game
+then stands `excluded`: left out of the export and counted in its summary, in `stats` and in
+the pilot report. The integrity check counts its faults as known and passes again. The game's
+own rows are never touched, and an exclusion can't be changed or undone, even by the owner.
+
+Without this, one corpus game that doesn't replay would stop every export, and so the weekly
+copy and the freeze, until someone edited the database by hand.
+
+The record in §6 gains the primary set, group 2's primary games, the handover share, the
+export's withdrawn games (which the copy check's `--gone` needs), and both checks' results.
+§3 gains a line for the primary set: under 70% of a full week's corpus games.
+Alternatives: skipping games that fail to build, which would hide faults; deleting or
+repairing rows, which the append-only tables refuse by design; a list of excluded games in
+the code, which needs a deploy and puts game IDs in the repository.
+
+**D132 · 2026-11-10 · T4.4 close-out: corpus integrity is checked every week.**
+T4.4's code and runbooks are done:
+- the integrity check of everything stored (D128);
+- the analysis sets and each week's handover share in `stats` (D129);
+- each week's copy compared with the last (D130);
+- fault responses and recorded exclusions, in the Monday routine (D131).
+
+Games with a bot in a seat are flagged by the record itself (`analysis_flags`), not by a
+stored mark. `stats` counts them by week, and they stay in the corpus, outside the primary set.
+
+The datasheet plan now says what the datasheet will report from this: the sets' counts, the
+weekly checks, and every fault and exclusion with its decision.
+
+T4.4 is built on the T4.3 branch and reaches main with it, at `docs/runbooks/launch.md` §1
+step 4. What remains is to run it: once on the pilot's games (6 or 7 December), then every
+Monday from 14 December to 15 February, and a last time before the freeze (T4.5).

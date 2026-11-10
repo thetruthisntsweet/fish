@@ -2,6 +2,7 @@
 // a group and share its code, or join one with a code; then wait, with how many are here, or
 // leave. The server says where the player waits (lobby); this screen only asks.
 import { useState, type SyntheticEvent } from "react";
+import type { TablesClosed } from "../api.ts";
 import type { Lobby as LobbyMessage } from "../generated/Lobby.ts";
 import type { ServerError } from "../generated/ServerError.ts";
 import type { ClientMessage, Notice } from "../game/connection.ts";
@@ -21,9 +22,11 @@ interface Props {
   /** The latest error the server sent, such as why this player may not play. */
   error: Notice<ServerError> | null;
   send: (message: ClientMessage) => boolean;
+  /** Why the site takes no new tables now (/study): shown instead of the ways to a table. */
+  closed?: TablesClosed | null;
 }
 
-export function Lobby({ lobby, error, send }: Props) {
+export function Lobby({ lobby, error, send, closed = null }: Props) {
   // A shared link fills its room code in; the player still presses Join.
   const [typed, setTyped] = useState(() => roomFromLink() ?? "");
   const [copied, setCopied] = useState(false);
@@ -112,6 +115,20 @@ export function Lobby({ lobby, error, send }: Props) {
           </button>
         </div>
       </>
+    );
+  }
+
+  if (closed !== null) {
+    return (
+      <p className="notice" role="status">
+        {closed.message}
+        {closed.link !== null && (
+          <>
+            {" "}
+            <a href={closed.link}>{closed.link}</a>.
+          </>
+        )}
+      </p>
     );
   }
 
