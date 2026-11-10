@@ -75,6 +75,7 @@ All from the repository root.
 | Check a copy of an export | `uv run python scripts/check_export.py corpus.jsonl.gz` |
 | What the pilot measured (runbooks/pilot.md §4) | `python -m fish_server.pilot_report --since 2026-12-01 --out /tmp/pilot.json`, in `fish-staging`'s Shell |
 | The minimum detectable effects (docs/mde.md) | `python -m fish_server.mde --since 2026-12-01`, in `fish-staging`'s Shell |
+| The weekly integrity check (T4.4) | `python -m fish_server.integrity`, in the service's Shell: PASS, or each fault with its game |
 | Answer a request about an address, or delete the email list (runbooks/requests.md) | `python -m fish_server.contacts show\|correct\|forget\|forget-everyone …`, in the Render Shell |
 | Regenerate client types after changing `protocol.py` | `scripts/gen_types.sh` |
 | Create a migration after changing `fish_server/db.py` | `uv run --env-file .env alembic revision --autogenerate --rev-id 0003 -m "what changed"` (next free number; read the file it writes) |
