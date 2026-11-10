@@ -1530,3 +1530,21 @@ A forgotten `FISH_TABLES_OPEN` fails it. `test_blueprint.py` ties both days to `
 So the same command checks a site on any day, before, during or after launch.
 Alternatives: rehearsing on staging, which is the pilot during these weeks; no rehearsal,
 leaving the first rollback and the first Monday copy to the study's first week.
+
+**D127 · 2026-11-10 · T4.3 close-out: the study's site is ready to create.**
+T4.3's code and runbooks are done:
+- `fish-production` and its database in the Blueprint, deployed only by a site tag (D122);
+- the launch runbook, with the order of the one-time steps (D123);
+- each site taking tables only on its own days (D124);
+- watching collection against written lines (D125);
+- launch week rehearsed on the closed study site, with `try_server` checking each site
+  against the calendar (D126).
+
+The T4.3 pull request stays a draft until `docs/runbooks/launch.md` §1 step 4, because merging
+it makes the Blueprint create the study's site.
+
+What remains is to run them:
+- creating the site by 29 November, after the pilot rehearsal;
+- rehearsing launch week by 6 December;
+- the launch week itself, from 5 to 13 December;
+- the collection routine from 14 December to 15 February.
