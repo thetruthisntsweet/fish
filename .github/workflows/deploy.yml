@@ -2,7 +2,7 @@
 # the tagged commit, and Render deploys it to fish-production (render.yaml). The tag must be on
 # main, and CI must have passed on its commit. Run by hand (Actions > Deploy > Run workflow), it
 # checks a tag that way but moves nothing: a rehearsal. A deploy ends any game in progress, so
-# tag between game nights.
+# tag between game nights (docs/runbooks/launch.md §4).
 name: Deploy
 
 on:

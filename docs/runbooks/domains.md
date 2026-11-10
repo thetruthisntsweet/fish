@@ -7,7 +7,7 @@ it. A second address for the same site would split people's sessions between the
 | Site | Address | Render service | When |
 |---|---|---|---|
 | Pilot (staging) | https://fish-pilot.thedefinitivesanjeevexperience.com | `fish-staging` | now |
-| Study (production) | https://fish.thedefinitivesanjeevexperience.com | `fish-production` | when production is created (T4.3), by 7 December |
+| Study (production) | https://fish.thedefinitivesanjeevexperience.com | `fish-production` | when production is created, by 29 November ([launch.md](launch.md) §1) |
 
 Render's Hobby workspace includes two custom domains, which is exactly these two.
 

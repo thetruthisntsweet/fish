@@ -1441,3 +1441,25 @@ The database is 5 GB. A game with six people takes about 0.6 MB, mostly pings (m
 never shrink. The plans match staging's and can be raised in the dashboard.
 Alternatives: deploying production from main, where a merge on a game night would end games; a
 manual deploy in Render, which records the version nowhere but Render.
+
+**D123 · 2026-11-09 · The study's site is built by 29 November and opens on 8 December (T4.3).**
+`docs/runbooks/launch.md` sets the order of the one-time steps, so none fails for want of an
+earlier one:
+1. its own Resend key and a new cohort seed;
+2. the `production` branch, pushed once by hand, since Render needs it to exist;
+3. the merge that makes the Blueprint create the service and database;
+4. the first tag deploy, so the site refuses tables before its address works;
+5. the address;
+6. then a second change switching the `onrender.com` address off.
+
+Render won't switch that address off before the custom one is verified, so `render.yaml`
+leaves `renderSubdomainPolicy` out for production until then. `test_blueprint.py` names it in
+`ADDRESS_PENDING`, which the second change empties.
+
+Anyone signed up may play at any time, so every game on the study's site is a study game. The
+site is therefore built well before launch, but refuses new tables until 8 December (subtask
+3), and its author never plays on it.
+
+Deploys after launch go through staging first and are tagged outside 7:30 to 10:30 pm on game
+nights. A rollback is a tag on an older commit with the same newest migration. Otherwise the
+pre-deploy step refuses an unknown database revision, and the fix goes forward.

@@ -56,10 +56,11 @@ services:
     branch: production # moved only by the Deploy workflow, to a tagged commit on main
     autoDeployTrigger: checksPass
     healthCheckPath: /health
-    # The study's address (docs/runbooks/domains.md): a CNAME from fish to this service.
+    # The study's address (docs/runbooks/domains.md): a CNAME from fish to this service. Render
+    # switches the onrender.com address off only once this one is verified, so
+    # `renderSubdomainPolicy: disabled` is added after that (docs/runbooks/launch.md §1 step 7).
     domains:
       - fish.thedefinitivesanjeevexperience.com
-    renderSubdomainPolicy: disabled
     preDeployCommand: python -m fish_server.deploy
     envVars:
       - key: FISH_ADMIN_DATABASE_URL # the owner's private URL: migrations and admin tools only

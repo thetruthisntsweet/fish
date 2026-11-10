@@ -17,6 +17,10 @@ from fish_server.study import BOT_DELAYS
 BLUEPRINT: Final = Path(__file__).resolve().parents[3] / "render.yaml"
 SITES: Final = {"fish-staging": "fish-pilot", "fish-production": "fish"}
 """Each web service, and the first label of its address."""
+ADDRESS_PENDING: Final[set[str]] = {"fish-production"}
+"""Services whose own address is not yet verified, so whose `onrender.com` address is still on:
+Render switches it off only once the custom one works. Emptied by docs/runbooks/launch.md §1
+step 7, in the same change that adds `renderSubdomainPolicy: disabled`."""
 
 
 def blueprint() -> dict[str, Any]:
@@ -51,7 +55,10 @@ def test_sign_in_links_point_at_the_services_own_address(svc: dict[str, Any]) ->
     assert (link.path, link.query) == ("", "")
     assert svc["domains"] == [link.hostname]
     assert link.hostname == f"{SITES[svc['name']]}.thedefinitivesanjeevexperience.com"
-    assert svc["renderSubdomainPolicy"] == "disabled"
+    if svc["name"] in ADDRESS_PENDING:
+        assert "renderSubdomainPolicy" not in svc
+    else:
+        assert svc["renderSubdomainPolicy"] == "disabled"
 
 
 @pytest.mark.parametrize("svc", web_services(), ids=lambda s: s["name"])
@@ -100,3 +107,8 @@ def test_the_databases_are_alike_but_the_studys_has_room() -> None:
     for key in ("region", "postgresMajorVersion", "databaseName", "user", "ipAllowList"):
         assert staging[key] == production[key]
     assert production["diskSizeGB"] >= 2  # about 0.6 GB for 1,000 games
+
+
+def test_only_production_may_wait_for_its_address() -> None:
+    assert set(SITES) >= ADDRESS_PENDING
+    assert "fish-staging" not in ADDRESS_PENDING

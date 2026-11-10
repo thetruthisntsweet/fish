@@ -129,7 +129,7 @@ In this order:
    same games as the report. Paste it there with the number of games, then commit, push and
    merge the PR before 8 December. If it says there are too few finished games (fewer than
    10), record what it prints anyway, and say so under the table.
-5. **Production** opens on 8 December with all of it (T4.3).
+5. **Production** opens on 8 December with all of it ([launch.md](launch.md) §3).
 
 ## 5. Record
 

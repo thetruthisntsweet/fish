@@ -106,8 +106,8 @@ Every message goes at 9:00 am Eastern on its day:
 | M6, Tue 9 Feb | `M6 --segment Invited --create --send-at 2027-02-09T09:00:00-05:00` |
 | M7, Mon 15 Feb | `M7 --segment "Players: group 1" ...`, then `"Players: group 2"` |
 
-M3's `<minutes>` is the pilot's median game length, rounded to five minutes ("minutes a game
-takes" from `python -m fish_server.stats` in the pilot service's Shell). Before each M4, copy
+M3's `<minutes>` is the pilot's median game length, rounded to five minutes: "M3's {N}" in
+the pilot report ([pilot.md](pilot.md) §4). Before each M4, copy
 the players into their segments (§4) and check the week's pace with `python -m
 fish_server.stats` ([recruitment.md](../recruitment.md) §3).
 
