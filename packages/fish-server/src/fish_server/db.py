@@ -233,6 +233,17 @@ game_endings = Table(
     CheckConstraint("completion IN ('finished', 'unfinished', 'abandoned')", name="completion"),
 )
 
+game_exclusions = Table(
+    "game_exclusions",
+    metadata,
+    Column("game_id", ForeignKey("games.game_id"), primary_key=True),
+    Column("reason", Text, nullable=False),
+    _timestamp("at"),
+    CheckConstraint("length(btrim(reason)) >= 10", name="reason"),
+)
+"""A game left out of the corpus because of a fault in how it was played or stored (T4.4;
+``fish_server.exclude``): a record of its own, with why, and never a change to the game."""
+
 # ---------------------------------------------------------------- seats (§4)
 
 seats = Table(
@@ -337,6 +348,7 @@ APPEND_ONLY: Final[tuple[str, ...]] = (
     "withdrawals",
     "games",
     "game_endings",
+    "game_exclusions",
     "seats",
     "seat_consents",
     "note_answers",

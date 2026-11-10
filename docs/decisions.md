@@ -1610,3 +1610,25 @@ consistent now. This shows it hasn't been changed since, which an append-only da
 shouldn't allow, but only a second copy can show.
 Alternatives: comparing files or their hashes, which differ every week by design; a manifest
 of hashes kept on the server, which whatever changed the games could change too.
+
+**D131 · 2026-11-10 · A fault is answered by a recorded exclusion, never a repair (T4.4).**
+`docs/runbooks/collection.md` puts the integrity check (D128) and the copy comparison (D130)
+into the Monday routine. Its §4 says what each fault means, where to look, and the steps:
+keep the copies, find the cause, fix it by a PR, decide about the games in `decisions.md`,
+and only then leave a game out.
+
+Leaving a game out is new. `python -m fish_server.exclude <game id> --reason "…"` adds a row
+to `game_exclusions` (migration 0009), which is append-only like every corpus table. The game
+then stands `excluded`: left out of the export and counted in its summary, in `stats` and in
+the pilot report. The integrity check counts its faults as known and passes again. The game's
+own rows are never touched, and an exclusion can't be changed or undone, even by the owner.
+
+Without this, one corpus game that doesn't replay would stop every export, and so the weekly
+copy and the freeze, until someone edited the database by hand.
+
+The record in §6 gains the primary set, group 2's primary games, the handover share, the
+export's withdrawn games (which the copy check's `--gone` needs), and both checks' results.
+§3 gains a line for the primary set: under 70% of a full week's corpus games.
+Alternatives: skipping games that fail to build, which would hide faults; deleting or
+repairing rows, which the append-only tables refuse by design; a list of excluded games in
+the code, which needs a deploy and puts game IDs in the repository.

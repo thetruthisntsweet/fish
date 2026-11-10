@@ -97,9 +97,9 @@ night, so the last copy holds the whole corpus. Use the production service.
    answers added`. The two files never match byte for byte, because each export draws new
    pseudonyms. If it says games are gone, compare the number with the rise in "left out, a
    person withdrew" since last Monday's export (the record in
-   [collection.md](collection.md) §5). If they agree, run it again with `--gone N`. If they
+   [collection.md](collection.md) §6). If they agree, run it again with `--gone N`. If they
    don't, or it says a game has changed, stop: keep both copies, and treat it as a fault
-   ([collection.md](collection.md)).
+   ([collection.md](collection.md) §4).
 3. **Keep only this week's**, on both sides:
 
    ```bash

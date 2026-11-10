@@ -45,6 +45,7 @@ HANDOVER_REASONS: Final = {"disconnect": "a person dropped out", "turn_timeout":
 LEFT_OUT: Final[dict[Standing, str]] = {
     "abandoned": "abandoned",
     "other_ruleset": "another ruleset",
+    "excluded": "excluded after a fault",
     "withdrawn": "a person withdrew",
     "unconsented": "a seat without consent",
     "no_person": "no person played",

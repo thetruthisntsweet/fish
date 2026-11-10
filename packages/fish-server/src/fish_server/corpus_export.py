@@ -80,6 +80,7 @@ class Summary:
     unconsented: int = 0
     withdrawn: int = 0
     other_ruleset: int = 0
+    excluded: int = 0
     pseudonyms: dict[uuid.UUID, str] = field(default_factory=dict[uuid.UUID, str])
 
     def lines(self) -> list[str]:
@@ -92,6 +93,7 @@ class Summary:
             f"left out, a person's seat without consent: {self.unconsented}",
             f"left out, a person withdrew: {self.withdrawn}",
             f"left out, played under another ruleset: {self.other_ruleset}",
+            f"left out, excluded after a fault: {self.excluded}",
             f"people: {len(self.pseudonyms)}",
         ]
 
@@ -202,11 +204,19 @@ def _record(
 
 
 type Standing = Literal[
-    "exported", "not_ended", "abandoned", "other_ruleset", "no_person", "withdrawn", "unconsented"
+    "exported",
+    "not_ended",
+    "abandoned",
+    "other_ruleset",
+    "excluded",
+    "no_person",
+    "withdrawn",
+    "unconsented",
 ]
 """Where a stored game stands with the corpus: in it, or why it is left out. A game played
 under another ruleset version is analysed apart from this one's (R.10.2), so this corpus
-leaves it out: only test games on staging were played under v1.1."""
+leaves it out: only test games on staging were played under v1.1. ``excluded``: left out by a
+recorded decision after a fault (``fish_server.exclude``)."""
 
 
 def membership(conn: Connection) -> dict[uuid.UUID, Standing]:
@@ -214,6 +224,7 @@ def membership(conn: Connection) -> dict[uuid.UUID, Standing]:
     that stand ``exported``; ``fish_server.stats`` counts them."""
     unconsented = set(conn.execute(text(_UNCONSENTED)).scalars())
     withdrawn = set(conn.execute(text(_WITHDRAWN)).scalars())
+    excluded = set(conn.execute(select(db.game_exclusions.c.game_id)).scalars())
     people = set(
         conn.execute(
             select(db.seats.c.game_id).where(db.seats.c.player_id.is_not(None)).distinct()
@@ -232,6 +243,8 @@ def membership(conn: Connection) -> dict[uuid.UUID, Standing]:
             standing[game_id] = "abandoned"
         elif ruleset != RULESET_VERSION:
             standing[game_id] = "other_ruleset"
+        elif game_id in excluded:
+            standing[game_id] = "excluded"
         elif game_id not in people:
             standing[game_id] = "no_person"
         elif game_id in withdrawn:

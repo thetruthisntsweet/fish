@@ -31,7 +31,7 @@ pilot's database on 31 March 2027 ([requests.md](requests.md) §6).
 ## 1. By Sunday 29 November
 
 - [ ] Everything through T4.2 is deployed on `fish-staging`: `scripts/try_server.py` against
-  the pilot site, from an up-to-date main, prints PASS with schema revision `0008` and
+  the pilot site, from an up-to-date main, prints PASS with the schema revision of main's newest migration and
   `bots:   uniform-1.5-4s-v1`.
 - [ ] The rehearsal is done, by Sunday 22 November, and anything it found is fixed
   ([rehearsal.md](rehearsal.md)).
@@ -110,6 +110,10 @@ In this order:
    Copy what it prints into §6. Then copy what `cat` prints into a file `pilot.json` on
    your laptop. It holds every percentile of the response times, which step 3 needs, and
    the Shell's `/tmp` is gone at the next deploy. It names no game or player.
+   Then `python -m fish_server.integrity` (once T4.4 is deployed): the pilot's games are its
+   first real ones. A fault in a game from before 1 December is a test game's and only
+   needs noting. One in a pilot game is dealt with as [collection.md](collection.md) §4 says,
+   before the study opens.
 2. **The game length.** The report's median game length, rounded to five minutes, is M3's
    `{N}`. Send M3 on Tuesday 8 December with it (email.md §3).
 3. **The bots' delays.** On your laptop, from an up-to-date main:

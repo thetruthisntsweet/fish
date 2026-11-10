@@ -164,8 +164,9 @@ reader gets the same sets without trusting a stored copy.
 
 - **Corpus game.** Completed (§3), played under the current ruleset version (games under
   another are analysed separately, R.10.2: only staging's test games were played under v1.1),
-  at least one person played in it, every person's seat has its consent flags (§2.2), and
-  nobody who held a seat in it has withdrawn. Flags are
+  not excluded after a fault (`game_exclusions`: a recorded decision, with its reason,
+  T4.4), at least one person played in it, every person's seat has its consent flags (§2.2),
+  and nobody who held a seat in it has withdrawn. Flags are
   copied when the game starts, so accepting afterwards does not bring a game in. One
   withdrawal removes every game that person played, whole: their actions are part of every
   other seat's history.
@@ -250,6 +251,7 @@ two agree. Every table but `player_contacts` is append-only (§1).
 | `seat_consents` | §2.2, one row per person's seat, written with the seats | membership (§6) |
 | `games` | §3 except the ending; the seed as `numeric(20,0)`, since 64-bit seeds do not fit PostgreSQL's signed `bigint` | `seed`, versions, `game` |
 | `game_endings` | `completion` and `ended_at`, one row written when the game ends | `game.completion`; a game with no row has not ended |
+| `game_exclusions` | a game left out after a fault, with the reason and when (`fish_server.exclude`, migration 0009) | membership only (§6) |
 | `seats` | the six controllers at the start (§4) | `seats` |
 | `note_answers` | one row per seat that answered (§4.2) | the seat's `note`; no row is `unanswered` |
 | `actions` | §5.1, with the cause as `cause_seat` or `cause_timer` | `actions`, `times`, `causes` |

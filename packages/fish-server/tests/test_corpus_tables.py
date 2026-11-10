@@ -119,6 +119,9 @@ def write_game(engine: Engine) -> dict[str, Any]:
             )
         )
         conn.execute(insert(db.game_endings).values(game_id=game_id, completion="abandoned"))
+        conn.execute(
+            insert(db.game_exclusions).values(game_id=game_id, reason="a test's exclusion")
+        )
     return {"game_id": game_id, "people": people, "actions": actions, "consents": consents}
 
 
